@@ -12,8 +12,12 @@ import (
 	"time"
 
 	"github.com/ralys/jolyne/backend/internal/config"
+	"github.com/ralys/jolyne/backend/internal/matcher"
+	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/obs"
+	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/redisx"
+	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
 func main() {
@@ -46,9 +50,21 @@ func run() error {
 	}
 	defer rdb.Close()
 
+	svc := services{
+		rdb: rdb,
+		wsHandler: ws.NewHandler(ws.Deps{
+			RDB:     rdb,
+			Matcher: matcher.New(rdb),
+			Hub:     ws.NewHub(),
+			Quota:   quota.NewEngine(rdb, nil),
+			Block:   moderation.DefaultBlocklist(),
+			Log:     log,
+		}),
+	}
+
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           routes(rdb),
+		Handler:           routes(svc),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

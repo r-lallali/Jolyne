@@ -5,14 +5,20 @@ import (
 	"net/http"
 
 	"github.com/redis/go-redis/v9"
+
+	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
-// routes assemble le router HTTP du gateway.
-// Les handlers métier (WS /ws/match, signalement, etc.) seront branchés ici
-// au fur et à mesure des Phases — voir PLAN.md §4.
-func routes(rdb *redis.Client) http.Handler {
+// services regroupe les dépendances utilisées par les handlers HTTP.
+type services struct {
+	rdb       *redis.Client
+	wsHandler *ws.Handler
+}
+
+func routes(s services) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", healthz(rdb))
+	mux.HandleFunc("GET /healthz", healthz(s.rdb))
+	mux.Handle("GET /ws/match", s.wsHandler)
 	return mux
 }
 
