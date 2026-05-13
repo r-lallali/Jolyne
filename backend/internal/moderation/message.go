@@ -2,7 +2,6 @@ package moderation
 
 import (
 	"errors"
-	"html"
 	"strings"
 	"unicode/utf8"
 )
@@ -15,14 +14,15 @@ var (
 	ErrMessageBlocked = errors.New("message refusé par le filtre")
 )
 
-// SanitizeAndCheck applique les contraintes appliquées à un message de chat
-// avant relais via Redis pub/sub :
+// SanitizeAndCheck applique les contraintes serveur sur un message avant
+// relais via Redis pub/sub :
 //   - trim espaces invisibles
 //   - taille (1..messageMaxLen)
 //   - filtre obscénités
-//   - échappement HTML (CLAUDE.md règle d'or #2 — XSS aller-retour)
 //
-// Le contenu *réel* du message n'est jamais loggé. Voir CLAUDE.md règle #1.
+// La défense XSS côté client est assurée par DOMPurify + le rendu React
+// en text node (jamais dangerouslySetInnerHTML — CLAUDE.md règle d'or #2).
+// Le contenu *réel* du message n'est jamais loggé (règle #1).
 func SanitizeAndCheck(raw string, block *Blocklist) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -34,5 +34,5 @@ func SanitizeAndCheck(raw string, block *Blocklist) (string, error) {
 	if block.Contains(trimmed) {
 		return "", ErrMessageBlocked
 	}
-	return html.EscapeString(trimmed), nil
+	return trimmed, nil
 }

@@ -32,14 +32,15 @@ func TestMatch(t *testing.T) {
 	expectMatched(t, a, "bob")
 	expectMatched(t, b, "alice")
 
-	// Alice envoie, Bob reçoit (sanitization XSS appliquée côté serveur).
-	send(t, a, ws.ClientFrame{Type: ws.ClientMsg, Body: "hello <b>bob</b>"})
+	// Alice envoie, Bob reçoit. Le serveur ne réécrit pas le contenu — la
+	// défense XSS est assurée côté client (DOMPurify + React text node).
+	send(t, a, ws.ClientFrame{Type: ws.ClientMsg, Body: "hello bob"})
 	bob := recv(t, b)
 	if bob.Type != ws.ServerMsg {
 		t.Fatalf("bob got %s, want msg", bob.Type)
 	}
-	if bob.Body == "hello <b>bob</b>" {
-		t.Fatalf("XSS non échappé : %q", bob.Body)
+	if bob.Body != "hello bob" {
+		t.Fatalf("bob body = %q, want %q", bob.Body, "hello bob")
 	}
 
 	// Alice "next" → Bob doit recevoir peer_left.

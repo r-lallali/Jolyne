@@ -32,13 +32,13 @@ func TestSanitizeAndCheck(t *testing.T) {
 			t.Fatalf("got %v, want ErrMessageTooLong", err)
 		}
 	})
-	t.Run("xss échappé", func(t *testing.T) {
+	t.Run("xss forward (la défense est côté client)", func(t *testing.T) {
 		out, err := SanitizeAndCheck("<script>alert(1)</script>", b)
 		if err != nil {
 			t.Fatalf("err = %v", err)
 		}
-		if strings.Contains(out, "<script>") {
-			t.Fatalf("output non échappé : %q", out)
+		if out != "<script>alert(1)</script>" {
+			t.Fatalf("output altéré côté serveur : %q", out)
 		}
 	})
 	t.Run("obscénité bloquée", func(t *testing.T) {
