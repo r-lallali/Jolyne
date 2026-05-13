@@ -1,0 +1,41 @@
+# Environnement & secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backend Go
+backend/bin/
+backend/dist/
+backend/*.test
+backend/coverage.out
+backend/vendor/
+
+# Frontend Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/coverage/
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+frontend/*.tsbuildinfo
+
+# Logs
+*.log
+logs/
+
+# Données locales (volumes Docker)
+infra/data/
+
+# Builds
+*.tgz

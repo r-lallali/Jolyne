@@ -1,0 +1,89 @@
+name: backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  test:
+    name: build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: backend/go.sum
+
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "gofmt found unformatted files:"
+            echo "$out"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        run: go test -race -count=1 ./...
+
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: backend/go.sum
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.61
+          working-directory: backend
+
+  guardrails:
+    name: guardrails (privacy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      # CLAUDE.md règle d'or #1 : jamais logger le contenu d'un message de chat.
+      - name: no chat content in logs
+        run: |
+          if rg --type go -n 'msg\.Content|Message\.Content' backend/ | rg -i 'log|slog|print'; then
+            echo "Chat content potentially logged — voir CLAUDE.md règle d'or #1"
+            exit 1
+          fi
+
+      # Pas de Co-Authored-By: Claude dans les commits du PR (CLAUDE.md §Git).
+      - name: no AI attribution in commits
+        if: github.event_name == 'pull_request'
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          if git log --format=%B "$base..$head" | rg -i 'co-authored-by:\s*claude|generated with\s+claude|🤖'; then
+            echo "Mention d'IA détectée dans un message de commit"
+            exit 1
+          fi

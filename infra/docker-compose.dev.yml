@@ -1,0 +1,37 @@
+name: jolyne-dev
+
+# Stack de dev : pas de Caddy, ports backend/redis exposés en local.
+# Le frontend tourne hors compose via `pnpm dev` pour profiter du HMR.
+#
+# Usage : docker compose -f docker-compose.dev.yml up
+
+services:
+  backend:
+    build:
+      context: ../backend
+    environment:
+      JOLYNE_ENV: dev
+      JOLYNE_PORT: 8080
+      REDIS_ADDR: redis:6379
+      REDIS_DB: 0
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis_dev_data:

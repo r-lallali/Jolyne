@@ -1,0 +1,9 @@
+.git
+.github
+*.md
+node_modules
+.next
+out
+coverage
+.env
+.env.*

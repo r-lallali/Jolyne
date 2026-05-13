@@ -1,0 +1,61 @@
+name: jolyne
+
+# Stack de prod (un seul VPS). Voir docker-compose.dev.yml pour le dev local.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      JOLYNE_DOMAIN: ${JOLYNE_DOMAIN:?JOLYNE_DOMAIN requis}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    environment:
+      JOLYNE_ENV: prod
+      JOLYNE_PORT: 8080
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 0
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_BACKEND_HTTP_URL: https://${JOLYNE_DOMAIN}
+      NEXT_PUBLIC_BACKEND_WS_URL: wss://${JOLYNE_DOMAIN}
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "900 1", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis_data:
