@@ -21,8 +21,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    networks:
-      - dokploy-network
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
@@ -37,14 +35,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      # NEXT_PUBLIC_* doit être baked au build (pas runtime).
+      args:
+        NEXT_PUBLIC_BACKEND_HTTP_URL: https://${JOLYNE_DOMAIN}
+        NEXT_PUBLIC_BACKEND_WS_URL: wss://${JOLYNE_DOMAIN}
     restart: unless-stopped
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
-      NEXT_PUBLIC_BACKEND_HTTP_URL: https://${JOLYNE_DOMAIN}
-      NEXT_PUBLIC_BACKEND_WS_URL: wss://${JOLYNE_DOMAIN}
-    networks:
-      - dokploy-network
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
@@ -84,11 +82,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    networks:
-      - dokploy-network
 
+# Le réseau par défaut du compose project devient dokploy-network — comme ça
+# Traefik (qui vit sur ce même réseau) voit nos containers sans ambiguïté.
+# Pattern canonique des déploiements Compose Dokploy.
 networks:
-  dokploy-network:
+  default:
+    name: dokploy-network
     external: true
 
 volumes:

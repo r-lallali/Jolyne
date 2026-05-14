@@ -11,6 +11,14 @@ RUN corepack enable
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Les NEXT_PUBLIC_* sont bakés dans le bundle au build — IL FAUT les passer
+# via build args (pas via env runtime), sinon le bundle JS sert au navigateur
+# une URL vide et le client échoue avant même la connexion WebSocket.
+ARG NEXT_PUBLIC_BACKEND_HTTP_URL
+ARG NEXT_PUBLIC_BACKEND_WS_URL
+ENV NEXT_PUBLIC_BACKEND_HTTP_URL=$NEXT_PUBLIC_BACKEND_HTTP_URL
+ENV NEXT_PUBLIC_BACKEND_WS_URL=$NEXT_PUBLIC_BACKEND_WS_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
