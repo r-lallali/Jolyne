@@ -42,7 +42,12 @@ export function useMatch() {
         age: "ok",
       },
       onStateChange: (s) => {
-        if (s === "connecting" && chat.getState().status === "matched") {
+        const cur = chat.getState().status;
+        console.info("[match] ws state →", s, "chat status was=", cur);
+        if (s === "closed" && (cur === "matched" || cur === "queued")) {
+          chat.getState().setStatus("connecting");
+        }
+        if (s === "connecting" && cur === "matched") {
           chat.getState().setStatus("connecting");
         }
       },

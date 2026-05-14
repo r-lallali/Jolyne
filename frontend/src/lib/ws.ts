@@ -51,10 +51,13 @@ export function connectMatch(opts: ConnectOpts): Connection {
   };
 
   const open = () => {
+    const url = buildURL();
+    console.info("[ws] open", url);
     opts.onStateChange?.("connecting");
-    ws = new WebSocket(buildURL());
+    ws = new WebSocket(url);
 
     ws.onopen = () => {
+      console.info("[ws] connected");
       attempt = 0;
       opts.onStateChange?.("open");
     };
@@ -64,15 +67,23 @@ export function connectMatch(opts: ConnectOpts): Connection {
       try {
         frame = JSON.parse(e.data) as ServerFrame;
       } catch {
+        console.warn("[ws] bad json", e.data);
         return;
       }
+      console.info("[ws] in", frame);
       if (frame.type === "error" && FATAL_CODES.has(frame.code)) {
         fatal = true;
       }
       opts.onFrame(frame);
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      console.warn(
+        "[ws] closed",
+        "code=" + ev.code,
+        "reason=" + (ev.reason || "(none)"),
+        "wasClean=" + ev.wasClean,
+      );
       ws = null;
       opts.onStateChange?.("closed");
       if (closedByUser || fatal) return;
@@ -87,7 +98,8 @@ export function connectMatch(opts: ConnectOpts): Connection {
       schedule();
     };
 
-    ws.onerror = () => {
+    ws.onerror = (ev) => {
+      console.warn("[ws] error event", ev);
       // L'évènement "close" suit toujours — la reconnexion se gère là-bas.
     };
   };
@@ -105,7 +117,16 @@ export function connectMatch(opts: ConnectOpts): Connection {
 
   return {
     send(f) {
-      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.warn(
+          "[ws] send dropped — readyState=",
+          ws?.readyState ?? "null",
+          "frame=",
+          f,
+        );
+        return false;
+      }
+      console.info("[ws] out", f);
       ws.send(JSON.stringify(f));
       return true;
     },
