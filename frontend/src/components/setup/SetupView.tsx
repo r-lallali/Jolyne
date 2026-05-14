@@ -7,7 +7,9 @@ import { LangSelector } from "@/components/setup/LangSelector";
 import { PseudoInput } from "@/components/setup/PseudoInput";
 import { useMatch } from "@/hooks/useMatch";
 import { useSessionStore } from "@/stores/sessionStore";
-import type { LangCode } from "@/lib/langs";
+import { allowedWantsFor, isPairAllowed, type LangCode } from "@/lib/langs";
+
+const ALL_LANGS: LangCode[] = ["fr", "en", "es", "de"];
 
 type Step = "pseudo" | "config";
 
@@ -38,7 +40,14 @@ export function SetupView() {
   const acceptAge = store.acceptAge;
 
   const canNext = pseudo.length >= 3;
-  const canStart = canNext && speaks !== null && wants !== null && ageAccepted;
+  const canStart = canNext && isPairAllowed(speaks, wants) && ageAccepted;
+
+  // Langues à griser dans le picker "wants" : tant que speaks n'est pas
+  // choisi on grise tout ; sinon on grise speaks + toutes les langues qui
+  // ne forment pas une paire ouverte avec speaks (voir PLAN.md §8).
+  const wantsExclude: LangCode[] = speaks
+    ? ALL_LANGS.filter((c) => !isPairAllowed(speaks, c))
+    : ALL_LANGS;
 
   const goConfig = () => {
     if (!canNext) return;
@@ -52,9 +61,10 @@ export function SetupView() {
   };
 
   const handleSpeaksChange = (code: LangCode) => {
-    // Si la langue parlée change, on garde wants seulement si c'est différent
-    const newWants = wants === code ? null : wants;
-    setLangs(code, newWants as LangCode);
+    // Reset wants si la nouvelle paire (code → wants) n'est plus ouverte.
+    const allowed = allowedWantsFor(code);
+    const newWants = wants && allowed.includes(wants) ? wants : null;
+    setLangs(code, newWants);
   };
 
   const handleWantsChange = (code: LangCode) => {
@@ -135,7 +145,7 @@ export function SetupView() {
                     <LangSelector
                       value={wants}
                       onChange={handleWantsChange}
-                      exclude={speaks}
+                      exclude={wantsExclude}
                     />
                   </div>
                 </div>

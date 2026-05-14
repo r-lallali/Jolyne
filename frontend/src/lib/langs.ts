@@ -27,3 +27,21 @@ export const ALLOWED_PAIRS: readonly LangPair[] = [
 export function pairKey(p: LangPair): string {
   return `${p.speaks}->${p.wants}`;
 }
+
+// allowedWantsFor renvoie les langues cibles compatibles avec la langue
+// parlée donnée. Sert à griser les choix non ouverts au lancement
+// (cf. PLAN.md §8) avant même d'envoyer la requête au serveur.
+export function allowedWantsFor(speaks: LangCode | null): LangCode[] {
+  if (!speaks) return [];
+  return ALLOWED_PAIRS.filter((p) => p.speaks === speaks).map((p) => p.wants);
+}
+
+export function isPairAllowed(
+  speaks: LangCode | null,
+  wants: LangCode | null,
+): boolean {
+  if (!speaks || !wants) return false;
+  return ALLOWED_PAIRS.some(
+    (p) => p.speaks === speaks && p.wants === wants,
+  );
+}

@@ -10,28 +10,39 @@ import { useChatStore } from "@/stores/chatStore";
 export function Conversation() {
   const status = useChatStore((s) => s.status);
   const errorCode = useChatStore((s) => s.errorCode);
+  const errorMessage = useChatStore((s) => s.errorMessage);
   const reset = useChatStore((s) => s.reset);
   const { start } = useMatch();
 
   if (status === "idle") return <SetupView />;
   if (status === "error") {
-    return <ErrorView code={errorCode} onRetry={start} onBack={reset} />;
+    return (
+      <ErrorView
+        code={errorCode}
+        message={errorMessage}
+        onRetry={start}
+        onBack={reset}
+      />
+    );
   }
   return <ChatView />;
 }
 
 interface ErrorProps {
   code: string | null;
+  message: string | null;
   onRetry: () => void;
   onBack: () => void;
 }
 
-function ErrorView({ code, onRetry, onBack }: ErrorProps) {
+function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
   const fatal = code === "quota_exceeded" || code === "invalid_pseudo";
   return (
     <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
       <p className="text-lg text-neutral-200">{labelForCode(code)}</p>
-      <p className="max-w-xs text-sm text-neutral-500">{hintForCode(code)}</p>
+      <p className="max-w-xs text-sm text-neutral-500">
+        {hintForCode(code, message)}
+      </p>
       <div className="flex gap-3">
         {!fatal && (
           <button
@@ -62,6 +73,8 @@ function labelForCode(code: string | null): string {
       return "Tu as utilisé tes 10 « suivant » du jour.";
     case "invalid_pseudo":
       return "Ce pseudo n'est pas accepté.";
+    case "invalid_param":
+      return "Configuration invalide.";
     case "message_blocked":
     case "message_too_long":
       return "Message refusé.";
@@ -70,15 +83,20 @@ function labelForCode(code: string | null): string {
   }
 }
 
-function hintForCode(code: string | null): string {
+function hintForCode(code: string | null, message: string | null): string {
   switch (code) {
     case "queue_timeout":
-      return "Réessaie dans quelques instants — peu de monde est en ligne sur cette paire de langues.";
+      return "Peu de monde est en ligne sur cette paire de langues. Réessaie dans quelques instants.";
     case "quota_exceeded":
       return "Reviens demain. Premium retire cette limite (à venir).";
     case "invalid_pseudo":
       return "Choisis un pseudo entre 3 et 20 caractères, sans terme grossier.";
+    case "invalid_param":
+      return (
+        message ??
+        "Vérifie ta paire de langues. Toutes les combinaisons ne sont pas encore disponibles."
+      );
     default:
-      return "Réessaie ou recommence depuis le début.";
+      return message ?? "Réessaie ou recommence depuis le début.";
   }
 }

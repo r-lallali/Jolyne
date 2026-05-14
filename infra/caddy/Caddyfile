@@ -6,13 +6,20 @@
 {$JOLYNE_DOMAIN} {
 	encode zstd gzip
 
-	# Headers de sécurité — doublent ceux posés par Next pour les routes statiques
+	# Headers de sécurité — Caddy est la source unique en prod.
+	# `next.config.ts` n'en pose plus (le dev n'a pas de proxy donc pas de CSP,
+	# c'est volontaire — Turbopack/HMR injecte des scripts inline).
+	#
+	# La CSP autorise 'unsafe-inline' pour les scripts/styles parce que Next 15
+	# en émet pour l'hydratation. 'unsafe-eval' reste interdit. À durcir avec
+	# une CSP nonce-based en Phase 2 (CLAUDE.md §Sécurité).
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' wss://{$JOLYNE_DOMAIN}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 		-Server
 	}
 

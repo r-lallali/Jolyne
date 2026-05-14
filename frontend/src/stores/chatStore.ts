@@ -19,13 +19,14 @@ interface ChatState {
   peerNick: string | null;
   messages: ChatMessage[];
   errorCode: string | null;
+  errorMessage: string | null;
 
   setStatus: (s: ChatStatus) => void;
   matched: (peerNick: string) => void;
   pushMe: (body: string) => void;
   pushPeer: (body: string) => void;
   peerLeft: () => void;
-  error: (code: string) => void;
+  error: (code: string, message?: string) => void;
   reset: () => void;
 }
 
@@ -39,10 +40,17 @@ export const useChatStore = create<ChatState>((set) => ({
   peerNick: null,
   messages: [],
   errorCode: null,
+  errorMessage: null,
 
   setStatus: (status) => set({ status }),
   matched: (peerNick) =>
-    set({ status: "matched", peerNick, messages: [], errorCode: null }),
+    set({
+      status: "matched",
+      peerNick,
+      messages: [],
+      errorCode: null,
+      errorMessage: null,
+    }),
   pushMe: (body) =>
     set((s) => ({
       messages: [...s.messages, { id: ++nextId, from: "me", body }],
@@ -52,12 +60,14 @@ export const useChatStore = create<ChatState>((set) => ({
       messages: [...s.messages, { id: ++nextId, from: "peer", body }],
     })),
   peerLeft: () => set({ status: "queued", peerNick: null }),
-  error: (errorCode) => set({ status: "error", errorCode }),
+  error: (errorCode, errorMessage) =>
+    set({ status: "error", errorCode, errorMessage: errorMessage ?? null }),
   reset: () =>
     set({
       status: "idle",
       peerNick: null,
       messages: [],
       errorCode: null,
+      errorMessage: null,
     }),
 }));

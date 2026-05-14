@@ -8,16 +8,22 @@ const ALL_LANGS: LangCode[] = ["fr", "en", "es", "de"];
 interface Props {
   value: LangCode | null;
   onChange: (code: LangCode) => void;
-  /** Langue à griser / exclure (pour ne pas choisir la même des deux côtés) */
-  exclude?: LangCode | null;
+  /**
+   * Langue(s) à griser. Accepte un code unique (cas "ne pas choisir la
+   * même des deux côtés") ou une liste (cas "paires non ouvertes").
+   */
+  exclude?: LangCode | LangCode[] | null;
 }
 
 export function LangSelector({ value, onChange, exclude }: Props) {
+  const excludeSet = new Set<LangCode>(
+    exclude == null ? [] : Array.isArray(exclude) ? exclude : [exclude],
+  );
   return (
     <div className="grid grid-cols-2 gap-2">
       {ALL_LANGS.map((code) => {
         const selected = value === code;
-        const disabled = exclude === code;
+        const disabled = excludeSet.has(code);
         return (
           <button
             key={code}

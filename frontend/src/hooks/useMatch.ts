@@ -62,7 +62,7 @@ export function useMatch() {
             c.peerLeft();
             break;
           case "error":
-            c.error(f.code);
+            c.error(f.code, f.message);
             break;
         }
       },
