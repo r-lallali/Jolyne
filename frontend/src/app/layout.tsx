@@ -26,7 +26,7 @@ export default function RootLayout({
         {/* Wordmark visible seulement sur desktop — sur mobile la barre de
             chat porte déjà toutes les commandes utiles (pseudo + actions +
             theme), pas la peine d'y rajouter le nom de l'app. */}
-        <p className="fixed left-4 top-4 z-50 hidden text-base font-semibold tracking-tight text-neutral-900 dark:text-neutral-50 sm:block">
+        <p className="fixed left-5 top-4 z-50 hidden text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 sm:block">
           Jolyne
         </p>
         <div className="fixed right-3 top-3 z-50 sm:right-4 sm:top-4">
