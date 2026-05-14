@@ -78,20 +78,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // runSession est la boucle d'états : (try match → in-chat → next) en tournant.
 // Toute sortie passe par les defers en amont.
+//
+// `lastPeer` conserve le sessionID du dernier peer matché. Passé à TryMatch
+// pour empêcher d'être ré-apparié immédiatement avec la même personne.
 func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Session, wakeup <-chan WakeupEvent) {
 	speaks, wants := matcher.LangCode(sess.Speaks), matcher.LangCode(sess.Wants)
+	var lastPeer string
 
 	for {
-		out, err := h.d.Matcher.TryMatch(ctx, speaks, wants, sess.ID)
+		out, err := h.d.Matcher.TryMatch(ctx, speaks, wants, sess.ID, lastPeer)
 		if err != nil {
 			h.d.Log.Error("matcher error", "err", err)
 			conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal})
 			return
 		}
 
-		var roomID, peerNick string
+		var roomID, peerNick, peerID string
 		switch {
 		case out.Matched:
+			peerID = out.PeerID
 			roomID = uuid.NewString()
 			peer, ok := h.d.Hub.Lookup(out.PeerID)
 			if !ok {
@@ -99,7 +104,11 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 				continue
 			}
 			peerNick = peer.Pseudo
-			if !h.d.Hub.Wakeup(out.PeerID, WakeupEvent{RoomID: roomID, PeerNick: sess.Pseudo}) {
+			if !h.d.Hub.Wakeup(out.PeerID, WakeupEvent{
+				RoomID:   roomID,
+				PeerNick: sess.Pseudo,
+				PeerID:   sess.ID,
+			}) {
 				continue
 			}
 		default:
@@ -112,6 +121,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 				}
 				roomID = ev.RoomID
 				peerNick = ev.PeerNick
+				peerID = ev.PeerID
 			case <-time.After(queueTimeout):
 				_ = h.d.Matcher.Cancel(ctx, speaks, wants, sess.ID)
 				conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeQueueTimeout})
@@ -123,6 +133,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 			}
 		}
 
+		lastPeer = peerID
 		exit := h.runChat(ctx, conn, sess, roomID, peerNick)
 		if exit == chatDisconnect {
 			return

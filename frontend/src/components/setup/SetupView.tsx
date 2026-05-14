@@ -73,7 +73,7 @@ export function SetupView() {
   };
 
   return (
-    <div className="flex w-full max-w-md flex-col items-center">
+    <div className="flex w-full max-w-md flex-col items-center justify-center px-4 py-8 sm:p-0">
       {/* Titre toujours visible */}
       <header className="mb-10 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-white">

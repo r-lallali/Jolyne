@@ -17,7 +17,7 @@ export function ChatView() {
       : "connecting";
 
   return (
-    <div className="flex h-dvh w-full max-w-md flex-col border-x border-neutral-900 bg-neutral-950/40 backdrop-blur">
+    <div className="flex h-dvh w-full flex-col bg-neutral-950 sm:h-[88vh] sm:max-w-3xl sm:overflow-hidden sm:rounded-2xl sm:border sm:border-neutral-900/70 sm:bg-neutral-950/40 sm:shadow-2xl sm:backdrop-blur">
       <ChatHeader
         peerNick={peerNick}
         status={phase}

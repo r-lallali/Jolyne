@@ -26,12 +26,13 @@ func New(rdb *redis.Client) *Matcher {
 }
 
 // TryMatch tente d'extraire un peer compatible. Si aucun n'est disponible,
-// inscrit le client dans sa propre queue.
+// inscrit le client dans sa propre queue. `avoidPeerID` (chaîne vide si pas
+// d'éviction) permet d'éviter immédiatement un peer qu'on vient de quitter.
 //
 // L'appelant DOIT enregistrer un defer pour Cancel(...) sur le sessionID
 // au cas où la connexion serait fermée avant qu'un peer ne le récupère —
 // sinon le slot devient un fantôme (CLAUDE.md règle d'or #4).
-func (m *Matcher) TryMatch(ctx context.Context, speaks, wants LangCode, sessionID string) (Outcome, error) {
+func (m *Matcher) TryMatch(ctx context.Context, speaks, wants LangCode, sessionID, avoidPeerID string) (Outcome, error) {
 	if err := ValidatePair(speaks, wants); err != nil {
 		return Outcome{}, err
 	}
@@ -41,7 +42,7 @@ func (m *Matcher) TryMatch(ctx context.Context, speaks, wants LangCode, sessionI
 	res, err := matchScript.Run(
 		ctx, m.rdb,
 		[]string{queueTarget(speaks, wants), queueOwn(speaks, wants)},
-		sessionID,
+		sessionID, avoidPeerID,
 	).Result()
 	if err != nil && !errors.Is(err, redis.Nil) {
 		return Outcome{}, fmt.Errorf("matcher: lua: %w", err)

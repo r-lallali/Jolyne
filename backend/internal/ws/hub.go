@@ -10,6 +10,7 @@ import (
 type WakeupEvent struct {
 	RoomID   string
 	PeerNick string
+	PeerID   string // utilisé pour éviter de re-matcher avec ce peer après un Next
 }
 
 // pending est l'entrée du registre par sessionID en attente.
