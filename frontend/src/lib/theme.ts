@@ -7,12 +7,14 @@ const KEY = "jolyne_theme";
 export type Theme = "light" | "dark";
 
 function readInitial(): Theme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   const saved = window.localStorage.getItem(KEY);
   if (saved === "light" || saved === "dark") return saved;
-  return window.matchMedia("(prefers-color-scheme: light)").matches
-    ? "light"
-    : "dark";
+  // Pas de préférence sauvegardée → respecter le système, mais avec un
+  // défaut light (jour) si le système n'exprime pas de préférence dark.
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 function apply(t: Theme) {
@@ -25,7 +27,7 @@ function apply(t: Theme) {
 // utilisateurs en mode clair — acceptable pour MVP, on règlera plus tard
 // via un script no-flash si besoin.
 export function useTheme(): [Theme, () => void] {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     const initial = readInitial();

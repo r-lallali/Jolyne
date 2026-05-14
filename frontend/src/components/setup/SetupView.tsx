@@ -95,18 +95,24 @@ export function SetupView() {
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="w-full"
             >
-              <Card>
-                <CardLabel>Choisis ton pseudo</CardLabel>
-                <PseudoInput value={pseudo} onChange={setPseudo} />
-                <button
-                  type="button"
-                  onClick={goConfig}
-                  disabled={!canNext}
-                  className="mt-6 w-full rounded-xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20 dark:bg-white dark:text-neutral-950"
-                >
-                  Suivant
-                </button>
-              </Card>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  goConfig();
+                }}
+              >
+                <Card>
+                  <CardLabel>Choisis ton pseudo</CardLabel>
+                  <PseudoInput value={pseudo} onChange={setPseudo} />
+                  <button
+                    type="submit"
+                    disabled={!canNext}
+                    className="mt-6 w-full rounded-xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20 dark:bg-white dark:text-neutral-950"
+                  >
+                    Suivant
+                  </button>
+                </Card>
+              </form>
             </motion.div>
           )}
 
