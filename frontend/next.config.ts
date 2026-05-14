@@ -5,7 +5,7 @@ import type { NextConfig } from "next";
 // injecté via middleware Next (à brancher Phase 1 si besoin).
 const csp = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self' data:",

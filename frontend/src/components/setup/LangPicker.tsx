@@ -20,13 +20,26 @@ export function LangPicker({ value, onChange }: Props) {
             type="button"
             onClick={() => onChange(p)}
             className={cn(
-              "rounded-md border px-3 py-2 text-sm transition-colors",
+              "rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
               selected
-                ? "border-neutral-100 bg-neutral-100 text-neutral-950"
-                : "border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800",
+                ? "border-neutral-100 bg-neutral-50 text-neutral-950"
+                : "border-neutral-800 bg-neutral-900/40 text-neutral-200 hover:border-neutral-700 hover:bg-neutral-900",
             )}
           >
-            {LANG_LABEL[p.speaks]} → {LANG_LABEL[p.wants]}
+            <span className="font-medium">{LANG_LABEL[p.speaks]}</span>
+            <span
+              className={cn(
+                "mx-1.5",
+                selected ? "text-neutral-500" : "text-neutral-600",
+              )}
+            >
+              →
+            </span>
+            <span
+              className={cn(selected ? "text-neutral-700" : "text-neutral-400")}
+            >
+              {LANG_LABEL[p.wants]}
+            </span>
           </button>
         );
       })}

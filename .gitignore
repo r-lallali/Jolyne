@@ -39,3 +39,5 @@ infra/data/
 
 # Builds
 *.tgz
+CLAUDE.md
+PLAN.md

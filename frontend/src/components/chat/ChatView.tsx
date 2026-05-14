@@ -11,15 +11,13 @@ export function ChatView() {
   const peerNick = useChatStore((s) => s.peerNick);
   const { sendMsg, next, stop } = useMatch();
 
-  // Le composant n'est rendu que pour les status conversationnels ; on garde
-  // un fallback strict pour TypeScript.
   const phase =
     status === "matched" || status === "queued" || status === "connecting"
       ? status
       : "connecting";
 
   return (
-    <div className="flex h-dvh w-full max-w-md flex-col border-x border-neutral-900">
+    <div className="flex h-dvh w-full max-w-md flex-col border-x border-neutral-900 bg-neutral-950/40 backdrop-blur">
       <ChatHeader
         peerNick={peerNick}
         status={phase}

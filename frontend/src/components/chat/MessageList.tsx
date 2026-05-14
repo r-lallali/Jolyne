@@ -8,15 +8,18 @@ export function MessageList() {
   const messages = useChatStore((s) => s.messages);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll en bas à chaque nouveau message — comportement standard.
+  // Auto-scroll en bas à chaque nouveau message.
   useEffect(() => {
     ref.current?.scrollTo({ top: ref.current.scrollHeight });
   }, [messages.length]);
 
   return (
-    <div ref={ref} className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
+    <div
+      ref={ref}
+      className="scrollbar-discreet flex-1 space-y-2 overflow-y-auto px-4 py-4"
+    >
       {messages.length === 0 ? (
-        <p className="pt-8 text-center text-xs text-neutral-600">
+        <p className="pt-12 text-center text-xs text-neutral-500">
           Dis bonjour pour démarrer la conversation.
         </p>
       ) : (

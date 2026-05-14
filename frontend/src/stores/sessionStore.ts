@@ -8,7 +8,7 @@ interface SessionState {
   wants: LangCode | null;
   ageAccepted: boolean;
   setPseudo: (v: string) => void;
-  setLangs: (speaks: LangCode, wants: LangCode) => void;
+  setLangs: (speaks: LangCode, wants: LangCode | null) => void;
   acceptAge: (v: boolean) => void;
   clear: () => void;
 }
