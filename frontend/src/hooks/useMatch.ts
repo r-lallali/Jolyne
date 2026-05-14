@@ -77,8 +77,17 @@ export function useMatch() {
   const sendMsg = useCallback(
     (raw: string) => {
       const body = raw.trim();
+      console.info(
+        "[match] sendMsg called body=",
+        body,
+        "hasConn=",
+        conn.current !== null,
+        "status=",
+        chat.getState().status,
+      );
       if (!body) return;
       const ok = conn.current?.send({ type: "msg", body }) ?? false;
+      console.info("[match] sendMsg result ok=", ok);
       if (ok) chat.getState().pushMe(sanitizeMessage(body));
     },
     [chat],
