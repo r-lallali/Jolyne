@@ -9,8 +9,7 @@ interface Props {
   value: LangCode | null;
   onChange: (code: LangCode) => void;
   /**
-   * Langue(s) à griser. Accepte un code unique (cas "ne pas choisir la
-   * même des deux côtés") ou une liste (cas "paires non ouvertes").
+   * Langue(s) à griser. Accepte un code unique ou une liste.
    */
   exclude?: LangCode | LangCode[] | null;
 }
@@ -31,12 +30,12 @@ export function LangSelector({ value, onChange, exclude }: Props) {
             onClick={() => !disabled && onChange(code)}
             disabled={disabled}
             className={cn(
-              "rounded-lg border px-3 py-2.5 text-center text-sm font-medium transition-colors",
+              "rounded-xl px-3 py-2.5 text-center text-sm font-medium transition-colors",
               selected
-                ? "border-white/20 bg-white text-neutral-950"
+                ? "bg-neutral-900 text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
                 : disabled
-                  ? "cursor-not-allowed border-neutral-800/40 bg-neutral-900/20 text-neutral-700"
-                  : "border-neutral-800 bg-neutral-900/40 text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800/60",
+                  ? "cursor-not-allowed bg-neutral-100/50 text-neutral-400 dark:bg-neutral-900/30 dark:text-neutral-700"
+                  : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-900/60 dark:text-neutral-300 dark:hover:bg-neutral-800",
             )}
           >
             {LANG_LABEL[code]}

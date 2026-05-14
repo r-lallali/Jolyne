@@ -76,7 +76,7 @@ export function SetupView() {
     <div className="flex w-full max-w-md flex-col items-center justify-center px-4 py-8 sm:p-0">
       {/* Titre toujours visible */}
       <header className="mb-10 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-white">
+        <h1 className="text-4xl font-bold tracking-tight text-neutral-900 dark:text-white">
           Jolyne
         </h1>
       </header>
@@ -102,7 +102,7 @@ export function SetupView() {
                   type="button"
                   onClick={goConfig}
                   disabled={!canNext}
-                  className="mt-6 w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-neutral-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20"
+                  className="mt-6 w-full rounded-xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20 dark:bg-white dark:text-neutral-950"
                 >
                   Suivant
                 </button>
@@ -135,7 +135,7 @@ export function SetupView() {
 
                   {/* Flèche séparatrice */}
                   <div className="flex items-center justify-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-800 text-neutral-500">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-500">
                       ↓
                     </div>
                   </div>
@@ -160,7 +160,7 @@ export function SetupView() {
                   <button
                     type="button"
                     onClick={goBack}
-                    className="rounded-xl border border-neutral-800 px-4 py-3.5 text-sm font-medium text-neutral-400 transition-colors hover:border-neutral-700 hover:text-neutral-300"
+                    className="rounded-xl bg-neutral-100 px-4 py-3.5 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
                   >
                     Retour
                   </button>
@@ -168,7 +168,7 @@ export function SetupView() {
                     type="button"
                     onClick={start}
                     disabled={!canStart}
-                    className="flex-1 rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-neutral-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20"
+                    className="flex-1 rounded-xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20 dark:bg-white dark:text-neutral-950"
                   >
                     Commencer
                   </button>
@@ -184,7 +184,7 @@ export function SetupView() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-neutral-800/60 bg-neutral-900/50 p-6 backdrop-blur-sm">
+    <div className="rounded-2xl bg-neutral-100/60 p-6 backdrop-blur-sm dark:bg-neutral-900/50">
       {children}
     </div>
   );
@@ -192,7 +192,7 @@ function Card({ children }: { children: React.ReactNode }) {
 
 function CardLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-neutral-500">
+    <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-500">
       {children}
     </span>
   );

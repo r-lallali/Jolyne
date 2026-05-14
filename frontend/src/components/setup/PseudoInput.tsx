@@ -4,8 +4,6 @@ import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 
 const MAX = 20;
-// Lettres, chiffres, tiret, underscore. Le serveur applique la même règle
-// (CLAUDE.md règle d'or #3) — le filtrage UI n'est qu'une aide ergonomique.
 const ALLOWED = /^[\p{L}\p{N}_-]*$/u;
 
 interface Props {
@@ -13,11 +11,8 @@ interface Props {
   onChange: (v: string) => void;
 }
 
-// PseudoInput affiche la saisie en cours avec une animation lettre-par-lettre
-// (Framer Motion, ~180 ms). Un input natif invisible capte la frappe et
-// reste accessible (autofill, paste, lecteurs d'écran).
-//
-// L'animation ne bloque jamais l'utilisateur (CLAUDE.md §Animation).
+// Input invisible + spans Framer Motion ~180 ms par lettre.
+// Le serveur applique la même règle de charset (CLAUDE.md règle d'or #3).
 export function PseudoInput({ value, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
@@ -31,7 +26,7 @@ export function PseudoInput({ value, onChange }: Props) {
   return (
     <div
       onClick={() => inputRef.current?.focus()}
-      className="relative cursor-text select-none rounded-xl border border-neutral-700/50 bg-neutral-950/60 px-4 py-6 transition-colors focus-within:border-neutral-600 hover:border-neutral-600"
+      className="relative cursor-text select-none rounded-xl bg-neutral-100 px-4 py-6 ring-1 ring-transparent transition-all focus-within:ring-neutral-300 dark:bg-neutral-900/60 dark:focus-within:ring-neutral-700"
     >
       <input
         ref={inputRef}
@@ -50,7 +45,9 @@ export function PseudoInput({ value, onChange }: Props) {
       />
       <div className="flex min-h-[2.75rem] items-end justify-center text-4xl font-medium leading-none tracking-tight">
         {value.length === 0 ? (
-          <span className="text-neutral-600">ton pseudo</span>
+          <span className="text-neutral-400 dark:text-neutral-600">
+            ton pseudo
+          </span>
         ) : (
           Array.from(value).map((char, i) => (
             <motion.span
@@ -58,7 +55,7 @@ export function PseudoInput({ value, onChange }: Props) {
               initial={{ opacity: 0, y: 10, scale: 0.7 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className="text-neutral-50"
+              className="text-neutral-900 dark:text-neutral-50"
             >
               {char}
             </motion.span>
@@ -69,7 +66,7 @@ export function PseudoInput({ value, onChange }: Props) {
             aria-hidden
             animate={{ opacity: [1, 0, 1] }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="ml-0.5 inline-block h-8 w-px bg-neutral-200"
+            className="ml-0.5 inline-block h-8 w-px bg-neutral-700 dark:bg-neutral-200"
           />
         )}
       </div>

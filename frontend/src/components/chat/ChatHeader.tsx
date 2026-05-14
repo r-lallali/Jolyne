@@ -8,38 +8,35 @@ interface Props {
   onStop: () => void;
 }
 
-// ChatHeader n'est rendu qu'en status="matched" (la SearchingView prend
-// les autres cas), donc on assume toujours peer en ligne — pas de logique
-// d'état conditionnel.
+// Pas de bordure, pas de fond — juste un peu de padding. Le `pr-12 sm:pr-0`
+// laisse l'espace pour le ThemeToggle fixe en haut à droite sur mobile (sur
+// desktop le chat est centré, le toggle est loin sur la droite de la page).
 export function ChatHeader({ peerNick, onNext, onStop }: Props) {
   return (
-    <header className="flex items-center justify-between border-b border-neutral-900/70 bg-neutral-950/60 px-4 py-3 backdrop-blur">
-      <div className="flex min-w-0 items-center gap-3">
+    <header className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+      <div className="flex min-w-0 items-center gap-2.5">
         <motion.span
           aria-hidden
-          animate={{ opacity: [1, 0.45, 1], scale: [1, 1.15, 1] }}
+          animate={{ opacity: [1, 0.5, 1], scale: [1, 1.15, 1] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className="inline-block size-2 rounded-full bg-emerald-400 shadow-[0_0_10px_-2px_rgba(74,222,128,0.7)]"
+          className="inline-block size-2 rounded-full bg-emerald-500"
         />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-neutral-100">
-            {peerNick ?? "—"}
-          </p>
-          <p className="text-xs text-neutral-500">en ligne</p>
-        </div>
+        <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
+          {peerNick ?? "—"}
+        </p>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 pr-12 sm:pr-0">
         <button
           type="button"
           onClick={onNext}
-          className="rounded-md border border-neutral-800 px-3 py-1.5 text-xs text-neutral-300 transition-colors hover:border-neutral-700 hover:bg-neutral-900"
+          className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
         >
           Suivant
         </button>
         <button
           type="button"
           onClick={onStop}
-          className="rounded-md px-3 py-1.5 text-xs text-neutral-500 transition-colors hover:text-neutral-300"
+          className="rounded-full px-3 py-1.5 text-xs text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
         >
           Quitter
         </button>

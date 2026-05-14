@@ -1,5 +1,6 @@
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
 const inter = Inter({
@@ -10,8 +11,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Jolyne",
-  description:
-    "Pratique une langue avec un natif. Conversations anonymes en texte.",
+  description: "Pratique une langue avec un natif. 1-vs-1, texte uniquement.",
   robots: { index: true, follow: true },
 };
 
@@ -22,7 +22,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className={inter.variable}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <div className="fixed right-3 top-3 z-50 sm:right-4 sm:top-4">
+          <ThemeToggle />
+        </div>
+        {children}
+      </body>
     </html>
   );
 }

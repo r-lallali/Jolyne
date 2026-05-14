@@ -9,8 +9,6 @@ export function MessageList() {
   const peerNick = useChatStore((s) => s.peerNick);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll en bas à chaque nouveau message — smooth pour avoir un
-  // effet d'arrivée plutôt qu'un saut sec.
   useEffect(() => {
     ref.current?.scrollTo({
       top: ref.current.scrollHeight,
@@ -19,27 +17,28 @@ export function MessageList() {
   }, [messages.length]);
 
   return (
-    <div
-      ref={ref}
-      className="scrollbar-discreet flex-1 space-y-2 overflow-y-auto px-4 py-4"
-    >
-      {messages.length === 0 ? (
-        <div className="flex h-full items-center justify-center">
-          <div className="text-center">
-            <p className="text-sm text-neutral-400">
-              Connecté avec{" "}
-              <span className="font-medium text-neutral-100">{peerNick}</span>
-            </p>
-            <p className="mt-1 text-xs text-neutral-600">
-              Dis bonjour pour démarrer la conversation.
-            </p>
+    <div ref={ref} className="scrollbar-discreet flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-2xl py-4">
+        {messages.length === 0 ? (
+          <div className="flex h-[40dvh] items-center justify-center px-6">
+            <div className="text-center">
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                Tu discutes avec{" "}
+                <span className="font-medium text-neutral-900 dark:text-neutral-100">
+                  {peerNick}
+                </span>
+              </p>
+              <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-600">
+                Dis bonjour pour démarrer.
+              </p>
+            </div>
           </div>
-        </div>
-      ) : (
-        messages.map((m) => (
-          <MessageBubble key={m.id} from={m.from} body={m.body} />
-        ))
-      )}
+        ) : (
+          messages.map((m) => (
+            <MessageBubble key={m.id} from={m.from} body={m.body} />
+          ))
+        )}
+      </div>
     </div>
   );
 }

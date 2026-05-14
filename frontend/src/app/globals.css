@@ -3,23 +3,40 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+}
+
+html.dark {
   color-scheme: dark;
 }
 
 html,
 body {
-  background-color: #0a0a0a;
-  color: #fafafa;
   min-height: 100dvh;
+}
+
+html {
+  background-color: #ffffff;
+  color: #18181b;
+}
+
+html.dark {
+  background-color: #09090b;
+  color: #fafafa;
+}
+
+body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar discrète sur le chat */
 .scrollbar-discreet::-webkit-scrollbar {
   width: 6px;
 }
 .scrollbar-discreet::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 999px;
+}
+.dark .scrollbar-discreet::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
 }
