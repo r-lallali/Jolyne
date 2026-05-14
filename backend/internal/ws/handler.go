@@ -172,7 +172,17 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 		conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal})
 		return chatDisconnect
 	}
-	defer room.Close()
+	// Toute sortie de runChat doit notifier le peer : Next, peer_left déjà
+	// reçu, ET surtout la déconnexion brute (sinon le peer reste matché
+	// avec un fantôme jusqu'à ce que son propre heartbeat coupe ~30s plus
+	// tard). On utilise un contexte indépendant pour le publish car le ctx
+	// de la requête peut déjà être annulé.
+	defer func() {
+		sendCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = room.SendLeft(sendCtx)
+		_ = room.Close()
+	}()
 	conn.Send(ServerFrame{Type: ServerMatched, Room: roomID, PeerNick: peerNick})
 
 	peer := room.Channel()
@@ -209,7 +219,6 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 					return chatDisconnect
 				}
 			case ClientNext:
-				_ = room.SendLeft(ctx)
 				return chatNext
 			}
 		}

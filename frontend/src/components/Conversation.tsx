@@ -1,12 +1,15 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { ChatView } from "@/components/chat/ChatView";
+import { SearchingView } from "@/components/chat/SearchingView";
 import { SetupView } from "@/components/setup/SetupView";
 import { useMatch } from "@/hooks/useMatch";
 import { useChatStore } from "@/stores/chatStore";
 
-// Conversation est la racine logique de l'app : route entre les vues selon
-// le status du chatStore. Une seule instance par session.
+// Conversation est la racine logique : route entre les 4 vues selon le
+// status du chatStore avec transitions fade/slide. Une seule instance par
+// session.
 export function Conversation() {
   const status = useChatStore((s) => s.status);
   const errorCode = useChatStore((s) => s.errorCode);
@@ -14,9 +17,13 @@ export function Conversation() {
   const reset = useChatStore((s) => s.reset);
   const { start } = useMatch();
 
-  if (status === "idle") return <SetupView />;
-  if (status === "error") {
-    return (
+  let view: React.ReactNode;
+  let key: string;
+  if (status === "idle") {
+    view = <SetupView />;
+    key = "setup";
+  } else if (status === "error") {
+    view = (
       <ErrorView
         code={errorCode}
         message={errorMessage}
@@ -24,8 +31,29 @@ export function Conversation() {
         onBack={reset}
       />
     );
+    key = "error";
+  } else if (status === "matched") {
+    view = <ChatView />;
+    key = "chat";
+  } else {
+    view = <SearchingView />;
+    key = "searching";
   }
-  return <ChatView />;
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={key}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
+        className="flex w-full justify-center"
+      >
+        {view}
+      </motion.div>
+    </AnimatePresence>
+  );
 }
 
 interface ErrorProps {
@@ -38,9 +66,11 @@ interface ErrorProps {
 function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
   const fatal = code === "quota_exceeded" || code === "invalid_pseudo";
   return (
-    <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
-      <p className="text-lg text-neutral-200">{labelForCode(code)}</p>
-      <p className="max-w-xs text-sm text-neutral-500">
+    <div className="flex h-dvh w-full flex-col items-center justify-center gap-6 px-6 text-center sm:h-[88vh] sm:max-w-3xl sm:rounded-2xl sm:border sm:border-neutral-900/70 sm:bg-neutral-950/40 sm:shadow-2xl sm:backdrop-blur">
+      <p className="text-lg font-medium text-neutral-100">
+        {labelForCode(code)}
+      </p>
+      <p className="max-w-sm text-balance text-sm text-neutral-500">
         {hintForCode(code, message)}
       </p>
       <div className="flex gap-3">
@@ -48,7 +78,7 @@ function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-md bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-950"
+            className="rounded-md bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-950 transition-opacity hover:opacity-90"
           >
             Réessayer
           </button>
@@ -56,7 +86,7 @@ function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
         <button
           type="button"
           onClick={onBack}
-          className="rounded-md border border-neutral-800 px-4 py-2 text-sm text-neutral-300"
+          className="rounded-md border border-neutral-800 px-4 py-2 text-sm text-neutral-300 transition-colors hover:bg-neutral-900"
         >
           Retour
         </button>
@@ -68,7 +98,7 @@ function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
 function labelForCode(code: string | null): string {
   switch (code) {
     case "queue_timeout":
-      return "Personne n'a été trouvé pour le moment.";
+      return "Personne pour le moment.";
     case "quota_exceeded":
       return "Tu as utilisé tes 10 « suivant » du jour.";
     case "invalid_pseudo":
@@ -94,7 +124,7 @@ function hintForCode(code: string | null, message: string | null): string {
     case "invalid_param":
       return (
         message ??
-        "Vérifie ta paire de langues. Toutes les combinaisons ne sont pas encore disponibles."
+        "Vérifie ta paire de langues — toutes les combinaisons ne sont pas encore disponibles."
       );
     default:
       return message ?? "Réessaie ou recommence depuis le début.";
