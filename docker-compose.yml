@@ -1,8 +1,9 @@
 # Compose à utiliser quand Jolyne est déployé via Dokploy.
 # - Pas de Caddy : Dokploy fournit Traefik avec Let's Encrypt automatique.
 # - Le réseau `dokploy-network` est créé par Dokploy.
-# - Les labels Traefik portent : routage par préfixe (/ws, /api, /healthz vers
-#   le backend ; tout le reste vers le frontend) + headers de sécurité.
+# - Routage par sous-domaines (séparation propre, pas de PathPrefix) :
+#     ${JOLYNE_DOMAIN}      → frontend
+#     api.${JOLYNE_DOMAIN}  → backend (WS + API + healthz)
 
 name: jolyne
 
@@ -26,10 +27,9 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
-      - traefik.http.routers.jolyne-backend.rule=Host(`${JOLYNE_DOMAIN}`) && (PathPrefix(`/ws`) || PathPrefix(`/api`) || Path(`/healthz`))
+      - traefik.http.routers.jolyne-backend.rule=Host(`api.${JOLYNE_DOMAIN}`)
       - traefik.http.routers.jolyne-backend.entrypoints=websecure
       - traefik.http.routers.jolyne-backend.tls.certresolver=letsencrypt
-      - traefik.http.routers.jolyne-backend.priority=10
       - traefik.http.routers.jolyne-backend.middlewares=jolyne-headers@docker
       - traefik.http.services.jolyne-backend.loadbalancer.server.port=8080
 
@@ -37,10 +37,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      # NEXT_PUBLIC_* doit être baked au build (pas runtime).
+      # NEXT_PUBLIC_* doit être baked au build (pas runtime). Le backend
+      # est désormais joint via le sous-domaine api.{domaine}.
       args:
-        NEXT_PUBLIC_BACKEND_HTTP_URL: https://${JOLYNE_DOMAIN}
-        NEXT_PUBLIC_BACKEND_WS_URL: wss://${JOLYNE_DOMAIN}
+        NEXT_PUBLIC_BACKEND_HTTP_URL: https://api.${JOLYNE_DOMAIN}
+        NEXT_PUBLIC_BACKEND_WS_URL: wss://api.${JOLYNE_DOMAIN}
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -53,18 +54,17 @@ services:
       - traefik.http.routers.jolyne-frontend.rule=Host(`${JOLYNE_DOMAIN}`)
       - traefik.http.routers.jolyne-frontend.entrypoints=websecure
       - traefik.http.routers.jolyne-frontend.tls.certresolver=letsencrypt
-      - traefik.http.routers.jolyne-frontend.priority=1
       - traefik.http.routers.jolyne-frontend.middlewares=jolyne-headers@docker
       - traefik.http.services.jolyne-frontend.loadbalancer.server.port=3000
       # Middleware partagé : headers de sécurité (mêmes valeurs que celles
-      # qu'imposait Caddy — voir CLAUDE.md §Sécurité et infra/caddy/Caddyfile)
+      # qu'imposait Caddy — voir CLAUDE.md §Sécurité).
       - traefik.http.middlewares.jolyne-headers.headers.stsSeconds=31536000
       - traefik.http.middlewares.jolyne-headers.headers.stsIncludeSubdomains=true
       - traefik.http.middlewares.jolyne-headers.headers.frameDeny=true
       - traefik.http.middlewares.jolyne-headers.headers.contentTypeNosniff=true
       - traefik.http.middlewares.jolyne-headers.headers.referrerPolicy=strict-origin-when-cross-origin
       - traefik.http.middlewares.jolyne-headers.headers.permissionsPolicy=camera=(), microphone=(), geolocation=()
-      - traefik.http.middlewares.jolyne-headers.headers.contentSecurityPolicy=default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' wss://${JOLYNE_DOMAIN}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+      - traefik.http.middlewares.jolyne-headers.headers.contentSecurityPolicy=default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://api.${JOLYNE_DOMAIN} wss://api.${JOLYNE_DOMAIN}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
 
   redis:
     image: redis:7-alpine
