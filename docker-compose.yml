@@ -21,6 +21,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    networks:
+      - dokploy-network
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
@@ -43,6 +45,8 @@ services:
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
+    networks:
+      - dokploy-network
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
@@ -82,13 +86,11 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - dokploy-network
 
-# Le réseau par défaut du compose project devient dokploy-network — comme ça
-# Traefik (qui vit sur ce même réseau) voit nos containers sans ambiguïté.
-# Pattern canonique des déploiements Compose Dokploy.
 networks:
-  default:
-    name: dokploy-network
+  dokploy-network:
     external: true
 
 volumes:
