@@ -37,14 +37,11 @@ services:
   frontend:
     build:
       context: ../frontend
-      # NEXT_PUBLIC_* doit être baked au build, pas au runtime (sinon le
-      # bundle JS sert au navigateur des URLs vides).
-      args:
-        NEXT_PUBLIC_BACKEND_HTTP_URL: https://${JOLYNE_DOMAIN}
-        NEXT_PUBLIC_BACKEND_WS_URL: wss://${JOLYNE_DOMAIN}
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      NEXT_PUBLIC_BACKEND_HTTP_URL: https://${JOLYNE_DOMAIN}
+      NEXT_PUBLIC_BACKEND_WS_URL: wss://${JOLYNE_DOMAIN}
 
   redis:
     image: redis:7-alpine
