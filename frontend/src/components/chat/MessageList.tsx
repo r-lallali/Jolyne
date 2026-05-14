@@ -18,9 +18,9 @@ export function MessageList() {
 
   return (
     <div ref={ref} className="scrollbar-discreet flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-2xl py-4">
+      <div className="mx-auto w-full max-w-2xl space-y-2 px-4 py-4 sm:px-6">
         {messages.length === 0 ? (
-          <div className="flex h-[40dvh] items-center justify-center px-6">
+          <div className="flex h-[40dvh] items-center justify-center">
             <div className="text-center">
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
                 Tu discutes avec{" "}
