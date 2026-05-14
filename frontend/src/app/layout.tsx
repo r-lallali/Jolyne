@@ -1,5 +1,6 @@
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
+import { ChatWordmark } from "@/components/ChatWordmark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
@@ -23,8 +24,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={inter.variable}>
       <body className="font-sans antialiased">
-        {/* Le wordmark Jolyne vit dans ChatView (uniquement quand matched).
-            Le toggle de thème reste global, visible partout. */}
+        <ChatWordmark />
         <div className="fixed right-3 top-3 z-50 sm:right-4 sm:top-4">
           <ThemeToggle />
         </div>
