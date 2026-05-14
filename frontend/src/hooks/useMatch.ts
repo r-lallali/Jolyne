@@ -1,28 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { getFingerprint } from "@/lib/fingerprint";
 import { sanitizeMessage } from "@/lib/sanitize";
 import { connectMatch, type Connection } from "@/lib/ws";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 
-// useMatch encapsule l'orchestration WS ↔ stores. Une seule instance vivante
-// à la fois (le hook gère son cycle de vie via useRef).
+// Connexion WS partagée au niveau du module : `useMatch` est appelé dans
+// plusieurs composants (SetupView, ChatView, Conversation), mais il n'y a
+// qu'UNE seule WS active dans l'app. Un `useRef` local à chaque composant
+// créait un ref distinct par appel → SetupView posait la conn dans son ref,
+// ChatView lisait son propre ref vide.
+let activeConn: Connection | null = null;
+
 export function useMatch() {
-  const conn = useRef<Connection | null>(null);
   const chat = useChatStore;
   const session = useSessionStore;
 
   const stop = useCallback(() => {
-    conn.current?.close();
-    conn.current = null;
+    activeConn?.close();
+    activeConn = null;
     chat.getState().reset();
   }, [chat]);
 
   const start = useCallback(async () => {
     const { pseudo, speaks, wants, ageAccepted } = session.getState();
     if (!speaks || !wants || !ageAccepted || pseudo.length < 3) return;
+
+    // Ferme une éventuelle conn précédente avant d'en ouvrir une nouvelle.
+    activeConn?.close();
+    activeConn = null;
 
     chat.getState().setStatus("connecting");
     const fp = await getFingerprint();
@@ -32,7 +40,7 @@ export function useMatch() {
       return;
     }
 
-    conn.current = connectMatch({
+    activeConn = connectMatch({
       baseURL,
       params: {
         nick: pseudo,
@@ -43,11 +51,7 @@ export function useMatch() {
       },
       onStateChange: (s) => {
         const cur = chat.getState().status;
-        console.info("[match] ws state →", s, "chat status was=", cur);
         if (s === "closed" && (cur === "matched" || cur === "queued")) {
-          chat.getState().setStatus("connecting");
-        }
-        if (s === "connecting" && cur === "matched") {
           chat.getState().setStatus("connecting");
         }
       },
@@ -77,31 +81,15 @@ export function useMatch() {
   const sendMsg = useCallback(
     (raw: string) => {
       const body = raw.trim();
-      console.info(
-        "[match] sendMsg called body=",
-        body,
-        "hasConn=",
-        conn.current !== null,
-        "status=",
-        chat.getState().status,
-      );
       if (!body) return;
-      const ok = conn.current?.send({ type: "msg", body }) ?? false;
-      console.info("[match] sendMsg result ok=", ok);
+      const ok = activeConn?.send({ type: "msg", body }) ?? false;
       if (ok) chat.getState().pushMe(sanitizeMessage(body));
     },
     [chat],
   );
 
   const next = useCallback(() => {
-    conn.current?.send({ type: "next" });
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      conn.current?.close();
-      conn.current = null;
-    };
+    activeConn?.send({ type: "next" });
   }, []);
 
   return { start, sendMsg, next, stop };

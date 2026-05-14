@@ -12,13 +12,6 @@ export function MessageInput({ onSend, disabled }: Props) {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.info(
-      "[input] submit fired",
-      "disabled=",
-      disabled,
-      "draft=",
-      JSON.stringify(draft),
-    );
     if (disabled) return;
     const body = draft.trim();
     if (!body) return;
