@@ -33,27 +33,21 @@ func routes(s services) http.Handler {
 	return mux
 }
 
-// mountAdmin enregistre les endpoints /api/admin/* avec le middleware
-// d'auth (sauf /login qui doit être joignable sans cookie).
+// mountAdmin enregistre les endpoints /api/admin/* SANS contrainte de
+// méthode — le CORS middleware intercepte OPTIONS, chaque handler vérifie
+// la méthode requise et renvoie 405 si inadaptée. Plus déterministe que
+// la combo `POST /path` + `OPTIONS /sub/`.
 func mountAdmin(mux *http.ServeMux, h *admin.Handlers) {
 	cors := admin.CORSMiddleware(h.Cfg)
 	auth := admin.AuthMiddleware(h.Cfg)
 
-	// Public (juste CORS) — l'IP allowlist est checkée dedans
-	mux.Handle("POST /api/admin/login", cors(http.HandlerFunc(h.HandleLogin)))
-	// Logout n'a pas besoin d'auth (le client peut juste virer son cookie)
-	mux.Handle("POST /api/admin/logout", cors(http.HandlerFunc(h.HandleLogout)))
-	// Preflight OPTIONS — Go ServeMux ne route pas sur OPTIONS pour ces
-	// patterns automatiquement, on délègue via une fonction catch-all.
-	mux.Handle("OPTIONS /api/admin/", cors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})))
+	mux.Handle("/api/admin/login", cors(methodOnly("POST", http.HandlerFunc(h.HandleLogin))))
+	mux.Handle("/api/admin/logout", cors(methodOnly("POST", http.HandlerFunc(h.HandleLogout))))
+	mux.Handle("/api/admin/me", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleMe)))))
+	mux.Handle("/api/admin/reports", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleListReports)))))
 
-	// Protégé
-	mux.Handle("GET /api/admin/me", cors(auth(http.HandlerFunc(h.HandleMe))))
-	mux.Handle("GET /api/admin/reports", cors(auth(http.HandlerFunc(h.HandleListReports))))
-	// Route paramétrée : Go 1.22 mux ne supporte pas {id} pour POST + suffix
-	// chained. On utilise un router manuel pour /api/admin/reports/...
+	// Subtree /api/admin/reports/{id}[/resolve] — dispatch interne par
+	// méthode + suffix.
 	mux.Handle("/api/admin/reports/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodGet && !strings.HasSuffix(r.URL.Path, "/resolve"):
@@ -64,6 +58,23 @@ func mountAdmin(mux *http.ServeMux, h *admin.Handlers) {
 			http.NotFound(w, r)
 		}
 	}))))
+}
+
+// methodOnly renvoie 405 pour toute méthode autre que celle attendue.
+// OPTIONS est laissé passer pour ne pas court-circuiter le CORS middleware
+// (qui répond 204 lui-même).
+func methodOnly(method string, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			h.ServeHTTP(w, r)
+			return
+		}
+		if r.Method != method {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 // healthz pingue Redis et Postgres (si configuré). 200 si tout va, 503 sinon.
