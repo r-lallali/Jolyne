@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ChatView } from "@/components/chat/ChatView";
+import { FarewellView } from "@/components/chat/FarewellView";
 import { SearchingView } from "@/components/chat/SearchingView";
 import { SetupView } from "@/components/setup/SetupView";
 import { useMatch } from "@/hooks/useMatch";
@@ -32,6 +33,9 @@ export function Conversation() {
   } else if (status === "matched") {
     view = <ChatView />;
     key = "chat";
+  } else if (status === "ended") {
+    view = <FarewellView />;
+    key = "farewell";
   } else {
     view = <SearchingView />;
     key = "searching";

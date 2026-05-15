@@ -1,6 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/cn";
 
 interface Props {
   peerNick: string | null;
@@ -8,9 +10,6 @@ interface Props {
   onStop: () => void;
 }
 
-// Pas de bordure, pas de fond — juste un peu de padding. Le `pr-12 sm:pr-0`
-// laisse l'espace pour le ThemeToggle fixe en haut à droite sur mobile (sur
-// desktop le chat est centré, le toggle est loin sur la droite de la page).
 export function ChatHeader({ peerNick, onNext, onStop }: Props) {
   return (
     <header className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
@@ -33,14 +32,53 @@ export function ChatHeader({ peerNick, onNext, onStop }: Props) {
         >
           Suivant
         </button>
-        <button
-          type="button"
-          onClick={onStop}
-          className="rounded-full px-3 py-1.5 text-xs text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-        >
-          Quitter
-        </button>
+        <QuitButton onConfirm={onStop} />
       </div>
     </header>
+  );
+}
+
+// QuitButton : click-to-confirm. Premier clic → "Confirmer ?" en rouge
+// pendant 3s. Second clic dans la fenêtre → onConfirm. Sinon, revient à
+// "Quitter" silencieusement. Évite les mauvaises manips sur mobile.
+function QuitButton({ onConfirm }: { onConfirm: () => void }) {
+  const [armed, setArmed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
+  const click = () => {
+    if (armed) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+      setArmed(false);
+      onConfirm();
+      return;
+    }
+    setArmed(true);
+    timerRef.current = setTimeout(() => {
+      setArmed(false);
+      timerRef.current = null;
+    }, 3000);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={click}
+      className={cn(
+        "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+        armed
+          ? "bg-red-500/10 text-red-600 hover:bg-red-500/15 dark:bg-red-500/15 dark:text-red-400"
+          : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100",
+      )}
+    >
+      {armed ? "Confirmer ?" : "Quitter"}
+    </button>
   );
 }

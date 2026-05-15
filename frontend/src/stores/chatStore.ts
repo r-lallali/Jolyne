@@ -28,6 +28,7 @@ interface ChatState {
   pushPeer: (body: string) => void;
   receivePeerTyping: () => void;
   peerLeft: () => void;
+  farewell: () => void;
   error: (code: string, message?: string) => void;
   reset: () => void;
 }
@@ -97,6 +98,18 @@ export const useChatStore = create<ChatState>((set) => ({
   peerLeft: () => {
     clearTypingTimer();
     set({ status: "queued", peerNick: null, peerTyping: false });
+  },
+
+  farewell: () => {
+    clearTypingTimer();
+    set({
+      status: "ended",
+      peerNick: null,
+      messages: [],
+      errorCode: null,
+      errorMessage: null,
+      peerTyping: false,
+    });
   },
 
   error: (errorCode, errorMessage) => {

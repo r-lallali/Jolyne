@@ -26,7 +26,9 @@ export function useMatch() {
     activeConn?.close();
     activeConn = null;
     lastTypingSent = 0;
-    chat.getState().reset();
+    // Transition vers l'écran "Merci, à bientôt" — la FarewellView reset
+    // le store à idle après ~2s.
+    chat.getState().farewell();
   }, [chat]);
 
   const start = useCallback(async () => {

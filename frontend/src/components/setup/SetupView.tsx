@@ -184,6 +184,15 @@ export function SetupView() {
           )}
         </AnimatePresence>
       </div>
+
+      <footer className="mt-10 text-center">
+        <a
+          href="/legal"
+          className="text-xs text-neutral-500 underline-offset-4 transition-colors hover:text-neutral-900 hover:underline dark:text-neutral-500 dark:hover:text-neutral-100"
+        >
+          Mentions légales
+        </a>
+      </footer>
     </div>
   );
 }

@@ -20,7 +20,10 @@ import (
 	"github.com/ralys/jolyne/backend/internal/session"
 )
 
-const queueTimeout = 30 * time.Second
+const (
+	queueTimeout    = 30 * time.Second
+	nextMinInterval = time.Second
+)
 
 type Deps struct {
 	RDB     *redis.Client
@@ -85,6 +88,19 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 	speaks, wants := matcher.LangCode(sess.Speaks), matcher.LangCode(sess.Wants)
 	var lastPeer string
 
+	// Throttle anti-farming sur Next : 1 par seconde max et par session
+	// (PLAN.md §4 Phase 1, §6 Contraintes). Variable de scope runSession
+	// pour persister à travers les itérations du loop (entre deux chats).
+	var lastNextAt time.Time
+	canNext := func() bool {
+		now := time.Now()
+		if now.Sub(lastNextAt) < nextMinInterval {
+			return false
+		}
+		lastNextAt = now
+		return true
+	}
+
 	for {
 		out, err := h.d.Matcher.TryMatch(ctx, speaks, wants, sess.ID, lastPeer)
 		if err != nil {
@@ -134,7 +150,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		}
 
 		lastPeer = peerID
-		exit := h.runChat(ctx, conn, sess, roomID, peerNick)
+		exit := h.runChat(ctx, conn, sess, roomID, peerNick, canNext)
 		if exit == chatDisconnect {
 			return
 		}
@@ -165,7 +181,7 @@ const (
 // peer_left ou déconnexion. La room Redis est ouverte ici, fermée au retour.
 //
 // Aucun contenu de message n'est loggé — règle d'or #1.
-func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session, roomID, peerNick string) chatExit {
+func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session, roomID, peerNick string, canNext func() bool) chatExit {
 	room, err := openRoom(ctx, h.d.RDB, roomID, sess.ID)
 	if err != nil {
 		h.d.Log.Error("room open", "err", err)
@@ -224,6 +240,11 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				// Best-effort, jamais bloquant. Pas de log : trop bruyant.
 				_ = room.SendTyping(ctx)
 			case ClientNext:
+				if !canNext() {
+					// Throttle anti-farming : on absorbe silencieusement,
+					// l'utilisateur voit que rien ne change.
+					continue
+				}
 				return chatNext
 			}
 		}
