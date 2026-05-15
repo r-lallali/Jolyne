@@ -15,17 +15,22 @@ type Config struct {
 	RedisPassword string
 	RedisDB       int
 
+	PostgresDSN     string
+	PostgresMigrate bool
+
 	ShutdownGrace time.Duration
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		Env:           getEnv("JOLYNE_ENV", "dev"),
-		Port:          getEnvInt("JOLYNE_PORT", 8080),
-		RedisAddr:     getEnv("REDIS_ADDR", "127.0.0.1:6379"),
-		RedisPassword: os.Getenv("REDIS_PASSWORD"),
-		RedisDB:       getEnvInt("REDIS_DB", 0),
-		ShutdownGrace: getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
+		Env:             getEnv("JOLYNE_ENV", "dev"),
+		Port:            getEnvInt("JOLYNE_PORT", 8080),
+		RedisAddr:       getEnv("REDIS_ADDR", "127.0.0.1:6379"),
+		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
+		RedisDB:         getEnvInt("REDIS_DB", 0),
+		PostgresDSN:     os.Getenv("POSTGRES_DSN"),
+		PostgresMigrate: getEnvBool("POSTGRES_AUTO_MIGRATE", false),
+		ShutdownGrace:   getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
 	}
 	if err := cfg.validate(); err != nil {
 		return Config{}, err
@@ -74,4 +79,16 @@ func getEnvDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return d
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	v := os.Getenv(key)
+	switch v {
+	case "true", "1", "yes", "on":
+		return true
+	case "false", "0", "no", "off":
+		return false
+	default:
+		return fallback
+	}
 }

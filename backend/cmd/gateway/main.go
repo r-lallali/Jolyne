@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ralys/jolyne/backend/internal/config"
+	"github.com/ralys/jolyne/backend/internal/db"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/obs"
@@ -60,6 +61,29 @@ func run() error {
 			Block:   moderation.DefaultBlocklist(),
 			Log:     log,
 		}),
+	}
+
+	// Postgres : optionnel pour l'instant. Si POSTGRES_DSN n'est pas set,
+	// le gateway boot sans — les features Phase 2 dépendantes (signalements,
+	// bans persistants) ne seront simplement pas servies. Le DSN deviendra
+	// obligatoire quand on activera les endpoints qui en dépendent.
+	if cfg.PostgresDSN != "" {
+		if cfg.PostgresMigrate {
+			log.Info("postgres migrations running")
+			if err := db.RunMigrations(cfg.PostgresDSN); err != nil {
+				return fmt.Errorf("postgres migrate: %w", err)
+			}
+			log.Info("postgres migrations applied")
+		}
+		pool, err := db.New(ctx, cfg.PostgresDSN)
+		if err != nil {
+			return fmt.Errorf("postgres: %w", err)
+		}
+		defer pool.Close()
+		svc.pg = pool
+		log.Info("postgres connected")
+	} else {
+		log.Warn("postgres skipped — POSTGRES_DSN non renseigné")
 	}
 
 	srv := &http.Server{

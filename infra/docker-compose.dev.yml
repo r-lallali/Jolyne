@@ -14,10 +14,14 @@ services:
       JOLYNE_PORT: 8080
       REDIS_ADDR: redis:6379
       REDIS_DB: 0
+      POSTGRES_DSN: postgres://jolyne:jolyne@postgres:5432/jolyne?sslmode=disable
+      POSTGRES_AUTO_MIGRATE: "true"
     ports:
       - "8080:8080"
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
   redis:
@@ -33,5 +37,22 @@ services:
       timeout: 3s
       retries: 5
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: jolyne
+      POSTGRES_PASSWORD: jolyne
+      POSTGRES_DB: jolyne
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jolyne"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   redis_dev_data:
+  postgres_dev_data:

@@ -29,6 +29,19 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 5
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jolyne
+          POSTGRES_PASSWORD: jolyne
+          POSTGRES_DB: jolyne
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jolyne"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -56,10 +69,11 @@ jobs:
       - name: go test (unit)
         run: go test -race -count=1 ./...
 
-      - name: go test (intégration — Redis)
+      - name: go test (intégration — Redis + Postgres)
         env:
           TEST_REDIS_ADDR: 127.0.0.1:6379
-        run: go test -tags=integration -race -count=1 ./internal/matcher/... ./internal/quota/...
+          TEST_POSTGRES_DSN: postgres://jolyne:jolyne@127.0.0.1:5432/jolyne?sslmode=disable
+        run: go test -tags=integration -race -count=1 ./internal/matcher/... ./internal/quota/... ./internal/db/...
 
   lint:
     name: golangci-lint
