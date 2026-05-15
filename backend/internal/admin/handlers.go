@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,6 +16,14 @@ import (
 type Handlers struct {
 	Cfg   Config
 	Store *Store
+	Log   *slog.Logger // peut être nil — handlers tolèrent
+}
+
+func (h *Handlers) log() *slog.Logger {
+	if h.Log != nil {
+		return h.Log
+	}
+	return slog.Default()
 }
 
 // HandleLogin (POST /api/admin/login)
@@ -22,7 +31,12 @@ type Handlers struct {
 //	Body : {"email": "...", "password": "..."}
 //	Resp : 204 No Content + Set-Cookie ; 404 sinon (jamais 401, voir CLAUDE.md)
 func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	ip := clientIP(r)
 	if !IPAllowed(r, h.Cfg.IPAllowlist) {
+		h.log().Warn("admin login refusé",
+			"reason", "ip_not_allowed",
+			"client_ip", ip,
+			"allowlist_size", len(h.Cfg.IPAllowlist))
 		http.NotFound(w, r)
 		return
 	}
@@ -31,14 +45,24 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		h.log().Warn("admin login refusé",
+			"reason", "bad_json",
+			"client_ip", ip,
+			"err", err.Error())
 		http.NotFound(w, r)
 		return
 	}
 	email, err := VerifyCredentials(h.Cfg.Users, body.Email, body.Password)
 	if err != nil {
+		h.log().Warn("admin login refusé",
+			"reason", "bad_credentials",
+			"client_ip", ip,
+			"email_tried", body.Email,
+			"users_loaded", len(h.Cfg.Users))
 		http.NotFound(w, r)
 		return
 	}
+	h.log().Info("admin login ok", "email", email, "client_ip", ip)
 
 	exp := time.Now().Add(SessionTTL)
 	token := Sign(Session{Email: email, ExpiresAt: exp}, h.Cfg.SessionSecret)

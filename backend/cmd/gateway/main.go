@@ -137,6 +137,7 @@ func run() error {
 				CORSOrigin:    cfg.AdminCORSOrigin,
 			},
 			Store: admin.NewStore(svc.pg, box),
+			Log:   log,
 		}
 		log.Info("admin back-office ready",
 			"users", len(users),
