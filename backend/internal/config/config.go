@@ -22,6 +22,13 @@ type Config struct {
 	// d'un signalement. Génération : `openssl rand -base64 32`.
 	ReportEncryptionKey string
 
+	// Back-office admin (Phase 2). Voir CLAUDE.md §"Back-office /admin".
+	AdminUsersRaw     string
+	AdminIPAllowlist  string
+	AdminSessionKey   string // base64, ≥ 32 octets
+	AdminCookieDomain string // ex: "ralys.ovh"
+	AdminCORSOrigin   string // ex: "https://jolyne.ralys.ovh"
+
 	ShutdownGrace time.Duration
 }
 
@@ -35,6 +42,11 @@ func Load() (Config, error) {
 		PostgresDSN:         os.Getenv("POSTGRES_DSN"),
 		PostgresMigrate:     getEnvBool("POSTGRES_AUTO_MIGRATE", false),
 		ReportEncryptionKey: os.Getenv("REPORT_ENCRYPTION_KEY"),
+		AdminUsersRaw:       os.Getenv("ADMIN_USERS"),
+		AdminIPAllowlist:    os.Getenv("ADMIN_IP_ALLOWLIST"),
+		AdminSessionKey:     os.Getenv("ADMIN_SESSION_SECRET"),
+		AdminCookieDomain:   os.Getenv("ADMIN_COOKIE_DOMAIN"),
+		AdminCORSOrigin:     os.Getenv("ADMIN_CORS_ORIGIN"),
 		ShutdownGrace:       getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
 	}
 	if err := cfg.validate(); err != nil {

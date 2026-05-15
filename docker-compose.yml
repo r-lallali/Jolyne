@@ -28,6 +28,12 @@ services:
       # Clé AES-256 base64 (32 octets) pour chiffrer les messages capturés
       # lors d'un signalement. Génération : openssl rand -base64 32.
       REPORT_ENCRYPTION_KEY: ${REPORT_ENCRYPTION_KEY:-}
+      # Back-office admin (Phase 2). Renseigne dans Dokploy → Env Variables.
+      ADMIN_USERS: ${ADMIN_USERS:-}
+      ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-}
+      ADMIN_COOKIE_DOMAIN: ${ADMIN_COOKIE_DOMAIN:-}
+      ADMIN_CORS_ORIGIN: ${ADMIN_CORS_ORIGIN:-}
     depends_on:
       redis:
         condition: service_healthy

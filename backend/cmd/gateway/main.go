@@ -11,6 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"encoding/base64"
+
+	"github.com/ralys/jolyne/backend/internal/admin"
 	"github.com/ralys/jolyne/backend/internal/config"
 	"github.com/ralys/jolyne/backend/internal/crypto"
 	"github.com/ralys/jolyne/backend/internal/db"
@@ -102,6 +105,46 @@ func run() error {
 		Reports: reportSvc,
 		Log:     log,
 	})
+
+	// Back-office admin. Désactivé si POSTGRES_DSN/ADMIN_USERS/ADMIN_SESSION_SECRET
+	// ne sont pas tous renseignés.
+	if svc.pg != nil && cfg.AdminUsersRaw != "" && cfg.AdminSessionKey != "" {
+		users, err := admin.ParseUsers(cfg.AdminUsersRaw)
+		if err != nil {
+			return fmt.Errorf("admin users: %w", err)
+		}
+		allowlist, err := admin.ParseIPAllowlist(cfg.AdminIPAllowlist)
+		if err != nil {
+			return fmt.Errorf("admin allowlist: %w", err)
+		}
+		secret, err := base64.StdEncoding.DecodeString(cfg.AdminSessionKey)
+		if err != nil || len(secret) < 32 {
+			return fmt.Errorf("admin session secret: must be base64 ≥32 bytes")
+		}
+		// Reports.box est nil-safe — l'admin ne déchiffre que si la clé est
+		// présente. On réutilise la même box que reports.
+		var box *crypto.Box
+		if cfg.ReportEncryptionKey != "" {
+			box, _ = crypto.NewBox(cfg.ReportEncryptionKey)
+		}
+		svc.admin = &admin.Handlers{
+			Cfg: admin.Config{
+				Users:         users,
+				IPAllowlist:   allowlist,
+				SessionSecret: secret,
+				CookieDomain:  cfg.AdminCookieDomain,
+				CookieSecure:  cfg.IsProd(),
+				CORSOrigin:    cfg.AdminCORSOrigin,
+			},
+			Store: admin.NewStore(svc.pg, box),
+		}
+		log.Info("admin back-office ready",
+			"users", len(users),
+			"ip_allowlist", len(allowlist),
+			"cookie_domain", cfg.AdminCookieDomain)
+	} else {
+		log.Info("admin back-office disabled — Postgres / ADMIN_USERS / ADMIN_SESSION_SECRET manquants")
+	}
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
