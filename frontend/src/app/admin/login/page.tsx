@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
             Admin
           </h1>
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Accès restreint. IP allowlist + credentials requis.
+            Veuillez entrer vos identifiants.
           </p>
         </header>
 
