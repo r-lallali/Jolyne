@@ -1,12 +1,67 @@
 import type { NextConfig } from "next";
 
-// Pas de headers de sécurité ici : Caddy est la source unique en prod
-// (voir infra/caddy/Caddyfile). En dev (Turbopack/HMR), pas de CSP — c'est
-// volontaire, sinon les scripts d'hydratation et de hot-reload se font
-// bloquer. Voir CLAUDE.md §Sécurité.
+// CSP appliquée côté Next.js. En dev, Turbopack injecte des scripts inline
+// et utilise eval, donc on relâche le `script-src`. En prod, on durcit :
+// uniquement 'unsafe-inline' (nécessaire à l'hydratation Next 15), JAMAIS
+// 'unsafe-eval'.
+//
+// Voir CLAUDE.md §Sécurité — défense en profondeur, le serveur ne réécrit
+// pas les messages, DOMPurify côté client strip les tags HTML, et CSP
+// refuse les exécutions hors-origine.
+
+const isDev = process.env.NODE_ENV !== "production";
+
+const wsURL =
+  process.env.NEXT_PUBLIC_BACKEND_WS_URL ?? "wss://api.jolyne.ralys.ovh";
+const httpURL =
+  process.env.NEXT_PUBLIC_BACKEND_HTTP_URL ?? "https://api.jolyne.ralys.ovh";
+
+const scriptSrc = isDev
+  ? "'self' 'unsafe-inline' 'unsafe-eval'"
+  : "'self' 'unsafe-inline'";
+
+const connectSrc = isDev
+  ? `'self' ws: wss: http://localhost:* ${httpURL} ${wsURL}`
+  : `'self' ${httpURL} ${wsURL}`;
+
+const csp = [
+  "default-src 'self'",
+  `script-src ${scriptSrc}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self' data:",
+  `connect-src ${connectSrc}`,
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join("; ");
+
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=()",
+  },
+  // HSTS uniquement en prod (sinon le navigateur épingle localhost en HTTPS)
+  ...(isDev
+    ? []
+    : [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=31536000; includeSubDomains",
+        },
+      ]),
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
 };
 
 export default nextConfig;
