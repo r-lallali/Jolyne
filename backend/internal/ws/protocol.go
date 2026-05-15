@@ -11,8 +11,9 @@ import "encoding/json"
 type ClientType string
 
 const (
-	ClientMsg  ClientType = "msg"
-	ClientNext ClientType = "next"
+	ClientMsg    ClientType = "msg"
+	ClientNext   ClientType = "next"
+	ClientTyping ClientType = "typing"
 )
 
 type ClientFrame struct {
@@ -29,6 +30,7 @@ const (
 	ServerMatched  ServerType = "matched"
 	ServerMsg      ServerType = "msg"
 	ServerPeerLeft ServerType = "peer_left"
+	ServerTyping   ServerType = "typing"
 	ServerError    ServerType = "error"
 )
 

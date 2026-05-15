@@ -14,8 +14,9 @@ import (
 type roomKind string
 
 const (
-	roomKindMsg  roomKind = "msg"
-	roomKindLeft roomKind = "left"
+	roomKindMsg    roomKind = "msg"
+	roomKindLeft   roomKind = "left"
+	roomKindTyping roomKind = "typing"
 )
 
 type roomEnvelope struct {
@@ -87,6 +88,13 @@ func (r *Room) SendMsg(ctx context.Context, body string) error {
 // SendLeft signale au peer qu'on quitte la conversation (next / déconnexion).
 func (r *Room) SendLeft(ctx context.Context) error {
 	return r.publish(ctx, roomEnvelope{Kind: roomKindLeft})
+}
+
+// SendTyping signale au peer qu'on est en train de taper. Best-effort —
+// le client throttle déjà à 1 émission toutes les 2s (voir useMatch.ts),
+// le serveur ne fait que relayer.
+func (r *Room) SendTyping(ctx context.Context) error {
+	return r.publish(ctx, roomEnvelope{Kind: roomKindTyping})
 }
 
 func (r *Room) Close() error { return r.pubsub.Close() }

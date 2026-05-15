@@ -4,12 +4,11 @@ import { useState } from "react";
 
 interface Props {
   onSend: (body: string) => void;
+  onTyping?: () => void;
   disabled?: boolean;
 }
 
-// Input arrondi Claude/Gemini : fond légèrement teinté, focus ring discret,
-// bouton flèche circulaire. Pas de bordure dure.
-export function MessageInput({ onSend, disabled }: Props) {
+export function MessageInput({ onSend, onTyping, disabled }: Props) {
   const [draft, setDraft] = useState("");
 
   const submit = (e: React.FormEvent) => {
@@ -19,6 +18,11 @@ export function MessageInput({ onSend, disabled }: Props) {
     if (!body) return;
     onSend(body);
     setDraft("");
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDraft(e.target.value);
+    if (onTyping && e.target.value.length > 0) onTyping();
   };
 
   const canSend = !disabled && draft.trim().length > 0;
@@ -31,7 +35,7 @@ export function MessageInput({ onSend, disabled }: Props) {
       >
         <input
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={handleChange}
           disabled={disabled}
           maxLength={2000}
           placeholder="Ton message…"

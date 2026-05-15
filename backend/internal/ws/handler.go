@@ -199,6 +199,8 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			switch env.Kind {
 			case roomKindMsg:
 				conn.Send(ServerFrame{Type: ServerMsg, Body: env.Body})
+			case roomKindTyping:
+				conn.Send(ServerFrame{Type: ServerTyping})
 			case roomKindLeft:
 				conn.Send(ServerFrame{Type: ServerPeerLeft})
 				return chatPeerLeft
@@ -218,6 +220,9 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 					h.d.Log.Error("room publish", "err", err)
 					return chatDisconnect
 				}
+			case ClientTyping:
+				// Best-effort, jamais bloquant. Pas de log : trop bruyant.
+				_ = room.SendTyping(ctx)
 			case ClientNext:
 				return chatNext
 			}

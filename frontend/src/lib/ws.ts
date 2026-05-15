@@ -7,11 +7,13 @@ export type ServerFrame =
   | { type: "matched"; room: string; peer_nick: string }
   | { type: "msg"; body: string }
   | { type: "peer_left" }
+  | { type: "typing" }
   | { type: "error"; code: string; message?: string };
 
 export type ClientFrame =
   | { type: "msg"; body: string }
-  | { type: "next" };
+  | { type: "next" }
+  | { type: "typing" };
 
 export interface ConnectOpts {
   baseURL: string; // ex: wss://jolyne.ralys.ovh

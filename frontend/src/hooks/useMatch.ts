@@ -9,10 +9,14 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 // Connexion WS partagée au niveau du module : `useMatch` est appelé dans
 // plusieurs composants (SetupView, ChatView, Conversation), mais il n'y a
-// qu'UNE seule WS active dans l'app. Un `useRef` local à chaque composant
-// créait un ref distinct par appel → SetupView posait la conn dans son ref,
-// ChatView lisait son propre ref vide.
+// qu'UNE seule WS active dans l'app.
 let activeConn: Connection | null = null;
+
+// Throttle des évènements "typing" sortants : on envoie au max une fois par
+// 2s. Le serveur les relaie tels quels au peer, qui les utilise pour
+// rallumer son indicateur "X écrit…" (auto-clear côté store après 3.5s).
+const TYPING_THROTTLE_MS = 2_000;
+let lastTypingSent = 0;
 
 export function useMatch() {
   const chat = useChatStore;
@@ -21,6 +25,7 @@ export function useMatch() {
   const stop = useCallback(() => {
     activeConn?.close();
     activeConn = null;
+    lastTypingSent = 0;
     chat.getState().reset();
   }, [chat]);
 
@@ -28,9 +33,9 @@ export function useMatch() {
     const { pseudo, speaks, wants, ageAccepted } = session.getState();
     if (!speaks || !wants || !ageAccepted || pseudo.length < 3) return;
 
-    // Ferme une éventuelle conn précédente avant d'en ouvrir une nouvelle.
     activeConn?.close();
     activeConn = null;
+    lastTypingSent = 0;
 
     chat.getState().setStatus("connecting");
     const fp = await getFingerprint();
@@ -70,6 +75,9 @@ export function useMatch() {
           case "peer_left":
             c.peerLeft();
             break;
+          case "typing":
+            c.receivePeerTyping();
+            break;
           case "error":
             c.error(f.code, f.message);
             break;
@@ -88,9 +96,20 @@ export function useMatch() {
     [chat],
   );
 
+  // Throttle côté client : 1 émission max toutes les 2s, peu importe la
+  // fréquence des frappes.
+  const sendTyping = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTypingSent < TYPING_THROTTLE_MS) return;
+    if (chat.getState().status !== "matched") return;
+    lastTypingSent = now;
+    activeConn?.send({ type: "typing" });
+  }, [chat]);
+
   const next = useCallback(() => {
+    lastTypingSent = 0;
     activeConn?.send({ type: "next" });
   }, []);
 
-  return { start, sendMsg, next, stop };
+  return { start, sendMsg, sendTyping, next, stop };
 }

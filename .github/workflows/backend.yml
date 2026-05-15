@@ -19,6 +19,16 @@ jobs:
   test:
     name: build + test
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -43,8 +53,13 @@ jobs:
       - name: go build
         run: go build ./...
 
-      - name: go test
+      - name: go test (unit)
         run: go test -race -count=1 ./...
+
+      - name: go test (intégration — Redis)
+        env:
+          TEST_REDIS_ADDR: 127.0.0.1:6379
+        run: go test -tags=integration -race -count=1 ./internal/matcher/... ./internal/quota/...
 
   lint:
     name: golangci-lint
