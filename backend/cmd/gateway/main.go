@@ -141,6 +141,7 @@ func run() error {
 		}
 		log.Info("admin back-office ready",
 			"users", len(users),
+			"emails", admin.LoadedEmails(users),
 			"ip_allowlist", len(allowlist),
 			"cookie_domain", cfg.AdminCookieDomain)
 	} else {

@@ -47,9 +47,15 @@ func ParseUsers(raw string) ([]User, error) {
 	return users, nil
 }
 
-// VerifyCredentials renvoie l'email canonique de l'utilisateur si les
-// credentials sont valides, ou une erreur. Comparaison en temps constant
-// fournie par bcrypt.CompareHashAndPassword.
+// Erreurs sentinelles pour distinguer la cause d'un échec (logs côté
+// serveur uniquement — le client voit toujours la même 404).
+var (
+	ErrEmailNotFound    = fmt.Errorf("admin: email inconnu")
+	ErrPasswordMismatch = fmt.Errorf("admin: password ne matche pas le hash")
+)
+
+// VerifyCredentials renvoie l'email canonique si les credentials sont
+// valides. Comparaison en temps constant via bcrypt.
 func VerifyCredentials(users []User, email, password string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	for _, u := range users {
@@ -57,15 +63,24 @@ func VerifyCredentials(users []User, email, password string) (string, error) {
 			continue
 		}
 		if err := bcrypt.CompareHashAndPassword([]byte(u.HashedPW), []byte(password)); err != nil {
-			return "", fmt.Errorf("admin: credentials invalides")
+			return "", ErrPasswordMismatch
 		}
 		return u.Email, nil
 	}
-	// Toujours faire un compare factice pour ne pas révéler l'existence
-	// de l'email via le timing (CWE-208).
+	// Compare factice pour ne pas révéler l'existence de l'email via le
+	// timing (CWE-208).
 	_ = bcrypt.CompareHashAndPassword(
 		[]byte("$2a$10$abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNO"),
 		[]byte(password),
 	)
-	return "", fmt.Errorf("admin: credentials invalides")
+	return "", ErrEmailNotFound
+}
+
+// LoadedEmails : utilitaire pour logger les emails admin chargés au boot.
+func LoadedEmails(users []User) []string {
+	out := make([]string, len(users))
+	for i, u := range users {
+		out[i] = u.Email
+	}
+	return out
 }

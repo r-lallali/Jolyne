@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -54,8 +55,15 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	email, err := VerifyCredentials(h.Cfg.Users, body.Email, body.Password)
 	if err != nil {
+		reason := "bad_credentials"
+		switch {
+		case errors.Is(err, ErrEmailNotFound):
+			reason = "email_not_found"
+		case errors.Is(err, ErrPasswordMismatch):
+			reason = "password_mismatch"
+		}
 		h.log().Warn("admin login refusé",
-			"reason", "bad_credentials",
+			"reason", reason,
 			"client_ip", ip,
 			"email_tried", body.Email,
 			"users_loaded", len(h.Cfg.Users))
