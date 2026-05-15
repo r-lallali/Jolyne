@@ -1,5 +1,6 @@
 # --- build stage ---
-FROM golang:1.22-alpine AS build
+# Go 1.25+ requis depuis l'ajout de golang-migrate v4 (cf. go.mod).
+FROM golang:1.25-alpine AS build
 
 WORKDIR /src
 
