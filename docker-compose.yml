@@ -21,6 +21,10 @@ services:
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DB: 0
+      # Postgres (Phase 2+). Renseigne dans Dokploy → Environment Variables.
+      # Le DSN doit pointer vers le service Postgres interne (dokploy-network).
+      POSTGRES_DSN: ${POSTGRES_DSN:-}
+      POSTGRES_AUTO_MIGRATE: ${POSTGRES_AUTO_MIGRATE:-false}
     depends_on:
       redis:
         condition: service_healthy
