@@ -14,6 +14,7 @@ const (
 	ClientMsg    ClientType = "msg"
 	ClientNext   ClientType = "next"
 	ClientTyping ClientType = "typing"
+	ClientReport ClientType = "report"
 )
 
 type ClientFrame struct {
@@ -31,6 +32,7 @@ const (
 	ServerMsg      ServerType = "msg"
 	ServerPeerLeft ServerType = "peer_left"
 	ServerTyping   ServerType = "typing"
+	ServerReported ServerType = "reported"
 	ServerError    ServerType = "error"
 )
 

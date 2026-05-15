@@ -8,9 +8,10 @@ interface Props {
   peerNick: string | null;
   onNext: () => void;
   onStop: () => void;
+  onReport: () => void;
 }
 
-export function ChatHeader({ peerNick, onNext, onStop }: Props) {
+export function ChatHeader({ peerNick, onNext, onStop, onReport }: Props) {
   return (
     <header className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
       <div className="flex min-w-0 items-center gap-2.5">
@@ -27,6 +28,15 @@ export function ChatHeader({ peerNick, onNext, onStop }: Props) {
       <div className="flex items-center gap-1 pr-12 sm:pr-0">
         <button
           type="button"
+          onClick={onReport}
+          aria-label="Signaler"
+          title="Signaler ce peer"
+          className="inline-flex size-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-red-400"
+        >
+          <FlagIcon />
+        </button>
+        <button
+          type="button"
           onClick={onNext}
           className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
         >
@@ -35,6 +45,24 @@ export function ChatHeader({ peerNick, onNext, onStop }: Props) {
         <QuitButton onConfirm={onStop} />
       </div>
     </header>
+  );
+}
+
+function FlagIcon() {
+  return (
+    <svg
+      className="size-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 22V4" />
+      <path d="M4 4h12l-2 4 2 4H4" />
+    </svg>
   );
 }
 

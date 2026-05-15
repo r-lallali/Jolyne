@@ -8,9 +8,11 @@ import (
 
 // WakeupEvent informe une session en attente qu'elle a été matchée.
 type WakeupEvent struct {
-	RoomID   string
-	PeerNick string
-	PeerID   string // utilisé pour éviter de re-matcher avec ce peer après un Next
+	RoomID          string
+	PeerNick        string
+	PeerID          string // utilisé pour éviter de re-matcher avec ce peer après un Next
+	PeerFingerprint string // utilisé pour identifier le peer en cas de signalement
+	PeerIPHash      string // idem
 }
 
 // pending est l'entrée du registre par sessionID en attente.

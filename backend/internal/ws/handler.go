@@ -17,12 +17,18 @@ import (
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/quota"
+	"github.com/ralys/jolyne/backend/internal/reports"
 	"github.com/ralys/jolyne/backend/internal/session"
 )
 
 const (
 	queueTimeout    = 30 * time.Second
 	nextMinInterval = time.Second
+	// Nombre max de messages capturés dans la fenêtre glissante pour les
+	// signalements. 20 est suffisant pour donner le contexte sans gonfler
+	// la table reports.
+	captureWindow   = 20
+	reasonMaxLength = 500
 )
 
 type Deps struct {
@@ -31,6 +37,7 @@ type Deps struct {
 	Hub     *Hub
 	Quota   *quota.Engine
 	Block   *moderation.Blocklist
+	Reports *reports.Service // nil si Postgres / clé de chiffrement absents
 	Log     *slog.Logger
 }
 
@@ -109,7 +116,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 			return
 		}
 
-		var roomID, peerNick, peerID string
+		var peerID, peerNick, peerFingerprint, peerIPHash, roomID string
 		switch {
 		case out.Matched:
 			peerID = out.PeerID
@@ -120,10 +127,14 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 				continue
 			}
 			peerNick = peer.Pseudo
+			peerFingerprint = peer.Fingerprint
+			peerIPHash = peer.IPHash
 			if !h.d.Hub.Wakeup(out.PeerID, WakeupEvent{
-				RoomID:   roomID,
-				PeerNick: sess.Pseudo,
-				PeerID:   sess.ID,
+				RoomID:          roomID,
+				PeerNick:        sess.Pseudo,
+				PeerID:          sess.ID,
+				PeerFingerprint: sess.Fingerprint,
+				PeerIPHash:      sess.IPHash,
 			}) {
 				continue
 			}
@@ -138,6 +149,8 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 				roomID = ev.RoomID
 				peerNick = ev.PeerNick
 				peerID = ev.PeerID
+				peerFingerprint = ev.PeerFingerprint
+				peerIPHash = ev.PeerIPHash
 			case <-time.After(queueTimeout):
 				_ = h.d.Matcher.Cancel(ctx, speaks, wants, sess.ID)
 				conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeQueueTimeout})
@@ -150,7 +163,12 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		}
 
 		lastPeer = peerID
-		exit := h.runChat(ctx, conn, sess, roomID, peerNick, canNext)
+		exit := h.runChat(ctx, conn, sess, chatPeer{
+			ID:          peerID,
+			Nick:        peerNick,
+			Fingerprint: peerFingerprint,
+			IPHash:      peerIPHash,
+		}, roomID, canNext)
 		if exit == chatDisconnect {
 			return
 		}
@@ -177,43 +195,63 @@ const (
 	chatDisconnect
 )
 
+// chatPeer regroupe les infos du peer pour cette conversation (utilisées
+// notamment lors d'un signalement).
+type chatPeer struct {
+	ID          string
+	Nick        string
+	Fingerprint string
+	IPHash      string
+}
+
 // runChat est la boucle de chat avec un peer. Sort proprement sur "next",
 // peer_left ou déconnexion. La room Redis est ouverte ici, fermée au retour.
 //
+// Maintient un ring buffer des `captureWindow` derniers messages échangés
+// (envoyés ET reçus) pour pouvoir les joindre à un éventuel signalement.
+//
 // Aucun contenu de message n'est loggé — règle d'or #1.
-func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session, roomID, peerNick string, canNext func() bool) chatExit {
+func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session, peer chatPeer, roomID string, canNext func() bool) chatExit {
 	room, err := openRoom(ctx, h.d.RDB, roomID, sess.ID)
 	if err != nil {
 		h.d.Log.Error("room open", "err", err)
 		conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal})
 		return chatDisconnect
 	}
-	// Toute sortie de runChat doit notifier le peer : Next, peer_left déjà
-	// reçu, ET surtout la déconnexion brute (sinon le peer reste matché
-	// avec un fantôme jusqu'à ce que son propre heartbeat coupe ~30s plus
-	// tard). On utilise un contexte indépendant pour le publish car le ctx
-	// de la requête peut déjà être annulé.
 	defer func() {
 		sendCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		_ = room.SendLeft(sendCtx)
 		_ = room.Close()
 	}()
-	conn.Send(ServerFrame{Type: ServerMatched, Room: roomID, PeerNick: peerNick})
+	conn.Send(ServerFrame{Type: ServerMatched, Room: roomID, PeerNick: peer.Nick})
 
-	peer := room.Channel()
+	captured := make([]reports.CapturedMessage, 0, captureWindow)
+	push := func(from, body string) {
+		captured = append(captured, reports.CapturedMessage{
+			From: from,
+			Body: body,
+			At:   time.Now().UTC().Format(time.RFC3339Nano),
+		})
+		if len(captured) > captureWindow {
+			captured = captured[len(captured)-captureWindow:]
+		}
+	}
+
+	peerCh := room.Channel()
 	for {
 		select {
 		case <-ctx.Done():
 			return chatDisconnect
 		case <-conn.Done():
 			return chatDisconnect
-		case env, ok := <-peer:
+		case env, ok := <-peerCh:
 			if !ok {
 				return chatDisconnect
 			}
 			switch env.Kind {
 			case roomKindMsg:
+				push(peer.Nick, env.Body)
 				conn.Send(ServerFrame{Type: ServerMsg, Body: env.Body})
 			case roomKindTyping:
 				conn.Send(ServerFrame{Type: ServerTyping})
@@ -232,23 +270,53 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 					conn.Send(ServerFrame{Type: ServerError, Code: mapModerationErr(err)})
 					continue
 				}
+				push(sess.Pseudo, safe)
 				if err := room.SendMsg(ctx, safe); err != nil {
 					h.d.Log.Error("room publish", "err", err)
 					return chatDisconnect
 				}
 			case ClientTyping:
-				// Best-effort, jamais bloquant. Pas de log : trop bruyant.
 				_ = room.SendTyping(ctx)
+			case ClientReport:
+				if h.d.Reports == nil {
+					conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal, Message: "signalement désactivé sur ce serveur"})
+					continue
+				}
+				reason := truncate(msg.Body, reasonMaxLength)
+				_, err := h.d.Reports.Save(ctx, reports.Report{
+					ReporterSession:     sess.ID,
+					ReporterFingerprint: sess.Fingerprint,
+					ReporterIPHash:      sess.IPHash,
+					ReportedSession:     peer.ID,
+					ReportedFingerprint: peer.Fingerprint,
+					ReportedNick:        peer.Nick,
+					Reason:              reason,
+					Messages:            captured,
+				})
+				if err != nil {
+					h.d.Log.Error("save report", "err", err)
+					conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal})
+					continue
+				}
+				conn.Send(ServerFrame{Type: ServerReported})
+				// Après signalement on quitte la conv proprement et on
+				// re-queue — comme un Next, sans consommer le quota.
+				return chatPeerLeft
 			case ClientNext:
 				if !canNext() {
-					// Throttle anti-farming : on absorbe silencieusement,
-					// l'utilisateur voit que rien ne change.
 					continue
 				}
 				return chatNext
 			}
 		}
 	}
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max]
 }
 
 // hashIP hashe l'IP cliente avec SHA-256. Les logs ou la télémétrie ne

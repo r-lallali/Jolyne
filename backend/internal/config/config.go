@@ -18,6 +18,10 @@ type Config struct {
 	PostgresDSN     string
 	PostgresMigrate bool
 
+	// Clé base64 de 32 octets pour chiffrer les messages capturés lors
+	// d'un signalement. Génération : `openssl rand -base64 32`.
+	ReportEncryptionKey string
+
 	ShutdownGrace time.Duration
 }
 
@@ -28,9 +32,10 @@ func Load() (Config, error) {
 		RedisAddr:       getEnv("REDIS_ADDR", "127.0.0.1:6379"),
 		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
 		RedisDB:         getEnvInt("REDIS_DB", 0),
-		PostgresDSN:     os.Getenv("POSTGRES_DSN"),
-		PostgresMigrate: getEnvBool("POSTGRES_AUTO_MIGRATE", false),
-		ShutdownGrace:   getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
+		PostgresDSN:         os.Getenv("POSTGRES_DSN"),
+		PostgresMigrate:     getEnvBool("POSTGRES_AUTO_MIGRATE", false),
+		ReportEncryptionKey: os.Getenv("REPORT_ENCRYPTION_KEY"),
+		ShutdownGrace:       getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
 	}
 	if err := cfg.validate(); err != nil {
 		return Config{}, err

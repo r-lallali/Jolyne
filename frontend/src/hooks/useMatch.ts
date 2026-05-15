@@ -80,6 +80,10 @@ export function useMatch() {
           case "typing":
             c.receivePeerTyping();
             break;
+          case "reported":
+            // Le serveur enchaîne avec un peer_left/queued, la transition
+            // d'UI se fait via ces évènements. On ne touche pas au store.
+            break;
           case "error":
             c.error(f.code, f.message);
             break;
@@ -113,5 +117,14 @@ export function useMatch() {
     activeConn?.send({ type: "next" });
   }, []);
 
-  return { start, sendMsg, sendTyping, next, stop };
+  // Signalement du peer courant. Côté serveur : capture les derniers
+  // messages, les chiffre, persiste en Postgres et auto-quitte la conv
+  // (équivalent à un peer_left). `reason` est optionnel (≤ 500 chars).
+  const report = useCallback((reason?: string) => {
+    if (!activeConn) return false;
+    lastTypingSent = 0;
+    return activeConn.send({ type: "report", body: reason });
+  }, []);
+
+  return { start, sendMsg, sendTyping, next, report, stop };
 }

@@ -8,12 +8,14 @@ export type ServerFrame =
   | { type: "msg"; body: string }
   | { type: "peer_left" }
   | { type: "typing" }
+  | { type: "reported" }
   | { type: "error"; code: string; message?: string };
 
 export type ClientFrame =
   | { type: "msg"; body: string }
   | { type: "next" }
-  | { type: "typing" };
+  | { type: "typing" }
+  | { type: "report"; body?: string };
 
 export interface ConnectOpts {
   baseURL: string; // ex: wss://jolyne.ralys.ovh

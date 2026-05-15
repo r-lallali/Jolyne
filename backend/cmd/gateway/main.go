@@ -12,12 +12,14 @@ import (
 	"time"
 
 	"github.com/ralys/jolyne/backend/internal/config"
+	"github.com/ralys/jolyne/backend/internal/crypto"
 	"github.com/ralys/jolyne/backend/internal/db"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/obs"
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/redisx"
+	"github.com/ralys/jolyne/backend/internal/reports"
 	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
@@ -51,22 +53,13 @@ func run() error {
 	}
 	defer rdb.Close()
 
-	svc := services{
-		rdb: rdb,
-		wsHandler: ws.NewHandler(ws.Deps{
-			RDB:     rdb,
-			Matcher: matcher.New(rdb),
-			Hub:     ws.NewHub(),
-			Quota:   quota.NewEngine(rdb, nil),
-			Block:   moderation.DefaultBlocklist(),
-			Log:     log,
-		}),
-	}
+	svc := services{rdb: rdb}
 
 	// Postgres : optionnel pour l'instant. Si POSTGRES_DSN n'est pas set,
 	// le gateway boot sans — les features Phase 2 dépendantes (signalements,
 	// bans persistants) ne seront simplement pas servies. Le DSN deviendra
 	// obligatoire quand on activera les endpoints qui en dépendent.
+	var reportSvc *reports.Service
 	if cfg.PostgresDSN != "" {
 		if cfg.PostgresMigrate {
 			log.Info("postgres migrations running")
@@ -82,9 +75,33 @@ func run() error {
 		defer pool.Close()
 		svc.pg = pool
 		log.Info("postgres connected")
+
+		// Reports nécessite Postgres ET la clé AES. Sans clé → on log et
+		// on désactive proprement (les clients qui essaient verront une
+		// erreur 'signalement désactivé').
+		if cfg.ReportEncryptionKey != "" {
+			box, err := crypto.NewBox(cfg.ReportEncryptionKey)
+			if err != nil {
+				return fmt.Errorf("report key: %w", err)
+			}
+			reportSvc = reports.NewService(pool, box)
+			log.Info("reports service ready")
+		} else {
+			log.Warn("reports désactivés — REPORT_ENCRYPTION_KEY manquant")
+		}
 	} else {
 		log.Warn("postgres skipped — POSTGRES_DSN non renseigné")
 	}
+
+	svc.wsHandler = ws.NewHandler(ws.Deps{
+		RDB:     rdb,
+		Matcher: matcher.New(rdb),
+		Hub:     ws.NewHub(),
+		Quota:   quota.NewEngine(rdb, nil),
+		Block:   moderation.DefaultBlocklist(),
+		Reports: reportSvc,
+		Log:     log,
+	})
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
