@@ -2,19 +2,24 @@
 
 import { useEffect, useRef } from "react";
 import { MessageBubble } from "@/components/chat/MessageBubble";
+import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useChatStore } from "@/stores/chatStore";
 
 export function MessageList() {
   const messages = useChatStore((s) => s.messages);
   const peerNick = useChatStore((s) => s.peerNick);
+  const peerTyping = useChatStore((s) => s.peerTyping);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll en bas à chaque nouveau message OU quand le peer commence
+  // à taper — pour que l'indicateur "X écrit…" reste visible au lieu d'être
+  // caché sous le pli.
   useEffect(() => {
     ref.current?.scrollTo({
       top: ref.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages.length]);
+  }, [messages.length, peerTyping]);
 
   return (
     <div ref={ref} className="scrollbar-discreet flex-1 overflow-y-auto">
@@ -38,6 +43,7 @@ export function MessageList() {
             <MessageBubble key={m.id} from={m.from} body={m.body} />
           ))
         )}
+        <TypingIndicator />
       </div>
     </div>
   );
