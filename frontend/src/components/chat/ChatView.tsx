@@ -8,6 +8,7 @@ import { MessageInput } from "@/components/chat/MessageInput";
 import { MessageList } from "@/components/chat/MessageList";
 import { ReportModal } from "@/components/chat/ReportModal";
 import { useMatch } from "@/hooks/useMatch";
+import { useTabAttention } from "@/hooks/useTabAttention";
 import { useT } from "@/lib/i18n";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 
@@ -29,6 +30,8 @@ export function ChatView() {
   const [canNext, setCanNext] = useState(false);
   const [toastTick, setToastTick] = useState(0); // chaque incrément = un nouveau toast
   const [showToast, setShowToast] = useState(false);
+
+  useTabAttention();
 
   useEffect(() => {
     if (!peerNick) return;
