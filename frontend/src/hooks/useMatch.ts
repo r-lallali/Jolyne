@@ -18,6 +18,16 @@ let activeConn: Connection | null = null;
 const TYPING_THROTTLE_MS = 2_000;
 let lastTypingSent = 0;
 
+// ID éphémère pour ancrer une éventuelle correction. crypto.randomUUID est
+// dispo dans tous les navigateurs modernes (HTTPS / localhost). Fallback
+// time + random sur les vieux contextes.
+function newMessageId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function useMatch() {
   const chat = useChatStore;
   const session = useSessionStore;
@@ -72,7 +82,15 @@ export function useMatch() {
             c.matched(f.peer_nick);
             break;
           case "msg":
-            c.pushPeer(sanitizeMessage(f.body));
+            c.pushPeer(f.id ?? newMessageId(), sanitizeMessage(f.body));
+            break;
+          case "correction":
+            c.applyCorrection(f.target_id, {
+              original: sanitizeMessage(f.original),
+              corrected: sanitizeMessage(f.body),
+              note: f.note ? sanitizeMessage(f.note) : undefined,
+              fromMe: false,
+            });
             break;
           case "peer_left":
             c.peerLeft();
@@ -96,8 +114,9 @@ export function useMatch() {
     (raw: string) => {
       const body = raw.trim();
       if (!body) return;
-      const ok = activeConn?.send({ type: "msg", body }) ?? false;
-      if (ok) chat.getState().pushMe(sanitizeMessage(body));
+      const id = newMessageId();
+      const ok = activeConn?.send({ type: "msg", body, id }) ?? false;
+      if (ok) chat.getState().pushMe(id, sanitizeMessage(body));
     },
     [chat],
   );
@@ -126,5 +145,33 @@ export function useMatch() {
     return activeConn.send({ type: "report", body: reason });
   }, []);
 
-  return { start, sendMsg, sendTyping, next, report, stop };
+  // Correction d'un message du peer (style HelloTalk). Le serveur relaie au
+  // peer, qui voit la correction sous son propre message. Côté local, on
+  // patch optimistiquement le store — pas d'écho serveur.
+  const correct = useCallback(
+    (targetId: string, original: string, corrected: string, note?: string) => {
+      const body = corrected.trim();
+      if (!body || !targetId) return false;
+      const ok =
+        activeConn?.send({
+          type: "correct",
+          target_id: targetId,
+          original,
+          body,
+          note: note?.trim() || undefined,
+        }) ?? false;
+      if (ok) {
+        chat.getState().applyCorrection(targetId, {
+          original: sanitizeMessage(original),
+          corrected: sanitizeMessage(body),
+          note: note?.trim() ? sanitizeMessage(note) : undefined,
+          fromMe: true,
+        });
+      }
+      return ok;
+    },
+    [chat],
+  );
+
+  return { start, sendMsg, sendTyping, next, report, correct, stop };
 }

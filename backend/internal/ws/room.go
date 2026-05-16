@@ -14,15 +14,22 @@ import (
 type roomKind string
 
 const (
-	roomKindMsg    roomKind = "msg"
-	roomKindLeft   roomKind = "left"
-	roomKindTyping roomKind = "typing"
+	roomKindMsg        roomKind = "msg"
+	roomKindLeft       roomKind = "left"
+	roomKindTyping     roomKind = "typing"
+	roomKindCorrection roomKind = "correction"
 )
 
 type roomEnvelope struct {
 	Kind roomKind `json:"k"`
 	From string   `json:"f"`
 	Body string   `json:"b,omitempty"`
+
+	// ID éphémère du message (kind=msg) ou du message ciblé (kind=correction).
+	ID       string `json:"i,omitempty"`
+	TargetID string `json:"t,omitempty"`
+	Original string `json:"o,omitempty"`
+	Note     string `json:"n,omitempty"`
 }
 
 // Room enveloppe la souscription Redis pub/sub d'une conversation 1-vs-1.
@@ -80,9 +87,11 @@ func (r *Room) publish(ctx context.Context, env roomEnvelope) error {
 	return nil
 }
 
-// SendMsg publie un message texte (déjà sanitisé) au peer.
-func (r *Room) SendMsg(ctx context.Context, body string) error {
-	return r.publish(ctx, roomEnvelope{Kind: roomKindMsg, Body: body})
+// SendMsg publie un message texte (déjà sanitisé) au peer. `id` est l'ID
+// éphémère généré par le client expéditeur — sert au peer à ancrer une
+// éventuelle correction.
+func (r *Room) SendMsg(ctx context.Context, id, body string) error {
+	return r.publish(ctx, roomEnvelope{Kind: roomKindMsg, ID: id, Body: body})
 }
 
 // SendLeft signale au peer qu'on quitte la conversation (next / déconnexion).
@@ -95,6 +104,21 @@ func (r *Room) SendLeft(ctx context.Context) error {
 // le serveur ne fait que relayer.
 func (r *Room) SendTyping(ctx context.Context) error {
 	return r.publish(ctx, roomEnvelope{Kind: roomKindTyping})
+}
+
+// SendCorrection publie une correction d'un message du peer. `targetID`
+// pointe vers le message d'origine, `original` est le texte initial conservé
+// pour l'affichage côté receveur, `corrected` est la version proposée par le
+// correcteur, `note` est une explication pédagogique optionnelle. Tous les
+// textes sont déjà sanitisés.
+func (r *Room) SendCorrection(ctx context.Context, targetID, original, corrected, note string) error {
+	return r.publish(ctx, roomEnvelope{
+		Kind:     roomKindCorrection,
+		TargetID: targetID,
+		Original: original,
+		Body:     corrected,
+		Note:     note,
+	})
 }
 
 func (r *Room) Close() error { return r.pubsub.Close() }

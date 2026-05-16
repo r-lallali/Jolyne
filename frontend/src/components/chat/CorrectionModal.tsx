@@ -1,0 +1,135 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+
+interface Props {
+  open: boolean;
+  original: string;
+  peerNick: string | null;
+  onClose: () => void;
+  onSubmit: (corrected: string, note: string) => void;
+}
+
+// Modal HelloTalk-style : on pré-remplit avec le message original, le user
+// l'édite (corrige), et peut ajouter une note pédagogique courte.
+export function CorrectionModal({
+  open,
+  original,
+  peerNick,
+  onClose,
+  onSubmit,
+}: Props) {
+  const [corrected, setCorrected] = useState(original);
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setCorrected(original);
+      setNote("");
+    }
+  }, [open, original]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const trimmed = corrected.trim();
+  const canSubmit = trimmed.length > 0 && trimmed !== original.trim();
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    onSubmit(trimmed, note.trim());
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-3 pb-3 backdrop-blur-sm sm:items-center sm:p-6"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <motion.form
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={submit}
+        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-neutral-950"
+      >
+        <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+          Corriger {peerNick ?? "le message"}
+        </h2>
+        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          Modifie le message pour proposer ta version. Ajoute une note si tu
+          veux expliquer la règle.
+        </p>
+
+        <label className="mt-4 block text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          Message original
+        </label>
+        <p className="mt-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+          {original}
+        </p>
+
+        <label
+          htmlFor="correction"
+          className="mt-4 block text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+        >
+          Ta correction
+        </label>
+        <textarea
+          id="correction"
+          value={corrected}
+          onChange={(e) => setCorrected(e.target.value)}
+          maxLength={2000}
+          rows={3}
+          className="mt-1 w-full resize-none rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-900 outline-none ring-1 ring-transparent transition-all focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
+          autoFocus
+        />
+
+        <label
+          htmlFor="note"
+          className="mt-3 block text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+        >
+          Note (optionnel)
+        </label>
+        <textarea
+          id="note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          maxLength={500}
+          rows={2}
+          placeholder="Pourquoi cette correction ?"
+          className="mt-1 w-full resize-none rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-900 outline-none ring-1 ring-transparent transition-all placeholder:text-neutral-500 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
+        />
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-3 py-2 text-sm text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-neutral-50 dark:text-neutral-900"
+          >
+            Envoyer la correction
+          </button>
+        </div>
+      </motion.form>
+    </div>
+  );
+}

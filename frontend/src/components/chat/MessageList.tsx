@@ -7,10 +7,14 @@ import {
   type TranslationRequest,
 } from "@/components/chat/TranslationPopover";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
-import { useChatStore } from "@/stores/chatStore";
+import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 
-export function MessageList() {
+interface Props {
+  onCorrect?: (m: ChatMessage) => void;
+}
+
+export function MessageList({ onCorrect }: Props) {
   const messages = useChatStore((s) => s.messages);
   const peerNick = useChatStore((s) => s.peerNick);
   const peerTyping = useChatStore((s) => s.peerTyping);
@@ -66,7 +70,10 @@ export function MessageList() {
               key={m.id}
               from={m.from}
               body={m.body}
+              correction={m.correction}
+              peerNick={peerNick}
               onSelect={handleSelect}
+              onCorrect={onCorrect ? () => onCorrect(m) : undefined}
             />
           ))
         )}

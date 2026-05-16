@@ -8,10 +8,23 @@ export type ChatStatus =
   | "ended"
   | "error";
 
+export interface MessageCorrection {
+  original: string;
+  corrected: string;
+  note?: string;
+  // true si JE suis le correcteur. Sert à choisir le wording côté UI :
+  //   - moi correcteur → "Tu as corrigé"
+  //   - peer correcteur → "{peerNick} t'a corrigé"
+  fromMe: boolean;
+}
+
 export interface ChatMessage {
-  id: number;
+  // ID éphémère partagé entre les deux peers : généré côté expéditeur,
+  // relayé tel quel par le serveur, utilisé pour ancrer une correction.
+  id: string;
   from: "me" | "peer";
   body: string;
+  correction?: MessageCorrection;
 }
 
 interface ChatState {
@@ -24,16 +37,17 @@ interface ChatState {
 
   setStatus: (s: ChatStatus) => void;
   matched: (peerNick: string) => void;
-  pushMe: (body: string) => void;
-  pushPeer: (body: string) => void;
+  pushMe: (id: string, body: string) => void;
+  pushPeer: (id: string, body: string) => void;
+  // Patch d'un message existant avec une correction. Si le message ciblé
+  // n'existe plus (purge / mismatch), la correction est ignorée.
+  applyCorrection: (targetId: string, c: MessageCorrection) => void;
   receivePeerTyping: () => void;
   peerLeft: () => void;
   farewell: () => void;
   error: (code: string, message?: string) => void;
   reset: () => void;
 }
-
-let nextId = 0;
 
 // Timer du "peer écrit…" : module-level car il n'y a qu'une seule conv à
 // la fois. Auto-clear après 3.5s sans nouvel event typing.
@@ -72,19 +86,26 @@ export const useChatStore = create<ChatState>((set) => ({
     });
   },
 
-  pushMe: (body) =>
+  pushMe: (id, body) =>
     set((s) => ({
-      messages: [...s.messages, { id: ++nextId, from: "me", body }],
+      messages: [...s.messages, { id, from: "me", body }],
     })),
 
-  pushPeer: (body) => {
+  pushPeer: (id, body) => {
     // L'arrivée d'un message du peer signifie qu'il a fini de taper.
     clearTypingTimer();
     set((s) => ({
-      messages: [...s.messages, { id: ++nextId, from: "peer", body }],
+      messages: [...s.messages, { id, from: "peer", body }],
       peerTyping: false,
     }));
   },
+
+  applyCorrection: (targetId, c) =>
+    set((s) => ({
+      messages: s.messages.map((m) =>
+        m.id === targetId ? { ...m, correction: c } : m,
+      ),
+    })),
 
   receivePeerTyping: () => {
     clearTypingTimer();

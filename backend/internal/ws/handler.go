@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +31,18 @@ const (
 	// la table reports.
 	captureWindow   = 20
 	reasonMaxLength = 500
+
+	// IDs éphémères de messages : générés côté client pour permettre au peer
+	// d'ancrer une correction. On les valide en longueur uniquement (pas un
+	// secret, juste un opaque). 1-64 chars.
+	msgIDMaxLength = 64
+
+	// Throttle anti-abus pour les corrections (1 par 3 s par session).
+	correctMinInterval = 3 * time.Second
+
+	// Limites de taille des champs d'une correction.
+	correctionTextMax = 2000
+	correctionNoteMax = 500
 )
 
 type Deps struct {
@@ -271,6 +284,9 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 		}
 	}
 
+	// Throttle anti-abus pour les corrections : 1 par session toutes les 3 s.
+	var lastCorrectAt time.Time
+
 	peerCh := room.Channel()
 	for {
 		select {
@@ -285,12 +301,20 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			switch env.Kind {
 			case roomKindMsg:
 				push(peer.Nick, env.Body)
-				conn.Send(ServerFrame{Type: ServerMsg, Body: env.Body})
+				conn.Send(ServerFrame{Type: ServerMsg, Body: env.Body, ID: env.ID})
 			case roomKindTyping:
 				conn.Send(ServerFrame{Type: ServerTyping})
 			case roomKindLeft:
 				conn.Send(ServerFrame{Type: ServerPeerLeft})
 				return chatPeerLeft
+			case roomKindCorrection:
+				conn.Send(ServerFrame{
+					Type:     ServerCorrection,
+					TargetID: env.TargetID,
+					Original: env.Original,
+					Body:     env.Body,
+					Note:     env.Note,
+				})
 			}
 		case msg, ok := <-conn.Inbound:
 			if !ok {
@@ -298,16 +322,49 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			}
 			switch msg.Type {
 			case ClientMsg:
+				if len(msg.ID) > msgIDMaxLength {
+					conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInvalidParam})
+					continue
+				}
 				safe, err := moderation.SanitizeAndCheck(msg.Body, h.d.Block)
 				if err != nil {
 					conn.Send(ServerFrame{Type: ServerError, Code: mapModerationErr(err)})
 					continue
 				}
 				push(sess.Pseudo, safe)
-				if err := room.SendMsg(ctx, safe); err != nil {
+				if err := room.SendMsg(ctx, msg.ID, safe); err != nil {
 					h.d.Log.Error("room publish", "err", err)
 					return chatDisconnect
 				}
+			case ClientCorrect:
+				if time.Since(lastCorrectAt) < correctMinInterval {
+					continue
+				}
+				if msg.TargetID == "" || len(msg.TargetID) > msgIDMaxLength {
+					conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInvalidParam})
+					continue
+				}
+				corrected, err := moderation.SanitizeAndCheck(msg.Body, h.d.Block)
+				if err != nil {
+					conn.Send(ServerFrame{Type: ServerError, Code: mapModerationErr(err)})
+					continue
+				}
+				if len(corrected) > correctionTextMax {
+					conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeMessageTooLong})
+					continue
+				}
+				// Note + original : pas de filtre obscénités (la note est
+				// éditoriale et peut citer des termes "à éviter" ; l'original
+				// a déjà été filtré au moment où il a été envoyé). Trim +
+				// troncature suffisent — la défense XSS reste assurée par
+				// React + DOMPurify côté client.
+				note := truncate(strings.TrimSpace(msg.Note), correctionNoteMax)
+				original := truncate(strings.TrimSpace(msg.Original), correctionTextMax)
+				if err := room.SendCorrection(ctx, msg.TargetID, original, corrected, note); err != nil {
+					h.d.Log.Error("room correction publish", "err", err)
+					return chatDisconnect
+				}
+				lastCorrectAt = time.Now()
 			case ClientTyping:
 				_ = room.SendTyping(ctx)
 			case ClientReport:

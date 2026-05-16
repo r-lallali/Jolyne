@@ -5,17 +5,31 @@
 export type ServerFrame =
   | { type: "queued" }
   | { type: "matched"; room: string; peer_nick: string }
-  | { type: "msg"; body: string }
+  | { type: "msg"; body: string; id?: string }
+  | {
+      type: "correction";
+      target_id: string;
+      original: string;
+      body: string;
+      note?: string;
+    }
   | { type: "peer_left" }
   | { type: "typing" }
   | { type: "reported" }
   | { type: "error"; code: string; message?: string };
 
 export type ClientFrame =
-  | { type: "msg"; body: string }
+  | { type: "msg"; body: string; id: string }
   | { type: "next" }
   | { type: "typing" }
-  | { type: "report"; body?: string };
+  | { type: "report"; body?: string }
+  | {
+      type: "correct";
+      target_id: string;
+      original: string;
+      body: string;
+      note?: string;
+    };
 
 export interface ConnectOpts {
   baseURL: string; // ex: wss://jolyne.ralys.ovh
