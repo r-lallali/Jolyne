@@ -148,7 +148,7 @@ export default function AdminReportsPage() {
                     <StatusBadge status={r.status} />
                   </td>
                   <td className="px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400">
-                    {new Date(r.created_at).toLocaleString()}
+                    {new Date(r.created_at).toLocaleString("fr-FR")}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link

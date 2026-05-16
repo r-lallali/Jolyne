@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { useMatch } from "@/hooks/useMatch";
 import { useChatStore } from "@/stores/chatStore";
 
@@ -8,11 +9,27 @@ export function SearchingView() {
   const status = useChatStore((s) => s.status);
   const { stop } = useMatch();
 
-  const queued = status === "queued";
-  const label = queued ? "On cherche quelqu'un" : "Connexion";
-  const sub = queued
-    ? "On t'apparie avec un natif qui veut pratiquer ta langue cible."
-    : "Quelques secondes — on rétablit le lien avec le serveur.";
+  // On gèle le label sur les seuls statuts que cette vue est censée
+  // afficher ("connecting"/"queued"). Sinon, au moment d'un Annuler, le
+  // store passe à "ended" *avant* que l'animation d'exit ne se termine,
+  // ce qui faisait flasher "Connexion" pendant ~220 ms.
+  const [label, setLabel] = useState(() =>
+    status === "queued" ? "On cherche quelqu'un" : "Connexion",
+  );
+  const [sub, setSub] = useState(() =>
+    status === "queued"
+      ? "On t'apparie avec un natif qui veut pratiquer ta langue cible."
+      : "Quelques secondes — on rétablit le lien avec le serveur.",
+  );
+  useEffect(() => {
+    if (status === "queued") {
+      setLabel("On cherche quelqu'un");
+      setSub("On t'apparie avec un natif qui veut pratiquer ta langue cible.");
+    } else if (status === "connecting") {
+      setLabel("Connexion");
+      setSub("Quelques secondes — on rétablit le lien avec le serveur.");
+    }
+  }, [status]);
 
   return (
     <div className="flex h-dvh w-full flex-col items-center justify-center gap-10 px-6 sm:h-[92vh]">

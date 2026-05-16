@@ -121,7 +121,7 @@ export default function AdminReportDetailPage({
           Signalement #{report.id}
         </h1>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          Créé le {new Date(report.created_at).toLocaleString()} — statut :{" "}
+          Créé le {new Date(report.created_at).toLocaleString("fr-FR")} — statut :{" "}
           <span className="font-medium">{report.status}</span>
         </p>
       </header>
@@ -163,7 +163,7 @@ export default function AdminReportDetailPage({
                   {m.from}
                 </span>
                 <span className="ml-2 text-[11px] text-neutral-500 dark:text-neutral-500">
-                  {new Date(m.at).toLocaleTimeString()}
+                  {new Date(m.at).toLocaleTimeString("fr-FR")}
                 </span>
                 <p className="whitespace-pre-wrap break-words text-neutral-700 dark:text-neutral-300">
                   {m.body}
@@ -286,7 +286,7 @@ function HistoryItem({ event }: { event: ReportEvent }) {
           par <span className="font-medium">{event.actor}</span>
         </span>
         <span className="ml-auto text-[11px] text-neutral-500 dark:text-neutral-500">
-          {new Date(event.created_at).toLocaleString()}
+          {new Date(event.created_at).toLocaleString("fr-FR")}
         </span>
       </div>
       {event.note && (

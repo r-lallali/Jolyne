@@ -129,7 +129,7 @@ export default function AdminBansPage() {
                   <td className="px-4 py-3 text-xs">{b.BannedBy}</td>
                   <td className="px-4 py-3 text-xs">
                     {b.ExpiresAt ? (
-                      new Date(b.ExpiresAt).toLocaleString()
+                      new Date(b.ExpiresAt).toLocaleString("fr-FR")
                     ) : (
                       <span className="font-medium text-red-600 dark:text-red-400">
                         permanent
