@@ -1,11 +1,12 @@
 "use client";
 
 import { AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GrammarPopover } from "@/components/chat/GrammarPopover";
 import { checkGrammar, GrammarError, type GrammarMatch } from "@/lib/grammar";
 import { useT } from "@/lib/i18n";
 import { translateText } from "@/lib/translate";
+import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 
 interface Props {
@@ -23,7 +24,15 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
   const [grammarErr, setGrammarErr] = useState<string | null>(null);
   const wants = useSessionStore((s) => s.wants);
   const speaks = useSessionStore((s) => s.speaks);
+  const peerNick = useChatStore((s) => s.peerNick);
   const t = useT();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus dès qu'on est matché (clé : `peerNick` change à chaque match).
+  // Sur mobile, le focus ouvre le clavier — gain de tap réel.
+  useEffect(() => {
+    if (peerNick) inputRef.current?.focus();
+  }, [peerNick]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,6 +116,7 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
         className="mx-auto flex w-full max-w-2xl items-center gap-2 rounded-2xl bg-neutral-100 px-4 py-1.5 ring-1 ring-transparent transition-all focus-within:ring-neutral-300 dark:bg-neutral-900 dark:focus-within:ring-neutral-700"
       >
         <input
+          ref={inputRef}
           value={draft}
           onChange={handleChange}
           disabled={disabled}
