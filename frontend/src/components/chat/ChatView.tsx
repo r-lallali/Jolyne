@@ -44,6 +44,18 @@ export function ChatView() {
     return () => clearTimeout(id);
   }, [toastTick]);
 
+  // Cmd/Ctrl+K = Suivant. Respecte le cooldown post-match (canNext).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (canNext) next();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [canNext, next]);
+
   const handleReport = (reason: string) => {
     report(reason);
   };

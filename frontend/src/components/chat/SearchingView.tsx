@@ -11,6 +11,15 @@ export function SearchingView() {
   const { stop } = useMatch();
   const t = useT();
 
+  // Esc = annuler. Évite d'avoir à viser le bouton sur desktop.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") stop();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stop]);
+
   // On gèle le label sur les seuls statuts que cette vue est censée
   // afficher ("connecting"/"queued"). Sinon, au moment d'un Annuler, le
   // store passe à "ended" *avant* que l'animation d'exit ne se termine,
