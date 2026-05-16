@@ -9,10 +9,17 @@ import {
   type ReportSummary,
 } from "@/lib/admin";
 
-type Filter = "open" | "resolved" | "dismissed" | "";
+type Filter = "open" | "closed";
+
+function initialFilter(): Filter {
+  if (typeof window === "undefined") return "open";
+  return new URLSearchParams(window.location.search).get("status") === "closed"
+    ? "closed"
+    : "open";
+}
 
 export default function AdminReportsPage() {
-  const [filter, setFilter] = useState<Filter>("open");
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -50,34 +57,30 @@ export default function AdminReportsPage() {
             File de modération.
           </p>
         </div>
-        <nav className="flex items-center gap-3 text-xs">
-          <Link
-            href="/admin/bans"
-            className="text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-          >
-            Bans
-          </Link>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-          >
-            Se déconnecter
-          </button>
-        </nav>
+        <button
+          type="button"
+          onClick={onLogout}
+          className="text-xs text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+        >
+          Se déconnecter
+        </button>
       </header>
 
       <nav className="mb-6 flex gap-2">
+        <Link
+          href="/admin/bans"
+          className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-900"
+        >
+          Bans
+        </Link>
         {(
           [
             ["open", "À traiter"],
-            ["resolved", "Résolus"],
-            ["dismissed", "Ignorés"],
-            ["", "Tous"],
+            ["closed", "Résolus"],
           ] as [Filter, string][]
         ).map(([f, label]) => (
           <button
-            key={f || "all"}
+            key={f}
             type="button"
             onClick={() => setFilter(f)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${

@@ -67,11 +67,14 @@ func (s *Store) ListReports(ctx context.Context, status string, limit, offset in
 	if offset < 0 {
 		offset = 0
 	}
+	// "closed" est un alias pour resolved + dismissed (file "Résolus" côté admin).
 	const q = `
 		SELECT id, reported_nick, reported_fingerprint,
 		       COALESCE(reason, ''), status, created_at
 		FROM reports
-		WHERE ($1 = '' OR status = $1)
+		WHERE ($1 = ''
+		       OR ($1 = 'closed' AND status IN ('resolved','dismissed'))
+		       OR status = $1)
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3`
 	rows, err := s.pool.Query(ctx, q, status, limit, offset)

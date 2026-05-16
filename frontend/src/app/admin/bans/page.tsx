@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AuthError, listBans, liftBan, type Ban } from "@/lib/admin";
+import { AuthError, listBans, liftBan, logout, type Ban } from "@/lib/admin";
 
 export default function AdminBansPage() {
   const [bans, setBans] = useState<Ban[]>([]);
@@ -38,6 +38,11 @@ export default function AdminBansPage() {
     }
   };
 
+  const onLogout = async () => {
+    await logout();
+    window.location.href = "/admin/login";
+  };
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
       <header className="mb-8 flex items-center justify-between">
@@ -50,13 +55,32 @@ export default function AdminBansPage() {
             traçabilité mais ne sont plus en vigueur.
           </p>
         </div>
-        <Link
-          href="/admin/reports"
-          className="text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+        <button
+          type="button"
+          onClick={onLogout}
+          className="text-xs text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
         >
-          ← Signalements
-        </Link>
+          Se déconnecter
+        </button>
       </header>
+
+      <nav className="mb-6 flex gap-2">
+        <span className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-medium text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900">
+          Bans
+        </span>
+        <Link
+          href="/admin/reports?status=open"
+          className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-900"
+        >
+          À traiter
+        </Link>
+        <Link
+          href="/admin/reports?status=closed"
+          className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-900"
+        >
+          Résolus
+        </Link>
+      </nav>
 
       {loading && (
         <p className="text-sm text-neutral-500 dark:text-neutral-400">

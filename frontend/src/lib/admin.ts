@@ -83,8 +83,10 @@ export async function fetchMe(): Promise<{ email: string } | null> {
   return request<{ email: string }>("/api/admin/me");
 }
 
+export type ReportFilter = "open" | "resolved" | "dismissed" | "closed" | "";
+
 export async function listReports(
-  status: "open" | "resolved" | "dismissed" | "" = "open",
+  status: ReportFilter = "open",
 ): Promise<ReportSummary[]> {
   const params = status ? `?status=${status}` : "";
   const d = await request<{ reports: ReportSummary[] }>(
