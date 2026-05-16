@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import type { MessageCorrection } from "@/stores/chatStore";
@@ -18,6 +18,9 @@ interface Props {
   // Demande l'ouverture du modal de correction sur ce message (bulles peer
   // uniquement, et seulement si aucune correction n'a déjà été envoyée).
   onCorrect?: () => void;
+  // Demande l'édition d'une correction qu'on a déjà envoyée (uniquement si
+  // dans la fenêtre d'édition — la décision se fait dans le parent).
+  onEditCorrection?: () => void;
 }
 
 // Bulles asymétriques :
@@ -29,6 +32,8 @@ interface Props {
 // Délai pour distinguer un long-press (= traduire le mot tapé) d'un tap
 // court (= laisser passer le tap natif).
 const LONG_PRESS_MS = 500;
+// Fenêtre pendant laquelle le correcteur peut éditer sa correction.
+const EDIT_WINDOW_MS = 30_000;
 
 export function MessageBubble({
   from,
@@ -38,6 +43,7 @@ export function MessageBubble({
   peerNick,
   onSelect,
   onCorrect,
+  onEditCorrection,
 }: Props) {
   const mine = from === "me";
   const ref = useRef<HTMLParagraphElement>(null);
@@ -147,6 +153,7 @@ export function MessageBubble({
           mine={mine}
           correction={correction}
           peerNick={peerNick}
+          onEdit={onEditCorrection}
         />
       )}
     </div>
@@ -253,10 +260,32 @@ interface CorrectionBubbleProps {
   mine: boolean;
   correction: MessageCorrection;
   peerNick: string | null;
+  onEdit?: () => void;
 }
 
-function CorrectionBubble({ mine, correction, peerNick }: CorrectionBubbleProps) {
+function CorrectionBubble({
+  mine,
+  correction,
+  peerNick,
+  onEdit,
+}: CorrectionBubbleProps) {
   const t = useT();
+  // Le lien d'édition disparaît au bout de EDIT_WINDOW_MS. On planifie un
+  // unique setTimeout pour forcer la re-render à l'échéance.
+  const [editExpired, setEditExpired] = useState(
+    () => Date.now() - correction.at >= EDIT_WINDOW_MS,
+  );
+  useEffect(() => {
+    if (!onEdit || editExpired) return;
+    const remaining = EDIT_WINDOW_MS - (Date.now() - correction.at);
+    if (remaining <= 0) {
+      setEditExpired(true);
+      return;
+    }
+    const id = setTimeout(() => setEditExpired(true), remaining);
+    return () => clearTimeout(id);
+  }, [onEdit, correction.at, editExpired]);
+  const canEdit = onEdit && !editExpired;
   // Wording :
   //   - moi correcteur : la bulle apparaît sous un message peer → "Ta correction"
   //   - peer correcteur : la bulle apparaît sous un message moi → "{nick} t'a corrigé"
@@ -276,9 +305,20 @@ function CorrectionBubble({ mine, correction, peerNick }: CorrectionBubbleProps)
         mine ? "self-end" : "self-start",
       )}
     >
-      <p className="text-[10px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
-        {label}
-      </p>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
+          {label}
+        </p>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="text-[11px] font-medium text-amber-700 underline-offset-2 hover:underline dark:text-amber-400"
+          >
+            {t.correction.editLink}
+          </button>
+        )}
+      </div>
       <p className="mt-1 whitespace-pre-wrap break-words text-neutral-900 dark:text-neutral-100">
         {diffTokens(correction.original, correction.corrected).map((tok, i) =>
           tok.changed ? (

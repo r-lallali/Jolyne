@@ -71,6 +71,8 @@ export const en: Messages = {
     youCorrected: "Your correction",
     peerCorrected: ({ nick }) => `${nick} corrected you`,
     fallbackCorrector: "Your partner",
+    sentToast: "Correction sent",
+    editLink: "Edit",
   },
   report: {
     title: ({ nick }) => `Report ${nick}`,

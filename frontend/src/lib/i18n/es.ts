@@ -70,6 +70,8 @@ export const es: Messages = {
     youCorrected: "Tu corrección",
     peerCorrected: ({ nick }) => `${nick} te corrigió`,
     fallbackCorrector: "Tu interlocutor",
+    sentToast: "Corrección enviada",
+    editLink: "Editar",
   },
   report: {
     title: ({ nick }) => `Reportar a ${nick}`,

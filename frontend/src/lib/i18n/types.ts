@@ -80,6 +80,8 @@ export interface Messages {
     youCorrected: string;
     peerCorrected: FormatString<{ nick: string }>;
     fallbackCorrector: string;
+    sentToast: string;
+    editLink: string;
   };
   report: {
     title: FormatString<{ nick: string }>;

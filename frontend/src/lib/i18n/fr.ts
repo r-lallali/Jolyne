@@ -71,6 +71,8 @@ export const fr: Messages = {
     youCorrected: "Ta correction",
     peerCorrected: ({ nick }) => `${nick} t'a corrigé`,
     fallbackCorrector: "Ton interlocuteur",
+    sentToast: "Correction envoyée",
+    editLink: "Modifier",
   },
   report: {
     title: ({ nick }) => `Signaler ${nick}`,

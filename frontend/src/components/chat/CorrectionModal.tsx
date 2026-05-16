@@ -8,29 +8,35 @@ interface Props {
   open: boolean;
   original: string;
   peerNick: string | null;
+  // Valeurs préremplies (mode édition d'une correction déjà envoyée).
+  initialCorrected?: string;
+  initialNote?: string;
   onClose: () => void;
   onSubmit: (corrected: string, note: string) => void;
 }
 
-// Modal HelloTalk-style : on pré-remplit avec le message original, le user
-// l'édite (corrige), et peut ajouter une note pédagogique courte.
+// Modal HelloTalk-style : on pré-remplit avec le message original (ou la
+// correction en cours si on édite), le user l'édite, et peut ajouter une
+// note pédagogique courte.
 export function CorrectionModal({
   open,
   original,
   peerNick,
+  initialCorrected,
+  initialNote,
   onClose,
   onSubmit,
 }: Props) {
-  const [corrected, setCorrected] = useState(original);
-  const [note, setNote] = useState("");
+  const [corrected, setCorrected] = useState(initialCorrected ?? original);
+  const [note, setNote] = useState(initialNote ?? "");
   const t = useT();
 
   useEffect(() => {
     if (open) {
-      setCorrected(original);
-      setNote("");
+      setCorrected(initialCorrected ?? original);
+      setNote(initialNote ?? "");
     }
-  }, [open, original]);
+  }, [open, original, initialCorrected, initialNote]);
 
   useEffect(() => {
     if (!open) return;

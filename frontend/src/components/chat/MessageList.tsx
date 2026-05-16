@@ -13,9 +13,10 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 interface Props {
   onCorrect?: (m: ChatMessage) => void;
+  onEditCorrection?: (m: ChatMessage) => void;
 }
 
-export function MessageList({ onCorrect }: Props) {
+export function MessageList({ onCorrect, onEditCorrection }: Props) {
   const messages = useChatStore((s) => s.messages);
   const peerNick = useChatStore((s) => s.peerNick);
   const peerTyping = useChatStore((s) => s.peerTyping);
@@ -64,18 +65,27 @@ export function MessageList({ onCorrect }: Props) {
             </div>
           </div>
         ) : (
-          messages.map((m) => (
-            <MessageBubble
-              key={m.id}
-              from={m.from}
-              body={m.body}
-              at={m.at}
-              correction={m.correction}
-              peerNick={peerNick}
-              onSelect={handleSelect}
-              onCorrect={onCorrect ? () => onCorrect(m) : undefined}
-            />
-          ))
+          messages.map((m) => {
+            // Édition possible uniquement pour mes propres corrections (qui
+            // vivent sous des messages peer).
+            const canEdit =
+              onEditCorrection &&
+              m.from === "peer" &&
+              m.correction?.fromMe === true;
+            return (
+              <MessageBubble
+                key={m.id}
+                from={m.from}
+                body={m.body}
+                at={m.at}
+                correction={m.correction}
+                peerNick={peerNick}
+                onSelect={handleSelect}
+                onCorrect={onCorrect ? () => onCorrect(m) : undefined}
+                onEditCorrection={canEdit ? () => onEditCorrection!(m) : undefined}
+              />
+            );
+          })
         )}
         <TypingIndicator />
       </div>

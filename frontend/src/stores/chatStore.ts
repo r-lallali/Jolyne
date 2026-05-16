@@ -16,6 +16,9 @@ export interface MessageCorrection {
   //   - moi correcteur → "Tu as corrigé"
   //   - peer correcteur → "{peerNick} t'a corrigé"
   fromMe: boolean;
+  // Date.now() à l'insertion / mise à jour. Sert à autoriser une édition
+  // par le correcteur dans une fenêtre de N secondes après l'envoi.
+  at: number;
 }
 
 export interface ChatMessage {

@@ -90,6 +90,7 @@ export function useMatch() {
               corrected: sanitizeMessage(f.body),
               note: f.note ? sanitizeMessage(f.note) : undefined,
               fromMe: false,
+              at: Date.now(),
             });
             break;
           case "peer_left":
@@ -166,6 +167,7 @@ export function useMatch() {
           corrected: sanitizeMessage(body),
           note: note?.trim() ? sanitizeMessage(note) : undefined,
           fromMe: true,
+          at: Date.now(),
         });
       }
       return ok;
