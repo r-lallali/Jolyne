@@ -24,6 +24,9 @@ export interface ChatMessage {
   id: string;
   from: "me" | "peer";
   body: string;
+  // Date.now() à l'insertion en store, côté receveur ou côté expéditeur.
+  // Sert uniquement à l'affichage tooltip "envoyé à 14:32" — pas relayé.
+  at: number;
   correction?: MessageCorrection;
 }
 
@@ -88,14 +91,17 @@ export const useChatStore = create<ChatState>((set) => ({
 
   pushMe: (id, body) =>
     set((s) => ({
-      messages: [...s.messages, { id, from: "me", body }],
+      messages: [...s.messages, { id, from: "me", body, at: Date.now() }],
     })),
 
   pushPeer: (id, body) => {
     // L'arrivée d'un message du peer signifie qu'il a fini de taper.
     clearTypingTimer();
     set((s) => ({
-      messages: [...s.messages, { id, from: "peer", body }],
+      messages: [
+        ...s.messages,
+        { id, from: "peer", body, at: Date.now() },
+      ],
       peerTyping: false,
     }));
   },

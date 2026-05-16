@@ -9,6 +9,7 @@ import type { MessageCorrection } from "@/stores/chatStore";
 interface Props {
   from: "me" | "peer";
   body: string;
+  at: number;
   correction?: MessageCorrection;
   peerNick: string | null;
   // Appelé quand l'utilisateur sélectionne du texte dans une bulle peer.
@@ -32,6 +33,7 @@ const LONG_PRESS_MS = 500;
 export function MessageBubble({
   from,
   body,
+  at,
   correction,
   peerNick,
   onSelect,
@@ -95,6 +97,7 @@ export function MessageBubble({
       >
         <p
           ref={ref}
+          title={new Date(at).toLocaleTimeString()}
           onMouseUp={handleSelect}
           onTouchStart={handleTouchStart}
           onTouchEnd={(e) => {

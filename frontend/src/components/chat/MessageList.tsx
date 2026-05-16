@@ -69,6 +69,7 @@ export function MessageList({ onCorrect }: Props) {
               key={m.id}
               from={m.from}
               body={m.body}
+              at={m.at}
               correction={m.correction}
               peerNick={peerNick}
               onSelect={handleSelect}
