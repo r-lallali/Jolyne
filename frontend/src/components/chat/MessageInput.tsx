@@ -5,6 +5,7 @@ import { useState } from "react";
 import { GrammarPopover } from "@/components/chat/GrammarPopover";
 import { checkGrammar, GrammarError, type GrammarMatch } from "@/lib/grammar";
 import { useT } from "@/lib/i18n";
+import { translateText } from "@/lib/translate";
 import { useSessionStore } from "@/stores/sessionStore";
 
 interface Props {
@@ -21,6 +22,7 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
   const [checkedAgainst, setCheckedAgainst] = useState(""); // texte exact vérifié
   const [grammarErr, setGrammarErr] = useState<string | null>(null);
   const wants = useSessionStore((s) => s.wants);
+  const speaks = useSessionStore((s) => s.speaks);
   const t = useT();
 
   const submit = (e: React.FormEvent) => {
@@ -48,7 +50,8 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
     setGrammarErr(null);
     try {
       const ms = await checkGrammar(text, wants);
-      setMatches(ms);
+      const localized = await localizeMessages(ms, wants, speaks);
+      setMatches(localized);
       setCheckedAgainst(text);
     } catch (e) {
       setGrammarErr(
@@ -158,4 +161,42 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
       </form>
     </div>
   );
+}
+
+// LanguageTool renvoie ses messages dans la langue vérifiée (= `wants` côté
+// client). Pour les rendre lisibles, on les traduit vers `speaks` via notre
+// endpoint /api/translate. Best-effort : si une traduction échoue, on
+// retombe sur le message original — pas de blocage UI.
+async function localizeMessages(
+  matches: GrammarMatch[],
+  source: string,
+  target: string | null,
+): Promise<GrammarMatch[]> {
+  if (!target || target === source || matches.length === 0) return matches;
+  const translated = await Promise.all(
+    matches.map(async (m) => {
+      const [msg, short] = await Promise.all([
+        m.message ? safeTranslate(m.message, source, target) : null,
+        m.short_message ? safeTranslate(m.short_message, source, target) : null,
+      ]);
+      return {
+        ...m,
+        message: msg ?? m.message,
+        short_message: short ?? m.short_message,
+      };
+    }),
+  );
+  return translated;
+}
+
+async function safeTranslate(
+  text: string,
+  source: string,
+  target: string,
+): Promise<string | null> {
+  try {
+    return await translateText(text, source, target);
+  } catch {
+    return null;
+  }
 }
