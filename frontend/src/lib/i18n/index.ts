@@ -15,7 +15,9 @@
 
 import { useEffect, useState } from "react";
 import { useSessionStore } from "@/stores/sessionStore";
+import { de } from "@/lib/i18n/de";
 import { en } from "@/lib/i18n/en";
+import { es } from "@/lib/i18n/es";
 import { fr } from "@/lib/i18n/fr";
 import type { Messages, UILang } from "@/lib/i18n/types";
 
@@ -23,11 +25,11 @@ export type { Messages, UILang } from "@/lib/i18n/types";
 
 export const SUPPORTED_LANGS: readonly UILang[] = ["fr", "en", "es", "de"];
 
-// Dictionnaires actifs au build. Tant qu'une langue n'a pas son fichier,
-// on retombe sur l'anglais (cf. dispatcher plus bas).
-const DICTS: Partial<Record<UILang, Messages>> = {
+const DICTS: Record<UILang, Messages> = {
   fr,
   en,
+  es,
+  de,
 };
 
 const FALLBACK: Messages = en;
@@ -42,8 +44,6 @@ function detectBrowserLang(): UILang | null {
   return isSupported(base) ? (base as UILang) : null;
 }
 
-// Renvoie le dico de la langue passée, ou l'anglais si la langue n'a pas
-// encore son fichier (cas es/de tant que le commit 3 n'est pas passé).
 export function getMessages(lang: UILang): Messages {
   return DICTS[lang] ?? FALLBACK;
 }

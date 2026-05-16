@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AgeGate } from "@/components/AgeGate";
 import { LangSelector } from "@/components/setup/LangSelector";
 import { PseudoInput } from "@/components/setup/PseudoInput";
+import { UILangPicker } from "@/components/setup/UILangPicker";
 import { useMatch } from "@/hooks/useMatch";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useT } from "@/lib/i18n";
@@ -191,13 +192,17 @@ export function SetupView() {
         </AnimatePresence>
       </div>
 
-      <footer className="mt-10 text-center">
+      <footer className="mt-10 flex items-center gap-4 text-center">
         <a
           href="/legal"
           className="text-xs text-neutral-500 underline-offset-4 transition-colors hover:text-neutral-900 hover:underline dark:text-neutral-500 dark:hover:text-neutral-100"
         >
           {t.setup.legal}
         </a>
+        <span aria-hidden className="text-xs text-neutral-400 dark:text-neutral-700">
+          ·
+        </span>
+        <UILangPicker />
       </footer>
     </div>
   );
