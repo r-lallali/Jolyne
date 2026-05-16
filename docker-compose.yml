@@ -89,19 +89,22 @@ services:
     networks:
       - dokploy-network
 
-  # LibreTranslate self-host (PLAN.md §8 — décision actée). Premier boot lent
-  # (~2 min) car téléchargement des modèles. Volume monté pour persister.
+  # LibreTranslate self-host (PLAN.md §8 — décision actée).
+  # Pas de volume persistant : les modèles Argos sont re-téléchargés à chaque
+  # création de container. Cause : un volume nommé est root-owned alors que
+  # LT tourne sous UID 1032 → PermissionError. Côté MVP, le re-download (~2-5
+  # min, ~500 Mo pour 4 langues) ne se déclenche qu'aux redéploiements
+  # Dokploy, pas aux simples restarts. À durcir plus tard via bind-mount
+  # chowné si le temps de deploy devient gênant.
   libretranslate:
     image: libretranslate/libretranslate:latest
     restart: unless-stopped
     environment:
       LT_LOAD_ONLY: "en,fr,es,de"
       LT_DISABLE_WEB_UI: "true"
-    volumes:
-      - libretranslate_models:/home/libretranslate/.local/share/argos-translate
     # python3 plutôt que wget : l'image LT (python-slim) ne ship pas wget
-    # mais a forcément python. start_period long car le 1er boot télécharge
-    # les modèles Argos (plusieurs minutes selon le réseau du VPS).
+    # mais a forcément python. start_period long car le boot télécharge les
+    # modèles Argos.
     healthcheck:
       test:
         - CMD-SHELL
@@ -128,4 +131,3 @@ networks:
 
 volumes:
   redis_data:
-  libretranslate_models:

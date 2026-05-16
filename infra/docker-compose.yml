@@ -64,14 +64,14 @@ services:
       timeout: 3s
       retries: 5
 
+  # Pas de volume persistant — cf. commentaire dans docker-compose.yml racine
+  # (UID 1032 vs volume root-owned). Modèles re-téléchargés à chaque "up".
   libretranslate:
     image: libretranslate/libretranslate:latest
     restart: unless-stopped
     environment:
       LT_LOAD_ONLY: "en,fr,es,de"
       LT_DISABLE_WEB_UI: "true"
-    volumes:
-      - libretranslate_models:/home/libretranslate/.local/share/argos-translate
     healthcheck:
       test:
         - CMD-SHELL
@@ -92,4 +92,3 @@ volumes:
   caddy_data:
   caddy_config:
   redis_data:
-  libretranslate_models:

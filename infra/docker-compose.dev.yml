@@ -63,14 +63,14 @@ services:
 
   # LibreTranslate : self-host (PLAN.md §8 décisions). Premier boot lent
   # (plusieurs minutes) car téléchargement des modèles FR/EN/ES/DE.
+  # Pas de volume persistant : volume nommé = root-owned, LT tourne en UID
+  # 1032 → PermissionError. Modèles re-téléchargés à chaque container create.
   libretranslate:
     image: libretranslate/libretranslate:latest
     restart: unless-stopped
     environment:
       LT_LOAD_ONLY: "en,fr,es,de"
       LT_DISABLE_WEB_UI: "true"
-    volumes:
-      - libretranslate_models:/home/libretranslate/.local/share/argos-translate
     healthcheck:
       test:
         - CMD-SHELL
@@ -91,4 +91,3 @@ services:
 volumes:
   redis_dev_data:
   postgres_dev_data:
-  libretranslate_models:
