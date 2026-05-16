@@ -6,6 +6,7 @@ import { FarewellView } from "@/components/chat/FarewellView";
 import { SearchingView } from "@/components/chat/SearchingView";
 import { SetupView } from "@/components/setup/SetupView";
 import { useMatch } from "@/hooks/useMatch";
+import { useT, type Messages } from "@/lib/i18n";
 import { useChatStore } from "@/stores/chatStore";
 
 export function Conversation() {
@@ -65,6 +66,7 @@ interface ErrorProps {
 }
 
 function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
+  const t = useT();
   const fatal =
     code === "quota_exceeded" ||
     code === "invalid_pseudo" ||
@@ -72,10 +74,10 @@ function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
   return (
     <div className="flex h-dvh w-full flex-col items-center justify-center gap-6 px-6 text-center sm:h-[92vh]">
       <p className="text-lg font-medium text-neutral-900 dark:text-neutral-100">
-        {labelForCode(code)}
+        {labelForCode(code, t)}
       </p>
       <p className="max-w-sm text-balance text-sm text-neutral-500 dark:text-neutral-400">
-        {hintForCode(code, message)}
+        {hintForCode(code, message, t)}
       </p>
       <div className="flex gap-3">
         {!fatal && (
@@ -84,7 +86,7 @@ function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
             onClick={onRetry}
             className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-100 transition-opacity hover:opacity-90 dark:bg-neutral-100 dark:text-neutral-900"
           >
-            Réessayer
+            {t.errors.retry}
           </button>
         )}
         <button
@@ -92,52 +94,50 @@ function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
           onClick={onBack}
           className="rounded-md px-4 py-2 text-sm text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
         >
-          Retour
+          {t.common.back}
         </button>
       </div>
     </div>
   );
 }
 
-function labelForCode(code: string | null): string {
+function labelForCode(code: string | null, t: Messages): string {
   switch (code) {
     case "queue_timeout":
-      return "Personne pour le moment.";
+      return t.errors.queueTimeoutTitle;
     case "quota_exceeded":
-      return "Tu as utilisé tes 10 « suivant » du jour.";
+      return t.errors.quotaExceededTitle;
     case "invalid_pseudo":
-      return "Ce pseudo n'est pas accepté.";
+      return t.errors.invalidPseudoTitle;
     case "invalid_param":
-      return "Configuration invalide.";
+      return t.errors.invalidParamTitle;
     case "banned":
-      return "Accès suspendu.";
+      return t.errors.bannedTitle;
     case "message_blocked":
     case "message_too_long":
-      return "Message refusé.";
+      return t.errors.messageBlockedTitle;
     default:
-      return "Erreur inattendue.";
+      return t.errors.genericTitle;
   }
 }
 
-function hintForCode(code: string | null, message: string | null): string {
+function hintForCode(
+  code: string | null,
+  message: string | null,
+  t: Messages,
+): string {
   switch (code) {
     case "queue_timeout":
-      return "Peu de monde est en ligne sur cette paire de langues. Réessaie dans quelques instants.";
+      return t.errors.queueTimeoutHint;
     case "quota_exceeded":
-      return "Reviens demain. Premium retire cette limite (à venir).";
+      return t.errors.quotaExceededHint;
     case "invalid_pseudo":
-      return "Choisis un pseudo entre 3 et 20 caractères, sans terme grossier.";
+      return t.errors.invalidPseudoHint;
     case "invalid_param":
-      return (
-        message ??
-        "Vérifie ta paire de langues — toutes les combinaisons ne sont pas encore disponibles."
-      );
+      return message ?? t.errors.invalidParamHint;
     case "banned":
-      return (
-        message ??
-        "Ton accès à Jolyne est suspendu. Si tu penses que c'est une erreur, contacte le support."
-      );
+      return message ?? t.errors.bannedHint;
     default:
-      return message ?? "Réessaie ou recommence depuis le début.";
+      return message ?? t.errors.genericHint;
   }
 }

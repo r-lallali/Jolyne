@@ -9,11 +9,12 @@ const ALLOWED = /^[\p{L}\p{N}_-]*$/u;
 interface Props {
   value: string;
   onChange: (v: string) => void;
+  placeholder: string;
 }
 
 // Input invisible + spans Framer Motion ~180 ms par lettre.
 // Le serveur applique la même règle de charset (CLAUDE.md règle d'or #3).
-export function PseudoInput({ value, onChange }: Props) {
+export function PseudoInput({ value, onChange, placeholder }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
 
@@ -40,13 +41,13 @@ export function PseudoInput({ value, onChange }: Props) {
         autoCorrect="off"
         autoCapitalize="off"
         spellCheck={false}
-        aria-label="Pseudo"
+        aria-label={placeholder}
         className="absolute inset-0 w-full opacity-0"
       />
       <div className="flex min-h-[2.75rem] items-end justify-center text-4xl font-medium leading-none tracking-tight">
         {value.length === 0 ? (
           <span className="text-neutral-400 dark:text-neutral-600">
-            ton pseudo
+            {placeholder}
           </span>
         ) : (
           Array.from(value).map((char, i) => (

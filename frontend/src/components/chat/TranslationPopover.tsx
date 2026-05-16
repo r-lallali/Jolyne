@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { translateText, TranslateError } from "@/lib/translate";
 
 export interface TranslationRequest {
@@ -30,6 +31,7 @@ type State =
 //   3) Résultat + bouton fermer.
 export function TranslationPopover({ request, onClose }: Props) {
   const [state, setState] = useState<State>({ kind: "idle" });
+  const t = useT();
 
   // Fermeture sur clic ou Escape.
   useEffect(() => {
@@ -65,7 +67,9 @@ export function TranslationPopover({ request, onClose }: Props) {
       setState({ kind: "ok", translated });
     } catch (e) {
       const msg =
-        e instanceof TranslateError ? "Service indisponible" : "Erreur";
+        e instanceof TranslateError
+          ? t.translate.unavailable
+          : t.translate.genericError;
       setState({ kind: "err", message: msg });
     }
   };
@@ -97,13 +101,13 @@ export function TranslationPopover({ request, onClose }: Props) {
         >
           <span className="truncate font-medium">{request.text}</span>
           <span className="shrink-0 text-xs text-neutral-500 dark:text-neutral-400">
-            Traduire
+            {t.translate.label}
           </span>
         </button>
       )}
       {state.kind === "loading" && (
         <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          Traduction…
+          {t.translate.loading}
         </p>
       )}
       {state.kind === "ok" && (

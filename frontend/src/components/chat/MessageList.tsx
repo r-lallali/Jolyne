@@ -7,6 +7,7 @@ import {
   type TranslationRequest,
 } from "@/components/chat/TranslationPopover";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
+import { useT } from "@/lib/i18n";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -20,6 +21,7 @@ export function MessageList({ onCorrect }: Props) {
   const peerTyping = useChatStore((s) => s.peerTyping);
   const speaks = useSessionStore((s) => s.speaks);
   const wants = useSessionStore((s) => s.wants);
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
 
   // Tooltip de traduction. Un seul à la fois — la sélection d'un autre mot
@@ -54,13 +56,10 @@ export function MessageList({ onCorrect }: Props) {
           <div className="flex h-[40dvh] items-center justify-center">
             <div className="text-center">
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                Tu discutes avec{" "}
-                <span className="font-medium text-neutral-900 dark:text-neutral-100">
-                  {peerNick}
-                </span>
+                {t.chat.chattingWith({ nick: peerNick ?? "" })}
               </p>
               <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-600">
-                Dis bonjour pour démarrer.
+                {t.chat.sayHello}
               </p>
             </div>
           </div>

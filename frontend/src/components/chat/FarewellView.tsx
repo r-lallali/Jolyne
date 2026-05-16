@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect } from "react";
+import { useT } from "@/lib/i18n";
 import { useChatStore } from "@/stores/chatStore";
 
 const FAREWELL_DURATION_MS = 2_000;
@@ -11,10 +12,11 @@ const FAREWELL_DURATION_MS = 2_000;
 // saut sec vers l'écran de pseudo.
 export function FarewellView() {
   const reset = useChatStore((s) => s.reset);
+  const t = useT();
 
   useEffect(() => {
-    const t = setTimeout(reset, FAREWELL_DURATION_MS);
-    return () => clearTimeout(t);
+    const id = setTimeout(reset, FAREWELL_DURATION_MS);
+    return () => clearTimeout(id);
   }, [reset]);
 
   return (
@@ -25,7 +27,7 @@ export function FarewellView() {
         transition={{ duration: 0.22, ease: "easeOut" }}
         className="text-3xl font-medium text-neutral-900 dark:text-neutral-50"
       >
-        Merci, à bientôt.
+        {t.farewell.title}
       </motion.p>
       <motion.p
         initial={{ opacity: 0 }}
@@ -33,7 +35,7 @@ export function FarewellView() {
         transition={{ duration: 0.3, delay: 0.1 }}
         className="text-sm text-neutral-500 dark:text-neutral-400"
       >
-        Reviens pratiquer quand tu veux.
+        {t.farewell.hint}
       </motion.p>
     </div>
   );

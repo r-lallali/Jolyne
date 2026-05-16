@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function ChatHeader({ peerNick, onNext, onStop, onReport }: Props) {
+  const t = useT();
   return (
     <header className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
       <div className="flex min-w-0 items-center gap-2.5">
@@ -29,8 +31,8 @@ export function ChatHeader({ peerNick, onNext, onStop, onReport }: Props) {
         <button
           type="button"
           onClick={onReport}
-          aria-label="Signaler"
-          title="Signaler ce peer"
+          aria-label={t.chat.reportLabel}
+          title={t.chat.reportTitle}
           className="inline-flex size-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-red-400"
         >
           <FlagIcon />
@@ -40,9 +42,13 @@ export function ChatHeader({ peerNick, onNext, onStop, onReport }: Props) {
           onClick={onNext}
           className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
         >
-          Suivant
+          {t.chat.next}
         </button>
-        <QuitButton onConfirm={onStop} />
+        <QuitButton
+          onConfirm={onStop}
+          quitLabel={t.chat.quit}
+          confirmLabel={t.chat.confirmQuit}
+        />
       </div>
     </header>
   );
@@ -69,7 +75,15 @@ function FlagIcon() {
 // QuitButton : click-to-confirm. Premier clic → "Confirmer ?" en rouge
 // pendant 3s. Second clic dans la fenêtre → onConfirm. Sinon, revient à
 // "Quitter" silencieusement. Évite les mauvaises manips sur mobile.
-function QuitButton({ onConfirm }: { onConfirm: () => void }) {
+function QuitButton({
+  onConfirm,
+  quitLabel,
+  confirmLabel,
+}: {
+  onConfirm: () => void;
+  quitLabel: string;
+  confirmLabel: string;
+}) {
   const [armed, setArmed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -106,7 +120,7 @@ function QuitButton({ onConfirm }: { onConfirm: () => void }) {
           : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100",
       )}
     >
-      {armed ? "Confirmer ?" : "Quitter"}
+      {armed ? confirmLabel : quitLabel}
     </button>
   );
 }

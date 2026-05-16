@@ -7,6 +7,7 @@ import { LangSelector } from "@/components/setup/LangSelector";
 import { PseudoInput } from "@/components/setup/PseudoInput";
 import { useMatch } from "@/hooks/useMatch";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useT } from "@/lib/i18n";
 import { allowedWantsFor, isPairAllowed, type LangCode } from "@/lib/langs";
 
 const ALL_LANGS: LangCode[] = ["fr", "en", "es", "de"];
@@ -20,6 +21,7 @@ const slideVariants = {
 };
 
 export function SetupView() {
+  const t = useT();
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>("pseudo");
   const [dir, setDir] = useState(1);
@@ -102,14 +104,18 @@ export function SetupView() {
                 }}
               >
                 <Card>
-                  <CardLabel>Choisis ton pseudo</CardLabel>
-                  <PseudoInput value={pseudo} onChange={setPseudo} />
+                  <CardLabel>{t.setup.chooseNick}</CardLabel>
+                  <PseudoInput
+                    value={pseudo}
+                    onChange={setPseudo}
+                    placeholder={t.setup.nickPlaceholder}
+                  />
                   <button
                     type="submit"
                     disabled={!canNext}
                     className="mt-6 w-full rounded-xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20 dark:bg-white dark:text-neutral-950"
                   >
-                    Suivant
+                    {t.setup.next}
                   </button>
                 </Card>
               </form>
@@ -131,7 +137,7 @@ export function SetupView() {
                 {/* Sélection des langues */}
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-3">
-                    <CardLabel>Je parle</CardLabel>
+                    <CardLabel>{t.setup.iSpeak}</CardLabel>
                     <LangSelector
                       value={speaks}
                       onChange={handleSpeaksChange}
@@ -147,7 +153,7 @@ export function SetupView() {
                   </div>
 
                   <div className="flex flex-col gap-3">
-                    <CardLabel>Je veux pratiquer</CardLabel>
+                    <CardLabel>{t.setup.iWantPractice}</CardLabel>
                     <LangSelector
                       value={wants}
                       onChange={handleWantsChange}
@@ -168,7 +174,7 @@ export function SetupView() {
                     onClick={goBack}
                     className="rounded-xl bg-neutral-100 px-4 py-3.5 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
                   >
-                    Retour
+                    {t.setup.back}
                   </button>
                   <button
                     type="button"
@@ -176,7 +182,7 @@ export function SetupView() {
                     disabled={!canStart}
                     className="flex-1 rounded-xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20 dark:bg-white dark:text-neutral-950"
                   >
-                    Commencer
+                    {t.setup.start}
                   </button>
                 </div>
               </Card>
@@ -190,7 +196,7 @@ export function SetupView() {
           href="/legal"
           className="text-xs text-neutral-500 underline-offset-4 transition-colors hover:text-neutral-900 hover:underline dark:text-neutral-500 dark:hover:text-neutral-100"
         >
-          Mentions légales
+          {t.setup.legal}
         </a>
       </footer>
     </div>

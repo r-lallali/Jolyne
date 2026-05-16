@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useT } from "@/lib/i18n";
 import type { GrammarMatch } from "@/lib/grammar";
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 // Une carte par faute, suggestions cliquables. Pas de mise en surbrillance
 // inline pour rester simple — on affiche la zone fautive en code.
 export function GrammarPopover({ text, matches, onApply, onClose }: Props) {
+  const t = useT();
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -25,22 +27,22 @@ export function GrammarPopover({ text, matches, onApply, onClose }: Props) {
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
           {matches.length === 0
-            ? "Rien à corriger"
-            : `${matches.length} suggestion${matches.length > 1 ? "s" : ""}`}
+            ? t.grammar.nothingToFix
+            : t.grammar.suggestionsCount({ count: matches.length })}
         </h3>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Fermer"
+          aria-label={t.grammar.close}
           className="text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
         >
-          Fermer
+          {t.grammar.close}
         </button>
       </div>
 
       {matches.length === 0 ? (
         <p className="py-2 text-sm text-neutral-600 dark:text-neutral-400">
-          Aucune faute détectée.
+          {t.grammar.noErrors}
         </p>
       ) : (
         <ul className="space-y-2">

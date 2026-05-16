@@ -4,6 +4,7 @@ import { AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { GrammarPopover } from "@/components/chat/GrammarPopover";
 import { checkGrammar, GrammarError, type GrammarMatch } from "@/lib/grammar";
+import { useT } from "@/lib/i18n";
 import { useSessionStore } from "@/stores/sessionStore";
 
 interface Props {
@@ -20,6 +21,7 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
   const [checkedAgainst, setCheckedAgainst] = useState(""); // texte exact vérifié
   const [grammarErr, setGrammarErr] = useState<string | null>(null);
   const wants = useSessionStore((s) => s.wants);
+  const t = useT();
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +52,9 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
       setCheckedAgainst(text);
     } catch (e) {
       setGrammarErr(
-        e instanceof GrammarError ? "Service indisponible" : "Erreur",
+        e instanceof GrammarError
+          ? t.grammar.unavailable
+          : t.grammar.genericError,
       );
     } finally {
       setChecking(false);
@@ -104,7 +108,7 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
           onChange={handleChange}
           disabled={disabled}
           maxLength={2000}
-          placeholder="Ton message…"
+          placeholder={t.chat.placeholder}
           className="flex-1 bg-transparent py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-500 focus:outline-none disabled:opacity-40 dark:text-neutral-100 dark:placeholder:text-neutral-500"
           autoComplete="off"
         />
@@ -112,8 +116,8 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
           type="button"
           onClick={runCheck}
           disabled={!canCheck}
-          aria-label="Vérifier la grammaire"
-          title="Vérifier la grammaire"
+          aria-label={t.chat.grammarLabel}
+          title={t.chat.grammarLabel}
           className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-200 hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-25 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
         >
           <svg
@@ -134,7 +138,7 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
         <button
           type="submit"
           disabled={!canSend}
-          aria-label="Envoyer"
+          aria-label={t.chat.sendLabel}
           className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-neutral-100 transition-all hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-25 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white"
         >
           <svg

@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   open: boolean;
@@ -19,6 +20,7 @@ const REASON_MAX = 500;
 export function ReportModal({ open, peerNick, onClose, onSubmit }: Props) {
   const [reason, setReason] = useState("");
   const [sent, setSent] = useState(false);
+  const t = useT();
 
   // Reset à chaque ouverture/fermeture
   useEffect(() => {
@@ -56,21 +58,19 @@ export function ReportModal({ open, peerNick, onClose, onSubmit }: Props) {
             {sent ? (
               <div className="py-4 text-center">
                 <p className="text-base font-medium text-neutral-900 dark:text-neutral-100">
-                  Signalement envoyé.
+                  {t.report.sent}
                 </p>
                 <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                  Merci, on s&apos;en occupe.
+                  {t.report.sentHint}
                 </p>
               </div>
             ) : (
               <>
                 <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-                  Signaler {peerNick}
+                  {t.report.title({ nick: peerNick ?? "" })}
                 </h2>
                 <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                  Décris brièvement le comportement (facultatif). Les derniers
-                  messages échangés sont joints automatiquement pour aider à
-                  l&apos;examen.
+                  {t.report.hint}
                 </p>
                 <textarea
                   value={reason}
@@ -79,7 +79,7 @@ export function ReportModal({ open, peerNick, onClose, onSubmit }: Props) {
                   }
                   rows={4}
                   maxLength={REASON_MAX}
-                  placeholder="Harcèlement, propos inappropriés…"
+                  placeholder={t.report.placeholder}
                   autoFocus
                   className="mt-4 w-full resize-none rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:ring-neutral-700"
                 />
@@ -92,14 +92,14 @@ export function ReportModal({ open, peerNick, onClose, onSubmit }: Props) {
                     onClick={onClose}
                     className="rounded-lg px-4 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
                   >
-                    Annuler
+                    {t.common.cancel}
                   </button>
                   <button
                     type="button"
                     onClick={submit}
                     className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
                   >
-                    Envoyer le signalement
+                    {t.report.submit}
                   </button>
                 </div>
               </>

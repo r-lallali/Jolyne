@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useRef } from "react";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import type { MessageCorrection } from "@/stores/chatStore";
 
@@ -34,6 +35,7 @@ export function MessageBubble({
 }: Props) {
   const mine = from === "me";
   const ref = useRef<HTMLParagraphElement>(null);
+  const t = useT();
 
   const handleSelect = () => {
     if (mine || !onSelect) return;
@@ -79,8 +81,8 @@ export function MessageBubble({
           <button
             type="button"
             onClick={onCorrect}
-            aria-label="Corriger ce message"
-            title="Corriger"
+            aria-label={t.correction.correctTooltip}
+            title={t.correction.correctTooltip}
             className="opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
           >
             <svg
@@ -117,12 +119,15 @@ interface CorrectionBubbleProps {
 }
 
 function CorrectionBubble({ mine, correction, peerNick }: CorrectionBubbleProps) {
+  const t = useT();
   // Wording :
   //   - moi correcteur : la bulle apparaît sous un message peer → "Ta correction"
   //   - peer correcteur : la bulle apparaît sous un message moi → "{nick} t'a corrigé"
   const label = correction.fromMe
-    ? "Ta correction"
-    : `${peerNick ?? "Ton interlocuteur"} t'a corrigé`;
+    ? t.correction.youCorrected
+    : t.correction.peerCorrected({
+        nick: peerNick ?? t.correction.fallbackCorrector,
+      });
 
   return (
     <motion.div

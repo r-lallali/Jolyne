@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   open: boolean;
@@ -22,6 +23,7 @@ export function CorrectionModal({
 }: Props) {
   const [corrected, setCorrected] = useState(original);
   const [note, setNote] = useState("");
+  const t = useT();
 
   useEffect(() => {
     if (open) {
@@ -67,15 +69,14 @@ export function CorrectionModal({
         className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-neutral-950"
       >
         <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-          Corriger {peerNick ?? "le message"}
+          {t.correction.title({ nick: peerNick ?? t.correction.fallbackPeer })}
         </h2>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          Modifie le message pour proposer ta version. Ajoute une note si tu
-          veux expliquer la règle.
+          {t.correction.hint}
         </p>
 
         <label className="mt-4 block text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-          Message original
+          {t.correction.original}
         </label>
         <p className="mt-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
           {original}
@@ -85,7 +86,7 @@ export function CorrectionModal({
           htmlFor="correction"
           className="mt-4 block text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
         >
-          Ta correction
+          {t.correction.yourCorrection}
         </label>
         <textarea
           id="correction"
@@ -101,7 +102,7 @@ export function CorrectionModal({
           htmlFor="note"
           className="mt-3 block text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
         >
-          Note (optionnel)
+          {t.correction.note}
         </label>
         <textarea
           id="note"
@@ -109,7 +110,7 @@ export function CorrectionModal({
           onChange={(e) => setNote(e.target.value)}
           maxLength={500}
           rows={2}
-          placeholder="Pourquoi cette correction ?"
+          placeholder={t.correction.notePlaceholder}
           className="mt-1 w-full resize-none rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-900 outline-none ring-1 ring-transparent transition-all placeholder:text-neutral-500 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
         />
 
@@ -119,14 +120,14 @@ export function CorrectionModal({
             onClick={onClose}
             className="rounded-md px-3 py-2 text-sm text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
           >
-            Annuler
+            {t.common.cancel}
           </button>
           <button
             type="submit"
             disabled={!canSubmit}
             className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-neutral-50 dark:text-neutral-900"
           >
-            Envoyer la correction
+            {t.correction.submit}
           </button>
         </div>
       </motion.form>

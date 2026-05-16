@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { useT } from "@/lib/i18n";
 import { useChatStore } from "@/stores/chatStore";
 
 // Indicateur "X écrit…" rendu à la fin de la liste de messages, façon
@@ -10,6 +11,7 @@ import { useChatStore } from "@/stores/chatStore";
 export function TypingIndicator() {
   const peerTyping = useChatStore((s) => s.peerTyping);
   const peerNick = useChatStore((s) => s.peerNick);
+  const t = useT();
 
   return (
     <AnimatePresence>
@@ -22,7 +24,9 @@ export function TypingIndicator() {
           className="flex w-full justify-start"
         >
           <div className="flex items-center gap-2 rounded-2xl rounded-bl-sm bg-neutral-200 px-3.5 py-2.5 dark:bg-neutral-800">
-            <span className="sr-only">{peerNick} écrit</span>
+            <span className="sr-only">
+              {t.chat.peerTyping({ nick: peerNick ?? "" })}
+            </span>
             <Dots />
           </div>
         </motion.div>
