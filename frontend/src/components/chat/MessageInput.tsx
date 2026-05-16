@@ -20,7 +20,11 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
   const [matches, setMatches] = useState<GrammarMatch[] | null>(null);
   const [checkedAgainst, setCheckedAgainst] = useState(""); // texte exact vérifié
   const [grammarErr, setGrammarErr] = useState<string | null>(null);
-  const wants = useSessionStore((s) => s.wants);
+  // On vérifie la grammaire contre `speaks` (langue native) : dans une
+  // session HelloTalk-style on écrit dans sa propre langue pour que le peer
+  // puisse l'apprendre. Si on basculait sur `wants`, LT interpréterait le
+  // texte natif comme du wants et renverrait des suggestions absurdes.
+  const speaks = useSessionStore((s) => s.speaks);
   const t = useT();
 
   const submit = (e: React.FormEvent) => {
@@ -43,11 +47,11 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
 
   const runCheck = async () => {
     const text = draft.trim();
-    if (!text || !wants || checking) return;
+    if (!text || !speaks || checking) return;
     setChecking(true);
     setGrammarErr(null);
     try {
-      const ms = await checkGrammar(text, wants);
+      const ms = await checkGrammar(text, speaks);
       setMatches(ms);
       setCheckedAgainst(text);
     } catch (e) {
@@ -76,7 +80,7 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
   };
 
   const canSend = !disabled && draft.trim().length > 0;
-  const canCheck = !disabled && !checking && draft.trim().length > 0 && !!wants;
+  const canCheck = !disabled && !checking && draft.trim().length > 0 && !!speaks;
 
   return (
     <div className="px-3 pb-3 sm:px-6 sm:pb-6">
