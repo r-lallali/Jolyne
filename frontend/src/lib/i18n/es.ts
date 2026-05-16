@@ -17,6 +17,10 @@ export const es: Messages = {
     ageGate: "Tengo 16 años o más y acepto chatear con un desconocido.",
     legal: "Aviso legal",
     pseudoBlocked: "Este nombre contiene un término bloqueado.",
+    queueWaiting: ({ count }) =>
+      count === 0
+        ? "Nadie esperando en este par por ahora."
+        : `${count} persona${count > 1 ? "s" : ""} esperando en este par.`,
   },
   searching: {
     findingPeer: "Buscando a alguien",

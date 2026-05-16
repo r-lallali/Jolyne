@@ -12,6 +12,7 @@ import (
 
 	"github.com/ralys/jolyne/backend/internal/admin"
 	"github.com/ralys/jolyne/backend/internal/grammar"
+	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/translate"
 	"github.com/ralys/jolyne/backend/internal/ws"
 )
@@ -31,6 +32,7 @@ func routes(s services) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz(s))
 	mux.Handle("GET /ws/match", s.wsHandler)
+	mux.Handle("/api/queue-size", publicCORS(s.publicCORS)(http.HandlerFunc(queueSize(s.rdb))))
 
 	if s.translate != nil {
 		mux.Handle("/api/translate", publicCORS(s.publicCORS)(s.translate))
@@ -43,6 +45,34 @@ func routes(s services) http.Handler {
 		mountAdmin(mux, s.admin)
 	}
 	return mux
+}
+
+// queueSize renvoie le nombre de peers déjà en attente qui matchent
+// (speaks=wants, wants=speaks). Public — la valeur n'est ni sensible ni
+// fine (LLEN, race acceptée). Aucun quota au lancement.
+func queueSize(rdb *redis.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		q := r.URL.Query()
+		speaks := matcher.LangCode(q.Get("speaks"))
+		wants := matcher.LangCode(q.Get("wants"))
+		if err := matcher.ValidatePair(speaks, wants); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 500*time.Millisecond)
+		defer cancel()
+		n, err := rdb.LLen(ctx, matcher.QueueTargetKey(speaks, wants)).Result()
+		if err != nil {
+			http.Error(w, "queue size unavailable", http.StatusBadGateway)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]int64{"count": n})
+	}
 }
 
 // publicCORS autorise un seul origin (le frontend public) en POST/OPTIONS.

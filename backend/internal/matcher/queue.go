@@ -60,3 +60,9 @@ func queueOwn(speaks, wants LangCode) string {
 func queueTarget(speaks, wants LangCode) string {
 	return fmt.Sprintf("queue:speaks=%s,wants=%s", wants, speaks)
 }
+
+// QueueTargetKey est l'export public de queueTarget — utilisé par l'API
+// publique /api/queue-size pour exposer "X peers compatibles en attente".
+func QueueTargetKey(speaks, wants LangCode) string {
+	return queueTarget(speaks, wants)
+}

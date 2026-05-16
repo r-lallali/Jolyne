@@ -18,6 +18,10 @@ export const fr: Messages = {
       "J'ai 16 ans ou plus et j'accepte de discuter avec un inconnu.",
     legal: "Mentions légales",
     pseudoBlocked: "Ce pseudo contient un terme bloqué.",
+    queueWaiting: ({ count }) =>
+      count === 0
+        ? "Personne en attente sur cette paire pour l'instant."
+        : `${count} personne${count > 1 ? "s" : ""} en attente sur cette paire.`,
   },
   searching: {
     findingPeer: "On cherche quelqu'un",

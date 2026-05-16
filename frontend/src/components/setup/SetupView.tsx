@@ -11,6 +11,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { useT } from "@/lib/i18n";
 import { allowedWantsFor, isPairAllowed, type LangCode } from "@/lib/langs";
 import { containsProfanity } from "@/lib/profanity";
+import { fetchQueueSize } from "@/lib/queueSize";
 
 const ALL_LANGS: LangCode[] = ["fr", "en", "es", "de"];
 
@@ -46,6 +47,33 @@ export function SetupView() {
   const pseudoBlocked = pseudo.length >= 3 && containsProfanity(pseudo);
   const canNext = pseudo.length >= 3 && !pseudoBlocked;
   const canStart = canNext && isPairAllowed(speaks, wants) && ageAccepted;
+
+  // Polling toutes les 5s du nombre de peers en attente sur la paire
+  // sélectionnée. null = pas encore connu ; -1 = endpoint indisponible.
+  const [queueCount, setQueueCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (step !== "config" || !speaks || !wants || !isPairAllowed(speaks, wants)) {
+      setQueueCount(null);
+      return;
+    }
+    let alive = true;
+    const ctrl = new AbortController();
+    const tick = async () => {
+      try {
+        const n = await fetchQueueSize(speaks, wants, ctrl.signal);
+        if (alive) setQueueCount(n);
+      } catch {
+        if (alive) setQueueCount(-1);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 5_000);
+    return () => {
+      alive = false;
+      ctrl.abort();
+      clearInterval(id);
+    };
+  }, [step, speaks, wants]);
 
   // Langues à griser dans le picker "wants" : tant que speaks n'est pas
   // choisi on grise tout ; sinon on grise speaks + toutes les langues qui
@@ -168,6 +196,12 @@ export function SetupView() {
                       exclude={wantsExclude}
                     />
                   </div>
+
+                  {queueCount !== null && queueCount >= 0 && (
+                    <p className="text-center text-xs text-neutral-500 dark:text-neutral-400">
+                      {t.setup.queueWaiting({ count: queueCount })}
+                    </p>
+                  )}
                 </div>
 
                 {/* Age gate */}

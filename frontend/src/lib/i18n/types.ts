@@ -29,6 +29,7 @@ export interface Messages {
     ageGate: string;
     legal: string;
     pseudoBlocked: string;
+    queueWaiting: FormatString<{ count: number }>;
   };
   searching: {
     findingPeer: string;
