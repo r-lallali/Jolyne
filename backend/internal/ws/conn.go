@@ -48,6 +48,15 @@ func newConn(ws *websocket.Conn) *Conn {
 // Done est fermé dès que la connexion est fermée (peu importe le côté).
 func (c *Conn) Done() <-chan struct{} { return c.done }
 
+// WriteAndClose envoie UNE frame de manière synchrone puis ferme la conn.
+// Utilisé pour les rejets fatals (ex: ban) où il faut garantir que le
+// client reçoit la frame avant la fermeture.
+func (c *Conn) WriteAndClose(f ServerFrame) {
+	_ = c.ws.SetWriteDeadline(time.Now().Add(writeWait))
+	_ = c.ws.WriteJSON(f)
+	c.close()
+}
+
 // Send pousse une frame vers le client. Non bloquant : si l'outbound est
 // plein, la connexion est tuée (cf. CLAUDE.md "kill la connexion, ne jamais
 // bloquer"). Renvoie false si non envoyée.

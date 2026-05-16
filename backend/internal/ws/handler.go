@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/ralys/jolyne/backend/internal/bans"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/quota"
@@ -38,6 +39,7 @@ type Deps struct {
 	Quota   *quota.Engine
 	Block   *moderation.Blocklist
 	Reports *reports.Service // nil si Postgres / clé de chiffrement absents
+	Bans    *bans.Service    // nil si Postgres absent
 	Log     *slog.Logger
 }
 
@@ -79,11 +81,42 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		session.PlanFree,
 	)
 
+	// Check ban actif AVANT registration / matching. Sur match, le client
+	// reçoit une frame error code=banned avec la durée restante puis la WS
+	// se ferme proprement.
+	if h.d.Bans != nil {
+		if b, err := h.d.Bans.CheckActive(r.Context(), sess.IPHash, sess.Fingerprint); err != nil {
+			h.d.Log.Warn("ban check failed", "err", err)
+		} else if b != nil {
+			conn.WriteAndClose(ServerFrame{
+				Type:    ServerError,
+				Code:    ErrCodeBanned,
+				Message: banMessage(b),
+			})
+			return
+		}
+	}
+
 	wakeup := h.d.Hub.Register(sess)
 	defer h.d.Hub.Unregister(sess.ID)
 
 	go conn.Run(r.Context())
 	h.runSession(r.Context(), conn, sess, wakeup)
+}
+
+// banMessage formate une raison utilisateur-visible (sans détails internes).
+func banMessage(b *bans.Ban) string {
+	if b.ExpiresAt == nil {
+		if b.Reason != "" {
+			return "Tu as été banni définitivement. Raison : " + b.Reason
+		}
+		return "Tu as été banni définitivement."
+	}
+	until := b.ExpiresAt.Format("2006-01-02 15:04 MST")
+	if b.Reason != "" {
+		return "Tu es suspendu jusqu'au " + until + ". Raison : " + b.Reason
+	}
+	return "Tu es suspendu jusqu'au " + until + "."
 }
 
 // runSession est la boucle d'états : (try match → in-chat → next) en tournant.
@@ -289,6 +322,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 					ReporterIPHash:      sess.IPHash,
 					ReportedSession:     peer.ID,
 					ReportedFingerprint: peer.Fingerprint,
+					ReportedIPHash:      peer.IPHash,
 					ReportedNick:        peer.Nick,
 					Reason:              reason,
 					Messages:            captured,

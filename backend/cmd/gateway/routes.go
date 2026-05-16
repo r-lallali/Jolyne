@@ -46,21 +46,41 @@ func mountAdmin(mux *http.ServeMux, h *admin.Handlers) {
 	mux.Handle("/api/admin/me", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleMe)))))
 	mux.Handle("/api/admin/reports", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleListReports)))))
 
-	// Subtree /api/admin/reports/{id}[/resolve|/reopen] — dispatch par
-	// méthode + suffix.
+	// Subtree /api/admin/reports/{id}[/resolve|/reopen|/ban] — dispatch
+	// par méthode + suffix.
 	mux.Handle("/api/admin/reports/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		switch {
-		case r.Method == http.MethodGet && !strings.HasSuffix(path, "/resolve") && !strings.HasSuffix(path, "/reopen"):
+		case r.Method == http.MethodGet && !hasAnySuffix(path, "/resolve", "/reopen", "/ban"):
 			h.HandleGetReport(w, r)
 		case r.Method == http.MethodPost && strings.HasSuffix(path, "/resolve"):
 			h.HandleResolveReport(w, r)
 		case r.Method == http.MethodPost && strings.HasSuffix(path, "/reopen"):
 			h.HandleReopenReport(w, r)
+		case r.Method == http.MethodPost && strings.HasSuffix(path, "/ban"):
+			h.HandleBanFromReport(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	}))))
+
+	mux.Handle("/api/admin/bans", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleListBans)))))
+	mux.Handle("/api/admin/bans/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/lift") {
+			h.HandleLiftBan(w, r)
+			return
+		}
+		http.NotFound(w, r)
+	}))))
+}
+
+func hasAnySuffix(s string, suffixes ...string) bool {
+	for _, suf := range suffixes {
+		if strings.HasSuffix(s, suf) {
+			return true
+		}
+	}
+	return false
 }
 
 // methodOnly renvoie 405 pour toute méthode autre que celle attendue.

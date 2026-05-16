@@ -115,4 +115,39 @@ export async function reopenReport(id: number, note: string): Promise<void> {
   });
 }
 
+// --- Bans ---
+
+export type BanDuration = "24h" | "7d" | "30d" | "permanent";
+
+export interface Ban {
+  ID: number;
+  TargetType: "ip" | "fingerprint" | "user";
+  TargetValue: string;
+  Reason: string;
+  BannedBy: string;
+  ExpiresAt: string | null;
+  CreatedAt: string;
+  RelatedReportID: number | null;
+}
+
+export async function banFromReport(
+  reportID: number,
+  duration: BanDuration,
+  reason: string,
+): Promise<void> {
+  await request<void>(`/api/admin/reports/${reportID}/ban`, {
+    method: "POST",
+    body: JSON.stringify({ duration, reason }),
+  });
+}
+
+export async function listBans(): Promise<Ban[]> {
+  const d = await request<{ bans: Ban[] }>(`/api/admin/bans`);
+  return d?.bans ?? [];
+}
+
+export async function liftBan(id: number): Promise<void> {
+  await request<void>(`/api/admin/bans/${id}/lift`, { method: "POST" });
+}
+
 export { AuthError };

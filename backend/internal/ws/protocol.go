@@ -52,6 +52,7 @@ const (
 	ErrCodeQuotaExceeded  = "quota_exceeded"
 	ErrCodeMessageBlocked = "message_blocked"
 	ErrCodeMessageTooLong = "message_too_long"
+	ErrCodeBanned         = "banned"
 	ErrCodeInternal       = "internal"
 )
 

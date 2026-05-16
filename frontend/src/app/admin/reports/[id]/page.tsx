@@ -4,12 +4,15 @@ import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import {
   AuthError,
+  banFromReport,
   getReport,
   reopenReport,
   resolveReport,
+  type BanDuration,
   type ReportDetail,
   type ReportEvent,
 } from "@/lib/admin";
+import { BanModal } from "@/components/admin/BanModal";
 
 export default function AdminReportDetailPage({
   params,
@@ -23,6 +26,7 @@ export default function AdminReportDetailPage({
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [banOpen, setBanOpen] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -225,14 +229,31 @@ export default function AdminReportDetailPage({
                 type="button"
                 onClick={() => act("resolved")}
                 disabled={busy}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-30"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-emerald-100 dark:text-neutral-300 dark:hover:bg-emerald-900/30"
               >
-                Résolu (action prise)
+                Résolu (sans ban)
+              </button>
+              <button
+                type="button"
+                onClick={() => setBanOpen(true)}
+                disabled={busy}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-30"
+              >
+                Bannir
               </button>
             </>
           )}
         </div>
       </section>
+      <BanModal
+        open={banOpen}
+        peerNick={report.reported_nick}
+        onClose={() => setBanOpen(false)}
+        onSubmit={async (duration: BanDuration, reason: string) => {
+          await banFromReport(report.id, duration, reason);
+          window.location.href = "/admin/reports";
+        }}
+      />
     </main>
   );
 }

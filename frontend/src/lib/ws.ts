@@ -37,6 +37,7 @@ const FATAL_CODES = new Set([
   "invalid_param",
   "invalid_pseudo",
   "quota_exceeded",
+  "banned",
 ]);
 
 const MAX_BACKOFF_MS = 16_000;

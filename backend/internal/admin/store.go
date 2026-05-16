@@ -202,6 +202,21 @@ func (s *Store) ResolveReport(ctx context.Context, id int64, status, note, by, i
 	return tx.Commit(ctx)
 }
 
+// BanTargets renvoie le fingerprint + l'IP hashée du reporté pour ce
+// signalement. Utilisé par le handler "Bannir depuis ce signalement".
+func (s *Store) BanTargets(ctx context.Context, reportID int64) (fingerprint, ipHash string, err error) {
+	row := s.pool.QueryRow(ctx, `
+		SELECT reported_fingerprint, reported_ip_hash
+		FROM reports WHERE id = $1`, reportID)
+	if err := row.Scan(&fingerprint, &ipHash); err != nil {
+		if err == pgx.ErrNoRows {
+			return "", "", fmt.Errorf("admin: report %d introuvable", reportID)
+		}
+		return "", "", fmt.Errorf("admin: scan ban targets: %w", err)
+	}
+	return fingerprint, ipHash, nil
+}
+
 // ReopenReport : remet un signalement à l'état 'open' et nettoie les
 // champs de résolution. L'historique est préservé dans audit_log — on
 // AJOUTE une entrée 'report_reopened' (on n'efface jamais).

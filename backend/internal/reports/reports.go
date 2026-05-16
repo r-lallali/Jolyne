@@ -30,6 +30,7 @@ type Report struct {
 	ReporterIPHash      string
 	ReportedSession     string
 	ReportedFingerprint string
+	ReportedIPHash      string
 	ReportedNick        string
 	Reason              string
 	Messages            []CapturedMessage
@@ -64,14 +65,14 @@ func (s *Service) Save(ctx context.Context, r Report) (int64, error) {
 	const q = `
 		INSERT INTO reports (
 			reporter_session, reporter_fingerprint, reporter_ip_hash,
-			reported_session, reported_fingerprint, reported_nick,
+			reported_session, reported_fingerprint, reported_ip_hash, reported_nick,
 			reason, captured_messages
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id`
 	var id int64
 	if err := s.pool.QueryRow(ctx, q,
 		r.ReporterSession, r.ReporterFingerprint, r.ReporterIPHash,
-		r.ReportedSession, r.ReportedFingerprint, r.ReportedNick,
+		r.ReportedSession, r.ReportedFingerprint, r.ReportedIPHash, r.ReportedNick,
 		nullIfEmpty(r.Reason), ciphered,
 	).Scan(&id); err != nil {
 		return 0, fmt.Errorf("reports: insert: %w", err)

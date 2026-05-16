@@ -14,6 +14,7 @@ import (
 	"encoding/base64"
 
 	"github.com/ralys/jolyne/backend/internal/admin"
+	"github.com/ralys/jolyne/backend/internal/bans"
 	"github.com/ralys/jolyne/backend/internal/config"
 	"github.com/ralys/jolyne/backend/internal/crypto"
 	"github.com/ralys/jolyne/backend/internal/db"
@@ -63,6 +64,7 @@ func run() error {
 	// bans persistants) ne seront simplement pas servies. Le DSN deviendra
 	// obligatoire quand on activera les endpoints qui en dépendent.
 	var reportSvc *reports.Service
+	var banSvc *bans.Service
 	if cfg.PostgresDSN != "" {
 		if cfg.PostgresMigrate {
 			log.Info("postgres migrations running")
@@ -78,6 +80,9 @@ func run() error {
 		defer pool.Close()
 		svc.pg = pool
 		log.Info("postgres connected")
+
+		// Bans : ne dépend que de Postgres. Toujours activé avec une DB.
+		banSvc = bans.NewService(pool)
 
 		// Reports nécessite Postgres ET la clé AES. Sans clé → on log et
 		// on désactive proprement (les clients qui essaient verront une
@@ -103,6 +108,7 @@ func run() error {
 		Quota:   quota.NewEngine(rdb, nil),
 		Block:   moderation.DefaultBlocklist(),
 		Reports: reportSvc,
+		Bans:    banSvc,
 		Log:     log,
 	})
 
@@ -137,6 +143,7 @@ func run() error {
 				CORSOrigin:    cfg.AdminCORSOrigin,
 			},
 			Store: admin.NewStore(svc.pg, box),
+			Bans:  banSvc,
 			Log:   log,
 		}
 		log.Info("admin back-office ready",

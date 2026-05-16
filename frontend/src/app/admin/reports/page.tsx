@@ -50,13 +50,21 @@ export default function AdminReportsPage() {
             File de modération.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onLogout}
-          className="rounded-md px-3 py-1.5 text-xs text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-        >
-          Se déconnecter
-        </button>
+        <nav className="flex items-center gap-3 text-xs">
+          <Link
+            href="/admin/bans"
+            className="text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+          >
+            Bans
+          </Link>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+          >
+            Se déconnecter
+          </button>
+        </nav>
       </header>
 
       <nav className="mb-6 flex gap-2">

@@ -65,7 +65,10 @@ interface ErrorProps {
 }
 
 function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
-  const fatal = code === "quota_exceeded" || code === "invalid_pseudo";
+  const fatal =
+    code === "quota_exceeded" ||
+    code === "invalid_pseudo" ||
+    code === "banned";
   return (
     <div className="flex h-dvh w-full flex-col items-center justify-center gap-6 px-6 text-center sm:h-[92vh]">
       <p className="text-lg font-medium text-neutral-900 dark:text-neutral-100">
@@ -106,6 +109,8 @@ function labelForCode(code: string | null): string {
       return "Ce pseudo n'est pas accepté.";
     case "invalid_param":
       return "Configuration invalide.";
+    case "banned":
+      return "Accès suspendu.";
     case "message_blocked":
     case "message_too_long":
       return "Message refusé.";
@@ -126,6 +131,11 @@ function hintForCode(code: string | null, message: string | null): string {
       return (
         message ??
         "Vérifie ta paire de langues — toutes les combinaisons ne sont pas encore disponibles."
+      );
+    case "banned":
+      return (
+        message ??
+        "Ton accès à Jolyne est suspendu. Si tu penses que c'est une erreur, contacte le support."
       );
     default:
       return message ?? "Réessaie ou recommence depuis le début.";
