@@ -52,6 +52,18 @@ type ltMatch struct {
 	} `json:"replacements"`
 }
 
+// Règles LanguageTool désactivées pour un contexte "chat informel" : les
+// fautes que LT signale par défaut mais qui n'ont pas de sens dans une
+// conversation décontractée (style SMS, sans ponctuation finale).
+//
+// Codes officiels (multilingues, mêmes IDs pour fr/en/es/de) :
+//   - UPPERCASE_SENTENCE_START : majuscule manquante en début de phrase
+//   - PUNCTUATION_PARAGRAPH_END : pas de point final
+var disabledRules = strings.Join([]string{
+	"UPPERCASE_SENTENCE_START",
+	"PUNCTUATION_PARAGRAPH_END",
+}, ",")
+
 // Check renvoie la liste des fautes détectées dans `text` pour la langue
 // `lang` (codes ISO type "fr-FR", "en-US"). Tronque les replacements pour
 // rester léger.
@@ -61,6 +73,7 @@ func (c *Client) Check(ctx context.Context, text, lang string) ([]Match, error) 
 	form.Set("language", lang)
 	// `level=picky` capte plus de fautes stylistiques. À voir au tuning.
 	form.Set("level", "default")
+	form.Set("disabledRules", disabledRules)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/v2/check", strings.NewReader(form.Encode()))
 	if err != nil {
