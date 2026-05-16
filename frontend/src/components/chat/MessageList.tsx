@@ -8,15 +8,23 @@ import {
 } from "@/components/chat/TranslationPopover";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useT } from "@/lib/i18n";
+import { ICEBREAKERS } from "@/lib/icebreakers";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 
 interface Props {
   onCorrect?: (m: ChatMessage) => void;
   onEditCorrection?: (m: ChatMessage) => void;
+  // Permet à l'écran vide de proposer des amorces cliquables qui envoient
+  // directement la phrase (court-circuit du champ texte).
+  onIcebreaker?: (text: string) => void;
 }
 
-export function MessageList({ onCorrect, onEditCorrection }: Props) {
+export function MessageList({
+  onCorrect,
+  onEditCorrection,
+  onIcebreaker,
+}: Props) {
   const messages = useChatStore((s) => s.messages);
   const peerNick = useChatStore((s) => s.peerNick);
   const peerTyping = useChatStore((s) => s.peerTyping);
@@ -54,7 +62,7 @@ export function MessageList({ onCorrect, onEditCorrection }: Props) {
     <div ref={ref} className="scrollbar-discreet flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-2xl space-y-2 px-4 py-4 sm:px-6">
         {messages.length === 0 ? (
-          <div className="flex h-[40dvh] items-center justify-center">
+          <div className="flex h-[40dvh] flex-col items-center justify-center gap-5">
             <div className="text-center">
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
                 {t.chat.chattingWith({ nick: peerNick ?? "" })}
@@ -63,6 +71,20 @@ export function MessageList({ onCorrect, onEditCorrection }: Props) {
                 {t.chat.sayHello}
               </p>
             </div>
+            {wants && onIcebreaker && (
+              <div className="flex max-w-md flex-wrap justify-center gap-2">
+                {ICEBREAKERS[wants].map((phrase) => (
+                  <button
+                    key={phrase}
+                    type="button"
+                    onClick={() => onIcebreaker(phrase)}
+                    className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs text-neutral-700 transition-colors hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                  >
+                    {phrase}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           messages.map((m) => {

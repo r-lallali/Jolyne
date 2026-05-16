@@ -86,6 +86,7 @@ export function ChatView() {
         <MessageList
           onCorrect={(m) => setTarget(m)}
           onEditCorrection={(m) => setTarget(m)}
+          onIcebreaker={(phrase) => sendMsg(phrase)}
         />
         <MessageInput onSend={sendMsg} onTyping={sendTyping} disabled={false} />
       </div>
