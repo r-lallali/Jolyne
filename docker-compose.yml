@@ -42,8 +42,11 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      # LibreTranslate met plusieurs minutes à télécharger ses modèles au
+      # premier boot — on n'attend pas qu'il soit healthy pour démarrer le
+      # backend (les appels /api/translate renverront 502 entre-temps).
       libretranslate:
-        condition: service_healthy
+        condition: service_started
       languagetool:
         condition: service_started
     networks:
@@ -96,12 +99,17 @@ services:
       LT_DISABLE_WEB_UI: "true"
     volumes:
       - libretranslate_models:/home/libretranslate/.local/share/argos-translate
+    # python3 plutôt que wget : l'image LT (python-slim) ne ship pas wget
+    # mais a forcément python. start_period long car le 1er boot télécharge
+    # les modèles Argos (plusieurs minutes selon le réseau du VPS).
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/languages || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 20
-      start_period: 120s
+      test:
+        - CMD-SHELL
+        - "python3 -c 'import urllib.request,sys; sys.exit(0) if urllib.request.urlopen(\"http://localhost:5000/languages\", timeout=3).getcode()==200 else sys.exit(1)' || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 600s
     networks:
       - dokploy-network
 

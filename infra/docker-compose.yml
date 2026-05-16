@@ -36,8 +36,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      # cf. docker-compose.yml racine — on ne bloque pas le boot backend sur
+      # la santé de LibreTranslate (téléchargement modèles long au 1er boot).
       libretranslate:
-        condition: service_healthy
+        condition: service_started
       languagetool:
         condition: service_started
 
@@ -71,11 +73,13 @@ services:
     volumes:
       - libretranslate_models:/home/libretranslate/.local/share/argos-translate
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/languages || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 20
-      start_period: 120s
+      test:
+        - CMD-SHELL
+        - "python3 -c 'import urllib.request,sys; sys.exit(0) if urllib.request.urlopen(\"http://localhost:5000/languages\", timeout=3).getcode()==200 else sys.exit(1)' || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 600s
 
   languagetool:
     image: erikvl87/languagetool:latest
