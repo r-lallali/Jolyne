@@ -1,15 +1,26 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MessageBubble } from "@/components/chat/MessageBubble";
+import {
+  TranslationPopover,
+  type TranslationRequest,
+} from "@/components/chat/TranslationPopover";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useChatStore } from "@/stores/chatStore";
+import { useSessionStore } from "@/stores/sessionStore";
 
 export function MessageList() {
   const messages = useChatStore((s) => s.messages);
   const peerNick = useChatStore((s) => s.peerNick);
   const peerTyping = useChatStore((s) => s.peerTyping);
+  const speaks = useSessionStore((s) => s.speaks);
+  const wants = useSessionStore((s) => s.wants);
   const ref = useRef<HTMLDivElement>(null);
+
+  // Tooltip de traduction. Un seul à la fois — la sélection d'un autre mot
+  // remplace simplement la requête en cours.
+  const [trans, setTrans] = useState<TranslationRequest | null>(null);
 
   // Auto-scroll en bas à chaque nouveau message OU quand le peer commence
   // à taper — pour que l'indicateur "X écrit…" reste visible au lieu d'être
@@ -20,6 +31,17 @@ export function MessageList() {
       behavior: "smooth",
     });
   }, [messages.length, peerTyping]);
+
+  const handleSelect = (text: string, rect: DOMRect) => {
+    if (!speaks || !wants) return;
+    setTrans({
+      text,
+      x: rect.left + rect.width / 2,
+      y: rect.bottom,
+      source: wants, // le peer écrit dans notre `wants`
+      target: speaks,
+    });
+  };
 
   return (
     <div ref={ref} className="scrollbar-discreet flex-1 overflow-y-auto">
@@ -40,11 +62,22 @@ export function MessageList() {
           </div>
         ) : (
           messages.map((m) => (
-            <MessageBubble key={m.id} from={m.from} body={m.body} />
+            <MessageBubble
+              key={m.id}
+              from={m.from}
+              body={m.body}
+              onSelect={handleSelect}
+            />
           ))
         )}
         <TypingIndicator />
       </div>
+      {trans && (
+        <TranslationPopover
+          request={trans}
+          onClose={() => setTrans(null)}
+        />
+      )}
     </div>
   );
 }
