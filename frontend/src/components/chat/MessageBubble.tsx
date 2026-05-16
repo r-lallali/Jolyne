@@ -205,6 +205,50 @@ function wordAtPoint(
   return { text: word, rect: range.getBoundingClientRect() };
 }
 
+// diffTokens : word-level LCS entre `original` et `corrected`. Renvoie les
+// tokens de `corrected` annotés `changed=true` pour ceux qui n'apparaissent
+// pas dans le LCS — i.e. ajoutés/remplacés par le correcteur. Suffisant pour
+// surligner visuellement la diff dans une bulle, pas un vrai outil de diff.
+interface Token {
+  text: string;
+  changed: boolean;
+}
+function diffTokens(a: string, b: string): Token[] {
+  const split = (s: string) => s.split(/(\s+)/);
+  const aTok = split(a);
+  const bTok = split(b);
+  const n = aTok.length;
+  const m = bTok.length;
+  const dp: number[][] = Array.from({ length: n + 1 }, () =>
+    new Array(m + 1).fill(0),
+  );
+  for (let i = n - 1; i >= 0; i -= 1) {
+    for (let j = m - 1; j >= 0; j -= 1) {
+      dp[i]![j] =
+        aTok[i] === bTok[j]
+          ? (dp[i + 1]![j + 1] ?? 0) + 1
+          : Math.max(dp[i + 1]![j] ?? 0, dp[i]![j + 1] ?? 0);
+    }
+  }
+  const out: Token[] = [];
+  let i = 0;
+  let j = 0;
+  while (j < m) {
+    const bt = bTok[j] ?? "";
+    if (i < n && aTok[i] === bt) {
+      out.push({ text: bt, changed: false });
+      i += 1;
+      j += 1;
+    } else if (i < n && (dp[i + 1]![j] ?? 0) >= (dp[i]![j + 1] ?? 0)) {
+      i += 1;
+    } else {
+      out.push({ text: bt, changed: bt.trim().length > 0 });
+      j += 1;
+    }
+  }
+  return out;
+}
+
 interface CorrectionBubbleProps {
   mine: boolean;
   correction: MessageCorrection;
@@ -236,7 +280,18 @@ function CorrectionBubble({ mine, correction, peerNick }: CorrectionBubbleProps)
         {label}
       </p>
       <p className="mt-1 whitespace-pre-wrap break-words text-neutral-900 dark:text-neutral-100">
-        {correction.corrected}
+        {diffTokens(correction.original, correction.corrected).map((tok, i) =>
+          tok.changed ? (
+            <span
+              key={i}
+              className="rounded bg-amber-500/20 px-0.5 underline decoration-amber-600 decoration-2 underline-offset-2 dark:decoration-amber-400"
+            >
+              {tok.text}
+            </span>
+          ) : (
+            <span key={i}>{tok.text}</span>
+          ),
+        )}
       </p>
       {correction.note && (
         <p className="mt-1 whitespace-pre-wrap break-words text-[12px] italic text-neutral-600 dark:text-neutral-400">
