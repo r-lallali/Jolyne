@@ -11,15 +11,20 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ralys/jolyne/backend/internal/admin"
+	"github.com/ralys/jolyne/backend/internal/grammar"
+	"github.com/ralys/jolyne/backend/internal/translate"
 	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
 // services regroupe les dépendances utilisées par les handlers HTTP.
 type services struct {
-	rdb       *redis.Client
-	pg        *pgxpool.Pool // nil si POSTGRES_DSN non renseigné
-	wsHandler *ws.Handler
-	admin     *admin.Handlers // nil si back-office désactivé
+	rdb         *redis.Client
+	pg          *pgxpool.Pool // nil si POSTGRES_DSN non renseigné
+	wsHandler   *ws.Handler
+	admin       *admin.Handlers // nil si back-office désactivé
+	translate   *translate.Handler
+	grammar     *grammar.Handler
+	publicCORS  string // origin autorisée pour /api/translate et /api/grammar
 }
 
 func routes(s services) http.Handler {
@@ -27,10 +32,39 @@ func routes(s services) http.Handler {
 	mux.HandleFunc("GET /healthz", healthz(s))
 	mux.Handle("GET /ws/match", s.wsHandler)
 
+	if s.translate != nil {
+		mux.Handle("/api/translate", publicCORS(s.publicCORS)(s.translate))
+	}
+	if s.grammar != nil {
+		mux.Handle("/api/grammar", publicCORS(s.publicCORS)(s.grammar))
+	}
+
 	if s.admin != nil {
 		mountAdmin(mux, s.admin)
 	}
 	return mux
+}
+
+// publicCORS autorise un seul origin (le frontend public) en POST/OPTIONS.
+// Si `origin` est vide, on n'ajoute aucun header — utile en dev local où le
+// frontend tape directement le backend sans cross-origin.
+func publicCORS(origin string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			reqOrigin := r.Header.Get("Origin")
+			if origin != "" && reqOrigin == origin {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+				w.Header().Set("Vary", "Origin")
+			}
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // mountAdmin enregistre les endpoints /api/admin/* SANS contrainte de

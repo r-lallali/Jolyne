@@ -34,9 +34,18 @@ services:
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-}
       ADMIN_COOKIE_DOMAIN: ${ADMIN_COOKIE_DOMAIN:-}
       ADMIN_CORS_ORIGIN: ${ADMIN_CORS_ORIGIN:-}
+      # Frontend public (chat) — CORS pour /api/translate et /api/grammar.
+      PUBLIC_CORS_ORIGIN: ${PUBLIC_CORS_ORIGIN:-}
+      # Self-host LibreTranslate + LanguageTool sur le même réseau.
+      LIBRETRANSLATE_URL: http://libretranslate:5000
+      LANGUAGETOOL_URL: http://languagetool:8010
     depends_on:
       redis:
         condition: service_healthy
+      libretranslate:
+        condition: service_healthy
+      languagetool:
+        condition: service_started
     networks:
       - dokploy-network
 
@@ -77,9 +86,38 @@ services:
     networks:
       - dokploy-network
 
+  # LibreTranslate self-host (PLAN.md §8 — décision actée). Premier boot lent
+  # (~2 min) car téléchargement des modèles. Volume monté pour persister.
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    environment:
+      LT_LOAD_ONLY: "en,fr,es,de"
+      LT_DISABLE_WEB_UI: "true"
+    volumes:
+      - libretranslate_models:/home/libretranslate/.local/share/argos-translate
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/languages || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    networks:
+      - dokploy-network
+
+  languagetool:
+    image: erikvl87/languagetool:latest
+    restart: unless-stopped
+    environment:
+      Java_Xms: "256m"
+      Java_Xmx: "1g"
+    networks:
+      - dokploy-network
+
 networks:
   dokploy-network:
     external: true
 
 volumes:
   redis_data:
+  libretranslate_models:

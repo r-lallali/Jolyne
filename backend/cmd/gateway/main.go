@@ -18,12 +18,14 @@ import (
 	"github.com/ralys/jolyne/backend/internal/config"
 	"github.com/ralys/jolyne/backend/internal/crypto"
 	"github.com/ralys/jolyne/backend/internal/db"
+	"github.com/ralys/jolyne/backend/internal/grammar"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/obs"
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/redisx"
 	"github.com/ralys/jolyne/backend/internal/reports"
+	"github.com/ralys/jolyne/backend/internal/translate"
 	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
@@ -57,7 +59,23 @@ func run() error {
 	}
 	defer rdb.Close()
 
-	svc := services{rdb: rdb}
+	svc := services{rdb: rdb, publicCORS: cfg.PublicCORSOrigin}
+
+	if cfg.LibreTranslateURL != "" {
+		svc.translate = &translate.Handler{
+			Client: translate.NewClient(cfg.LibreTranslateURL, cfg.LibreTranslateAPIKey),
+		}
+		log.Info("translate endpoint ready", "url", cfg.LibreTranslateURL)
+	} else {
+		log.Info("translate désactivé — LIBRETRANSLATE_URL non renseigné")
+	}
+
+	if cfg.LanguageToolURL != "" {
+		svc.grammar = &grammar.Handler{Client: grammar.NewClient(cfg.LanguageToolURL)}
+		log.Info("grammar endpoint ready", "url", cfg.LanguageToolURL)
+	} else {
+		log.Info("grammar désactivé — LANGUAGETOOL_URL non renseigné")
+	}
 
 	// Postgres : optionnel pour l'instant. Si POSTGRES_DSN n'est pas set,
 	// le gateway boot sans — les features Phase 2 dépendantes (signalements,

@@ -29,6 +29,18 @@ type Config struct {
 	AdminCookieDomain string // ex: "ralys.ovh"
 	AdminCORSOrigin   string // ex: "https://jolyne.ralys.ovh"
 
+	// CORS origin du frontend public (chat). Utilisé par /api/translate
+	// et /api/grammar. Vide en dev → tout passe.
+	PublicCORSOrigin string
+
+	// LibreTranslate self-hosted (cf. PLAN.md §4 Phase 2). Vide → endpoint
+	// /api/translate désactivé.
+	LibreTranslateURL    string
+	LibreTranslateAPIKey string
+
+	// LanguageTool self-hosted. Vide → endpoint /api/grammar désactivé.
+	LanguageToolURL string
+
 	ShutdownGrace time.Duration
 }
 
@@ -45,9 +57,13 @@ func Load() (Config, error) {
 		AdminUsersRaw:       os.Getenv("ADMIN_USERS"),
 		AdminIPAllowlist:    os.Getenv("ADMIN_IP_ALLOWLIST"),
 		AdminSessionKey:     os.Getenv("ADMIN_SESSION_SECRET"),
-		AdminCookieDomain:   os.Getenv("ADMIN_COOKIE_DOMAIN"),
-		AdminCORSOrigin:     os.Getenv("ADMIN_CORS_ORIGIN"),
-		ShutdownGrace:       getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
+		AdminCookieDomain:    os.Getenv("ADMIN_COOKIE_DOMAIN"),
+		AdminCORSOrigin:      os.Getenv("ADMIN_CORS_ORIGIN"),
+		PublicCORSOrigin:     os.Getenv("PUBLIC_CORS_ORIGIN"),
+		LibreTranslateURL:    os.Getenv("LIBRETRANSLATE_URL"),
+		LibreTranslateAPIKey: os.Getenv("LIBRETRANSLATE_API_KEY"),
+		LanguageToolURL:      os.Getenv("LANGUAGETOOL_URL"),
+		ShutdownGrace:        getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
 	}
 	if err := cfg.validate(); err != nil {
 		return Config{}, err

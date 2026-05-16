@@ -16,6 +16,8 @@ services:
       REDIS_DB: 0
       POSTGRES_DSN: postgres://jolyne:jolyne@postgres:5432/jolyne?sslmode=disable
       POSTGRES_AUTO_MIGRATE: "true"
+      LIBRETRANSLATE_URL: http://libretranslate:5000
+      LANGUAGETOOL_URL: http://languagetool:8010
     ports:
       - "8080:8080"
     depends_on:
@@ -23,6 +25,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      libretranslate:
+        condition: service_healthy
+      languagetool:
+        condition: service_started
 
   redis:
     image: redis:7-alpine
@@ -53,6 +59,32 @@ services:
       timeout: 3s
       retries: 5
 
+  # LibreTranslate : self-host (PLAN.md §8 décisions). Premier boot lent
+  # (~2min) car téléchargement des modèles FR/EN/ES/DE.
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    environment:
+      LT_LOAD_ONLY: "en,fr,es,de"
+      LT_DISABLE_WEB_UI: "true"
+    volumes:
+      - libretranslate_models:/home/libretranslate/.local/share/argos-translate
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/languages || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+
+  # LanguageTool : self-host pour la correction grammaticale.
+  languagetool:
+    image: erikvl87/languagetool:latest
+    restart: unless-stopped
+    environment:
+      Java_Xms: "256m"
+      Java_Xmx: "1g"
+
 volumes:
   redis_dev_data:
   postgres_dev_data:
+  libretranslate_models:
