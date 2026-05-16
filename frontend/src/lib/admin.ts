@@ -21,6 +21,13 @@ export interface CapturedMessage {
   at: string;
 }
 
+export interface ReportEvent {
+  action: "report_resolved" | "report_dismissed" | "report_reopened";
+  actor: string;
+  note?: string;
+  created_at: string;
+}
+
 export interface ReportDetail extends ReportSummary {
   reporter_session: string;
   reporter_fingerprint: string;
@@ -30,6 +37,7 @@ export interface ReportDetail extends ReportSummary {
   resolved_at?: string;
   resolved_by?: string;
   resolution_note?: string;
+  history: ReportEvent[];
 }
 
 class AuthError extends Error {}
@@ -97,6 +105,13 @@ export async function resolveReport(
   await request<void>(`/api/admin/reports/${id}/resolve`, {
     method: "POST",
     body: JSON.stringify({ status, note }),
+  });
+}
+
+export async function reopenReport(id: number, note: string): Promise<void> {
+  await request<void>(`/api/admin/reports/${id}/reopen`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
   });
 }
 

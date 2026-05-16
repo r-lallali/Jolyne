@@ -5,8 +5,10 @@ import { use, useEffect, useState } from "react";
 import {
   AuthError,
   getReport,
+  reopenReport,
   resolveReport,
   type ReportDetail,
+  type ReportEvent,
 } from "@/lib/admin";
 
 export default function AdminReportDetailPage({
@@ -22,19 +24,12 @@ export default function AdminReportDetailPage({
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (!Number.isFinite(id)) {
-      setErr("ID invalide");
-      setLoading(false);
-      return;
-    }
+  const load = () => {
+    setLoading(true);
     getReport(id)
       .then((r) => {
-        if (!r) {
-          setErr("Introuvable");
-        } else {
-          setReport(r);
-        }
+        if (!r) setErr("Introuvable");
+        else setReport(r);
       })
       .catch((e) => {
         if (e instanceof AuthError) {
@@ -44,13 +39,36 @@ export default function AdminReportDetailPage({
         setErr("Erreur de chargement");
       })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (!Number.isFinite(id)) {
+      setErr("ID invalide");
+      setLoading(false);
+      return;
+    }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const act = async (status: "resolved" | "dismissed") => {
+  const act = async (
+    action: "resolved" | "dismissed" | "reopened",
+    redirect = true,
+  ) => {
     setBusy(true);
+    setErr("");
     try {
-      await resolveReport(id, status, note);
-      window.location.href = "/admin/reports";
+      if (action === "reopened") {
+        await reopenReport(id, note);
+      } else {
+        await resolveReport(id, action, note);
+      }
+      if (redirect) {
+        window.location.href = "/admin/reports";
+      } else {
+        setNote("");
+        load();
+      }
     } catch {
       setErr("Échec de l'action");
     } finally {
@@ -118,7 +136,7 @@ export default function AdminReportDetailPage({
           mono
         />
         <Field
-          label="Raison"
+          label="Raison initiale"
           value={report.reason || "—"}
           mono={false}
           full
@@ -152,53 +170,110 @@ export default function AdminReportDetailPage({
         </div>
       </section>
 
-      {closed ? (
-        <section className="rounded-xl bg-neutral-100/60 p-5 dark:bg-neutral-900/50">
-          <p className="text-sm text-neutral-700 dark:text-neutral-300">
-            Traité par{" "}
-            <span className="font-medium">{report.resolved_by || "—"}</span> le{" "}
-            {report.resolved_at &&
-              new Date(report.resolved_at).toLocaleString()}
-          </p>
-          {report.resolution_note && (
-            <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-              « {report.resolution_note} »
-            </p>
-          )}
-        </section>
-      ) : (
-        <section className="space-y-3 rounded-xl bg-neutral-100/60 p-5 dark:bg-neutral-900/50">
-          <label className="block text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
-            Note (optionnelle)
-          </label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-            placeholder="Justification, étapes prises…"
-            className="w-full resize-none rounded-lg bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-800 dark:text-neutral-100"
-          />
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => act("dismissed")}
-              disabled={busy}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-200 disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-neutral-800"
-            >
-              Ignorer
-            </button>
-            <button
-              type="button"
-              onClick={() => act("resolved")}
-              disabled={busy}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-30"
-            >
-              Résolu (action prise)
-            </button>
-          </div>
+      {report.history.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
+            Historique des décisions ({report.history.length})
+          </h2>
+          <ol className="space-y-3">
+            {report.history.map((ev, i) => (
+              <HistoryItem key={i} event={ev} />
+            ))}
+          </ol>
         </section>
       )}
+
+      <section className="space-y-3 rounded-xl bg-neutral-100/60 p-5 dark:bg-neutral-900/50">
+        <label className="block text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
+          Note (optionnelle)
+        </label>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          placeholder={
+            closed
+              ? "Pourquoi réouvres-tu ce cas ?"
+              : "Justification, étapes prises…"
+          }
+          className="w-full resize-none rounded-lg bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-800 dark:text-neutral-100"
+        />
+        {err && (
+          <p className="text-xs text-red-600 dark:text-red-400">{err}</p>
+        )}
+        <div className="flex justify-end gap-2 pt-2">
+          {closed ? (
+            <button
+              type="button"
+              onClick={() => act("reopened", false)}
+              disabled={busy}
+              className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-30"
+            >
+              Réouvrir
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => act("dismissed")}
+                disabled={busy}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-200 disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-neutral-800"
+              >
+                Ignorer
+              </button>
+              <button
+                type="button"
+                onClick={() => act("resolved")}
+                disabled={busy}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-30"
+              >
+                Résolu (action prise)
+              </button>
+            </>
+          )}
+        </div>
+      </section>
     </main>
+  );
+}
+
+function HistoryItem({ event }: { event: ReportEvent }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    report_resolved: {
+      label: "Résolu",
+      cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+    },
+    report_dismissed: {
+      label: "Ignoré",
+      cls: "bg-neutral-500/15 text-neutral-700 dark:text-neutral-300",
+    },
+    report_reopened: {
+      label: "Réouvert",
+      cls: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+    },
+  };
+  const m = map[event.action] || { label: event.action, cls: "" };
+  return (
+    <li className="rounded-lg bg-neutral-100/60 p-3 dark:bg-neutral-900/50">
+      <div className="flex items-center gap-2">
+        <span
+          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${m.cls}`}
+        >
+          {m.label}
+        </span>
+        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+          par <span className="font-medium">{event.actor}</span>
+        </span>
+        <span className="ml-auto text-[11px] text-neutral-500 dark:text-neutral-500">
+          {new Date(event.created_at).toLocaleString()}
+        </span>
+      </div>
+      {event.note && (
+        <p className="mt-2 whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
+          « {event.note} »
+        </p>
+      )}
+    </li>
   );
 }
 

@@ -24,7 +24,8 @@ type ReportSummary struct {
 	CreatedAt           time.Time `json:"created_at"`
 }
 
-// ReportDetail inclut le contenu déchiffré pour la vue détail.
+// ReportDetail inclut le contenu déchiffré pour la vue détail + l'historique
+// complet des actions admin (audit_log filtré).
 type ReportDetail struct {
 	ReportSummary
 	ReporterSession     string                    `json:"reporter_session"`
@@ -35,6 +36,16 @@ type ReportDetail struct {
 	ResolvedAt          *time.Time                `json:"resolved_at,omitempty"`
 	ResolvedBy          string                    `json:"resolved_by,omitempty"`
 	ResolutionNote      string                    `json:"resolution_note,omitempty"`
+	History             []ReportEvent             `json:"history"`
+}
+
+// ReportEvent est une entrée d'audit_log pour ce signalement (résolu /
+// ignoré / réouvert). Triée par ordre chronologique ascendant.
+type ReportEvent struct {
+	Action    string    `json:"action"` // report_resolved | report_dismissed | report_reopened
+	Actor     string    `json:"actor"`
+	Note      string    `json:"note,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // Store : accès Postgres pour le back-office. Le service en lui-même
@@ -79,7 +90,31 @@ func (s *Store) ListReports(ctx context.Context, status string, limit, offset in
 	return out, rows.Err()
 }
 
-// GetReport : détail + déchiffrement des messages capturés.
+// ReportHistory : remonte les événements admin (resolved / dismissed /
+// reopened) consignés dans audit_log pour ce signalement, ordre chrono.
+func (s *Store) ReportHistory(ctx context.Context, id int64) ([]ReportEvent, error) {
+	const q = `
+		SELECT action, actor, COALESCE(reason, ''), created_at
+		FROM audit_log
+		WHERE target_type = 'report' AND target_value = $1
+		ORDER BY created_at ASC`
+	rows, err := s.pool.Query(ctx, q, fmt.Sprintf("%d", id))
+	if err != nil {
+		return nil, fmt.Errorf("admin: report history: %w", err)
+	}
+	defer rows.Close()
+	var out []ReportEvent
+	for rows.Next() {
+		var e ReportEvent
+		if err := rows.Scan(&e.Action, &e.Actor, &e.Note, &e.CreatedAt); err != nil {
+			return nil, fmt.Errorf("admin: scan history: %w", err)
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// GetReport : détail + déchiffrement des messages capturés + historique.
 func (s *Store) GetReport(ctx context.Context, id int64) (ReportDetail, error) {
 	const q = `
 		SELECT id, reporter_session, reporter_fingerprint, reporter_ip_hash,
@@ -114,11 +149,25 @@ func (s *Store) GetReport(ctx context.Context, id int64) (ReportDetail, error) {
 		return ReportDetail{}, fmt.Errorf("admin: unmarshal messages: %w", err)
 	}
 	d.Messages = wrapper.Messages
+	history, err := s.ReportHistory(ctx, id)
+	if err != nil {
+		return ReportDetail{}, err
+	}
+	d.History = history
 	return d, nil
 }
 
+// ErrReportNotOpen / ErrReportNotClosed : signalent une transition d'état
+// invalide. Les handlers renvoient 404 (cohérent avec CLAUDE.md, on ne
+// révèle pas l'état exact).
+var (
+	ErrReportNotOpen   = fmt.Errorf("admin: report n'est pas open")
+	ErrReportNotClosed = fmt.Errorf("admin: report n'est pas clos")
+)
+
 // ResolveReport : marque un signalement traité (resolved/dismissed) + audit.
-// Idempotent : si déjà dans ce statut, no-op silencieux.
+// Refuse silencieusement si le signalement n'est plus dans l'état 'open'
+// (évite de logger une action qui n'a rien changé).
 func (s *Store) ResolveReport(ctx context.Context, id int64, status, note, by, ipHash string) error {
 	if status != "resolved" && status != "dismissed" {
 		return fmt.Errorf("admin: status invalide: %s", status)
@@ -129,15 +178,19 @@ func (s *Store) ResolveReport(ctx context.Context, id int64, status, note, by, i
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if _, err := tx.Exec(ctx, `
+	res, err := tx.Exec(ctx, `
 		UPDATE reports SET
 			status = $1,
 			resolved_at = now(),
 			resolved_by = $2,
 			resolution_note = NULLIF($3, '')
 		WHERE id = $4 AND status = 'open'`,
-		status, by, note, id); err != nil {
+		status, by, note, id)
+	if err != nil {
 		return fmt.Errorf("admin: update report: %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return ErrReportNotOpen
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -145,6 +198,39 @@ func (s *Store) ResolveReport(ctx context.Context, id int64, status, note, by, i
 		VALUES ($1, $2, 'report', $3, NULLIF($4, ''), $5)`,
 		by, "report_"+status, fmt.Sprintf("%d", id), note, ipHash); err != nil {
 		return fmt.Errorf("admin: insert audit: %w", err)
+	}
+	return tx.Commit(ctx)
+}
+
+// ReopenReport : remet un signalement à l'état 'open' et nettoie les
+// champs de résolution. L'historique est préservé dans audit_log — on
+// AJOUTE une entrée 'report_reopened' (on n'efface jamais).
+func (s *Store) ReopenReport(ctx context.Context, id int64, note, by, ipHash string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("admin: tx begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	res, err := tx.Exec(ctx, `
+		UPDATE reports SET
+			status = 'open',
+			resolved_at = NULL,
+			resolved_by = NULL,
+			resolution_note = NULL
+		WHERE id = $1 AND status IN ('resolved','dismissed')`, id)
+	if err != nil {
+		return fmt.Errorf("admin: update report (reopen): %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return ErrReportNotClosed
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO audit_log (actor, action, target_type, target_value, reason, ip_hash)
+		VALUES ($1, 'report_reopened', 'report', $2, NULLIF($3, ''), $4)`,
+		by, fmt.Sprintf("%d", id), note, ipHash); err != nil {
+		return fmt.Errorf("admin: insert audit (reopen): %w", err)
 	}
 	return tx.Commit(ctx)
 }

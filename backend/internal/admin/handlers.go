@@ -157,12 +157,6 @@ func (h *Handlers) HandleResolveReport(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	// l'URL ressemble à /api/admin/reports/123/resolve — on a déjà l'id
-	if !strings.HasSuffix(r.URL.Path, "/resolve") {
-		http.NotFound(w, r)
-		return
-	}
-
 	var body struct {
 		Status string `json:"status"`
 		Note   string `json:"note"`
@@ -174,6 +168,42 @@ func (h *Handlers) HandleResolveReport(w http.ResponseWriter, r *http.Request) {
 	sess, _ := SessionFromContext(r.Context())
 	ipH := hashClientIP(r)
 	if err := h.Store.ResolveReport(r.Context(), id, body.Status, body.Note, sess.Email, ipH); err != nil {
+		if errors.Is(err, ErrReportNotOpen) {
+			// Le signalement est déjà clos — l'utilisateur a probablement
+			// rafraîchi sur une vieille page. On répond 409 plutôt qu'erreur.
+			http.Error(w, "conflict", http.StatusConflict)
+			return
+		}
+		h.log().Error("resolve report", "id", id, "err", err)
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleReopenReport (POST /api/admin/reports/{id}/reopen)
+//
+//	Body : {"note": "..."}  (optionnel)
+func (h *Handlers) HandleReopenReport(w http.ResponseWriter, r *http.Request) {
+	id, err := parseIDFromPath(r.URL.Path, "/api/admin/reports/")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	var body struct {
+		Note string `json:"note"`
+	}
+	// Body optionnel — on ignore l'erreur de décodage si vide.
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	sess, _ := SessionFromContext(r.Context())
+	ipH := hashClientIP(r)
+	if err := h.Store.ReopenReport(r.Context(), id, body.Note, sess.Email, ipH); err != nil {
+		if errors.Is(err, ErrReportNotClosed) {
+			http.Error(w, "conflict", http.StatusConflict)
+			return
+		}
+		h.log().Error("reopen report", "id", id, "err", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}

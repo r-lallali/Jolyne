@@ -46,14 +46,17 @@ func mountAdmin(mux *http.ServeMux, h *admin.Handlers) {
 	mux.Handle("/api/admin/me", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleMe)))))
 	mux.Handle("/api/admin/reports", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleListReports)))))
 
-	// Subtree /api/admin/reports/{id}[/resolve] — dispatch interne par
+	// Subtree /api/admin/reports/{id}[/resolve|/reopen] — dispatch par
 	// méthode + suffix.
 	mux.Handle("/api/admin/reports/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
 		switch {
-		case r.Method == http.MethodGet && !strings.HasSuffix(r.URL.Path, "/resolve"):
+		case r.Method == http.MethodGet && !strings.HasSuffix(path, "/resolve") && !strings.HasSuffix(path, "/reopen"):
 			h.HandleGetReport(w, r)
-		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/resolve"):
+		case r.Method == http.MethodPost && strings.HasSuffix(path, "/resolve"):
 			h.HandleResolveReport(w, r)
+		case r.Method == http.MethodPost && strings.HasSuffix(path, "/reopen"):
+			h.HandleReopenReport(w, r)
 		default:
 			http.NotFound(w, r)
 		}
