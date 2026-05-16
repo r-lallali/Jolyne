@@ -28,6 +28,7 @@ export interface Messages {
     start: string;
     ageGate: string;
     legal: string;
+    pseudoBlocked: string;
   };
   searching: {
     findingPeer: string;

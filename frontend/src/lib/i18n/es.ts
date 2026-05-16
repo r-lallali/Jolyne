@@ -16,6 +16,7 @@ export const es: Messages = {
     start: "Comenzar",
     ageGate: "Tengo 16 años o más y acepto chatear con un desconocido.",
     legal: "Aviso legal",
+    pseudoBlocked: "Este nombre contiene un término bloqueado.",
   },
   searching: {
     findingPeer: "Buscando a alguien",

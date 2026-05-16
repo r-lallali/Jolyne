@@ -17,6 +17,7 @@ export const fr: Messages = {
     ageGate:
       "J'ai 16 ans ou plus et j'accepte de discuter avec un inconnu.",
     legal: "Mentions légales",
+    pseudoBlocked: "Ce pseudo contient un terme bloqué.",
   },
   searching: {
     findingPeer: "On cherche quelqu'un",

@@ -10,6 +10,7 @@ import { useMatch } from "@/hooks/useMatch";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useT } from "@/lib/i18n";
 import { allowedWantsFor, isPairAllowed, type LangCode } from "@/lib/langs";
+import { containsProfanity } from "@/lib/profanity";
 
 const ALL_LANGS: LangCode[] = ["fr", "en", "es", "de"];
 
@@ -42,7 +43,8 @@ export function SetupView() {
   const setLangs = store.setLangs;
   const acceptAge = store.acceptAge;
 
-  const canNext = pseudo.length >= 3;
+  const pseudoBlocked = pseudo.length >= 3 && containsProfanity(pseudo);
+  const canNext = pseudo.length >= 3 && !pseudoBlocked;
   const canStart = canNext && isPairAllowed(speaks, wants) && ageAccepted;
 
   // Langues à griser dans le picker "wants" : tant que speaks n'est pas
@@ -111,6 +113,11 @@ export function SetupView() {
                     onChange={setPseudo}
                     placeholder={t.setup.nickPlaceholder}
                   />
+                  {pseudoBlocked && (
+                    <p className="mt-3 text-center text-xs text-red-600 dark:text-red-400">
+                      {t.setup.pseudoBlocked}
+                    </p>
+                  )}
                   <button
                     type="submit"
                     disabled={!canNext}
