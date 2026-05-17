@@ -303,6 +303,12 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 	// Throttle anti-abus pour les corrections : 1 par session toutes les 3 s.
 	var lastCorrectAt time.Time
 
+	// peerGone : le peer a quitté/nexté, on a relayé ServerPeerLeft, mais
+	// on reste dans runChat pour attendre que NOTRE client décide (Next →
+	// re-queue gratuit, ou disconnect/Quit). Permet d'afficher l'écran de
+	// fin de conversation côté client.
+	peerGone := false
+
 	peerCh := room.Channel()
 	for {
 		select {
@@ -314,6 +320,10 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			if !ok {
 				return chatDisconnect
 			}
+			if peerGone {
+				// Plus rien à relayer une fois que le peer est parti.
+				continue
+			}
 			switch env.Kind {
 			case roomKindMsg:
 				push(peer.Nick, env.Body)
@@ -322,7 +332,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				conn.Send(ServerFrame{Type: ServerTyping})
 			case roomKindLeft:
 				conn.Send(ServerFrame{Type: ServerPeerLeft})
-				return chatPeerLeft
+				peerGone = true
 			case roomKindCorrection:
 				conn.Send(ServerFrame{
 					Type:     ServerCorrection,
@@ -338,6 +348,9 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			}
 			switch msg.Type {
 			case ClientMsg:
+				if peerGone {
+					continue
+				}
 				if len(msg.ID) > msgIDMaxLength {
 					conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInvalidParam})
 					continue
@@ -353,6 +366,9 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 					return chatDisconnect
 				}
 			case ClientCorrect:
+				if peerGone {
+					continue
+				}
 				if time.Since(lastCorrectAt) < correctMinInterval {
 					continue
 				}
@@ -382,6 +398,9 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				}
 				lastCorrectAt = time.Now()
 			case ClientTyping:
+				if peerGone {
+					continue
+				}
 				_ = room.SendTyping(ctx)
 			case ClientReport:
 				if h.d.Reports == nil {
@@ -418,6 +437,12 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			case ClientNext:
 				if !canNext() {
 					continue
+				}
+				// Si le peer est déjà parti, on traite comme chatPeerLeft
+				// (re-queue gratuit, pas de quota). Sinon c'est un Next
+				// volontaire qui coûte un slot quotidien.
+				if peerGone {
+					return chatPeerLeft
 				}
 				return chatNext
 			}
