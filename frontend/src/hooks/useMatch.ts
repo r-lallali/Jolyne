@@ -28,6 +28,19 @@ function newMessageId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// Petit feedback haptique mobile (Android principalement — iOS Safari
+// n'expose pas l'API). Silencieux si non supporté. Pas de PII, pas de
+// gating utilisateur — l'effet est imperceptible visuellement.
+function buzz(ms: number): void {
+  try {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(ms);
+    }
+  } catch {
+    // Pas supporté / bloqué — pas grave.
+  }
+}
+
 export function useMatch() {
   const chat = useChatStore;
   const session = useSessionStore;
@@ -92,6 +105,7 @@ export function useMatch() {
               fromMe: false,
               at: Date.now(),
             });
+            buzz(25);
             break;
           case "peer_left":
             c.peerLeft();
@@ -169,6 +183,7 @@ export function useMatch() {
           fromMe: true,
           at: Date.now(),
         });
+        buzz(15);
       }
       return ok;
     },
