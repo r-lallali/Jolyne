@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AgeGate } from "@/components/AgeGate";
 import { LangSelector } from "@/components/setup/LangSelector";
 import { PseudoInput } from "@/components/setup/PseudoInput";
@@ -76,16 +76,22 @@ export function SetupView() {
     ? ALL_LANGS.filter((c) => !isPairAllowed(speaks, c))
     : ALL_LANGS;
 
-  // Hash routing pour les étapes : URL = `/#config` ou `/`. setStep est
-  // piloté par hashchange — un seul chemin pour bouton in-app + back/swipe
-  // navigateur. Pas d'animation React entre les étapes (sinon elle se
-  // superpose à la swipe-back native Safari → flicker).
+  // Hash routing pour les étapes : URL = `/#config` ou `/`. setStep piloté
+  // par hashchange — un seul chemin pour bouton in-app + back/swipe Safari.
+  //
+  // animateConfigEnter : on slide la carte config QUE quand l'utilisateur
+  // clique Suivant (= démarche volontaire d'avancer). Pas au back/swipe
+  // (sinon notre anim se superpose à celle du navigateur → flicker).
+  const animateConfigEnter = useRef(false);
+
   const goConfig = () => {
     if (!canNext) return;
+    animateConfigEnter.current = true;
     window.location.hash = "config";
   };
 
   const goBack = () => {
+    animateConfigEnter.current = false;
     if (typeof window !== "undefined" && window.location.hash) {
       window.history.back();
     } else {
@@ -96,7 +102,11 @@ export function SetupView() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const sync = () => {
-      setStep(window.location.hash === "#config" ? "config" : "pseudo");
+      const target = window.location.hash === "#config" ? "config" : "pseudo";
+      // Tout retour vers pseudo désarme l'anim — la prochaine arrivée à
+      // config sera animée seulement si elle vient d'un clic Suivant.
+      if (target === "pseudo") animateConfigEnter.current = false;
+      setStep(target);
     };
     sync();
     window.addEventListener("hashchange", sync);
@@ -161,7 +171,14 @@ export function SetupView() {
         )}
 
         {step === "config" && (
-          <div className="w-full">
+          <motion.div
+            initial={
+              animateConfigEnter.current ? { x: 60, opacity: 0 } : false
+            }
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="w-full"
+          >
               <Card>
                 {/* Sélection des langues */}
                 <div className="flex flex-col gap-6">
@@ -226,7 +243,7 @@ export function SetupView() {
                   </button>
                 </div>
               </Card>
-          </div>
+          </motion.div>
         )}
       </div>
 
