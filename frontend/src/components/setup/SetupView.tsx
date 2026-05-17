@@ -89,10 +89,33 @@ export function SetupView() {
     setStep("config");
   };
 
+  // Le bouton "Retour" délègue au browser back. L'effet ci-dessous écoute
+  // popstate et fait le setStep — un seul chemin pour les deux gestes
+  // (bouton in-app + retour navigateur). Évite que le retour navigateur
+  // saute vers la page précédente (ex: /legal) en sautant l'étape pseudo.
   const goBack = () => {
-    setDir(-1);
-    setStep("pseudo");
+    if (typeof window !== "undefined") {
+      window.history.back();
+    } else {
+      setDir(-1);
+      setStep("pseudo");
+    }
   };
+
+  useEffect(() => {
+    if (step !== "config" || typeof window === "undefined") return;
+    window.history.pushState(
+      { jolyne: "setup-config" },
+      "",
+      window.location.href,
+    );
+    const onPop = () => {
+      setDir(-1);
+      setStep("pseudo");
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [step]);
 
   const handleSpeaksChange = (code: LangCode) => {
     // Reset wants si la nouvelle paire (code → wants) n'est plus ouverte.
@@ -200,7 +223,7 @@ export function SetupView() {
 
                   {queueCount !== null && queueCount >= 0 && (
                     <div className="flex flex-col items-center gap-1 pt-1">
-                      <div className="rounded-xl bg-neutral-900 px-4 py-2 font-mono text-3xl font-semibold tracking-tight text-emerald-400 shadow-inner dark:bg-black">
+                      <div className="rounded-xl bg-white px-4 py-2 font-mono text-3xl font-semibold tracking-tight text-neutral-900 shadow-inner ring-1 ring-neutral-200 dark:bg-neutral-950 dark:text-neutral-50 dark:ring-neutral-800">
                         <FlipNumber value={queueCount} />
                       </div>
                       <p className="text-[11px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
