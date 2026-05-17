@@ -83,45 +83,33 @@ export function SetupView() {
     ? ALL_LANGS.filter((c) => !isPairAllowed(speaks, c))
     : ALL_LANGS;
 
-  // Navigation entre les étapes via history.pushState. Important : on push
-  // AVANT setStep, sinon Safari snapshot l'entrée précédente avec déjà la
-  // vue config affichée (et le swipe-back révèle ce snapshot fantôme).
-  // Le popstate handler lit history.state pour déterminer l'étape — comme
-  // ça forward navigation (cas rare) reste cohérent.
+  // Hash routing pour les étapes : URL = `/#config` ou `/` (pseudo). Standard
+  // navigateur, donc back / swipe-back / snapshots Safari fonctionnent
+  // nativement sans manipulation history. setStep est piloté par hashchange
+  // — un seul chemin pour les deux gestes.
   const goConfig = () => {
     if (!canNext) return;
-    if (typeof window !== "undefined") {
-      window.history.pushState(
-        { jolyne: "setup-config" },
-        "",
-        window.location.href,
-      );
-    }
     setDir(1);
-    setStep("config");
+    window.location.hash = "config";
   };
 
   const goBack = () => {
-    if (typeof window !== "undefined") {
+    setDir(-1);
+    if (typeof window !== "undefined" && window.location.hash) {
       window.history.back();
     } else {
-      setDir(-1);
       setStep("pseudo");
     }
   };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onPop = (e: PopStateEvent) => {
-      const s =
-        (e.state as { jolyne?: string } | null)?.jolyne === "setup-config"
-          ? "config"
-          : "pseudo";
-      setDir(s === "config" ? 1 : -1);
-      setStep(s);
+    const sync = () => {
+      setStep(window.location.hash === "#config" ? "config" : "pseudo");
     };
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
   }, []);
 
   const handleSpeaksChange = (code: LangCode) => {
