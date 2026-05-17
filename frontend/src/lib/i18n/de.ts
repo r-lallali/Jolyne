@@ -51,6 +51,8 @@ export const de: Messages = {
     piiSendAnyway: "Trotzdem senden",
     reconnecting: "Verbindung wird wiederhergestellt…",
     tapToTranslate: "Tippe ein Wort an, um es zu übersetzen",
+    backGuardTitle: "Du verlässt gleich das Gespräch.",
+    backGuardHint: ({ s }) => `In ${s} s zurück…`,
   },
   translate: {
     label: "Übersetzen",

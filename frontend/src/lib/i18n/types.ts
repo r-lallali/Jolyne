@@ -58,6 +58,8 @@ export interface Messages {
     piiSendAnyway: string;
     reconnecting: string;
     tapToTranslate: string;
+    backGuardTitle: string;
+    backGuardHint: FormatString<{ s: number }>;
   };
   translate: {
     label: string;

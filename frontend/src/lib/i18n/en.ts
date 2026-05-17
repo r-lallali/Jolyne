@@ -51,6 +51,8 @@ export const en: Messages = {
     piiSendAnyway: "Send anyway",
     reconnecting: "Reconnecting…",
     tapToTranslate: "Tap a word to translate it",
+    backGuardTitle: "You're about to leave the conversation.",
+    backGuardHint: ({ s }) => `Leaving in ${s}s…`,
   },
   translate: {
     label: "Translate",

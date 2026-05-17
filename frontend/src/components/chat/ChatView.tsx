@@ -1,7 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { BackGuardModal } from "@/components/chat/BackGuardModal";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { CorrectionModal } from "@/components/chat/CorrectionModal";
 import { MessageInput } from "@/components/chat/MessageInput";
@@ -30,8 +31,35 @@ export function ChatView() {
   const [canNext, setCanNext] = useState(false);
   const [toastTick, setToastTick] = useState(0); // chaque incrément = un nouveau toast
   const [showToast, setShowToast] = useState(false);
+  const [backGuard, setBackGuard] = useState(false);
+  // Skipper notre propre popstate quand on confirme le back (sinon on
+  // re-trap notre propre history.back).
+  const skipNextPop = useRef(false);
 
   useTabAttention();
+
+  // Intercepte le bouton "retour" du navigateur. On pousse un état leurre
+  // ; au popstate, on re-push pour rester sur la page et on ouvre la modale
+  // de confirmation. Confirm = on retire le listener et on appelle vraiment
+  // history.back(). Cancel = on reste.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.history.pushState({ jolyne: "back-guard" }, "", window.location.href);
+    const onPop = () => {
+      if (skipNextPop.current) {
+        skipNextPop.current = false;
+        return;
+      }
+      window.history.pushState(
+        { jolyne: "back-guard" },
+        "",
+        window.location.href,
+      );
+      setBackGuard(true);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   useEffect(() => {
     if (!peerNick) return;
@@ -72,6 +100,18 @@ export function ChatView() {
     setToastTick((n) => n + 1);
   };
 
+  const cancelBack = () => setBackGuard(false);
+
+  const confirmBack = () => {
+    setBackGuard(false);
+    // Coupe le WS et reset le store *avant* de naviguer pour que le peer
+    // reçoive le Left immédiatement. Le flag skipNextPop évite que notre
+    // propre history.back() re-déclenche la modale.
+    stop();
+    skipNextPop.current = true;
+    window.history.back();
+  };
+
   return (
     <>
       <div className="flex h-dvh w-full flex-col sm:h-[92vh] sm:max-w-3xl">
@@ -104,6 +144,11 @@ export function ChatView() {
         initialNote={target?.correction?.note}
         onClose={() => setTarget(null)}
         onSubmit={handleSubmitCorrection}
+      />
+      <BackGuardModal
+        open={backGuard}
+        onCancel={cancelBack}
+        onConfirm={confirmBack}
       />
       <AnimatePresence>
         {showToast && (

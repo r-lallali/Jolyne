@@ -50,6 +50,8 @@ export const es: Messages = {
     piiSendAnyway: "Enviar igualmente",
     reconnecting: "Reconectando…",
     tapToTranslate: "Toca una palabra para traducirla",
+    backGuardTitle: "Estás a punto de salir de la conversación.",
+    backGuardHint: ({ s }) => `Saliendo en ${s} s…`,
   },
   translate: {
     label: "Traducir",
