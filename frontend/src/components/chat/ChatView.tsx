@@ -24,10 +24,12 @@ const TOAST_MS = 2_200;
 
 export function ChatView() {
   const peerNick = useChatStore((s) => s.peerNick);
+  const status = useChatStore((s) => s.status);
   const messageCount = useChatStore((s) => s.messages.length);
   const endChat = useChatStore((s) => s.endChat);
   const { sendMsg, sendTyping, report, correct, stop } = useMatch();
   const t = useT();
+  const postChat = status === "post_chat";
   const [reportOpen, setReportOpen] = useState(false);
   const [target, setTarget] = useState<ChatMessage | null>(null);
   const [canNext, setCanNext] = useState(false);
@@ -130,17 +132,23 @@ export function ChatView() {
           onNext={endChat}
           onStop={stop}
           onReport={() => setReportOpen(true)}
-          canReport={messageCount > 0}
-          canNext={canNext}
+          canReport={messageCount > 0 && !postChat}
+          canNext={canNext && !postChat}
           cooldownStart={cooldownStart}
           cooldownMs={NEXT_COOLDOWN_MS}
         />
         <MessageList
-          onCorrect={(m) => setTarget(m)}
-          onEditCorrection={(m) => setTarget(m)}
-          onIcebreaker={(phrase) => sendMsg(phrase)}
+          onCorrect={postChat ? undefined : (m) => setTarget(m)}
+          onEditCorrection={postChat ? undefined : (m) => setTarget(m)}
+          onIcebreaker={postChat ? undefined : (phrase) => sendMsg(phrase)}
         />
-        <MessageInput onSend={sendMsg} onTyping={sendTyping} disabled={false} />
+        {!postChat && (
+          <MessageInput
+            onSend={sendMsg}
+            onTyping={sendTyping}
+            disabled={false}
+          />
+        )}
       </div>
       <ReportModal
         open={reportOpen}

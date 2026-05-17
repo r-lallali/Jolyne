@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { MessageBubble } from "@/components/chat/MessageBubble";
+import { PostChatCard } from "@/components/chat/PostChatCard";
 import {
   TranslationPopover,
   type TranslationRequest,
@@ -32,6 +33,8 @@ export function MessageList({
   const messages = useChatStore((s) => s.messages);
   const peerNick = useChatStore((s) => s.peerNick);
   const peerTyping = useChatStore((s) => s.peerTyping);
+  const status = useChatStore((s) => s.status);
+  const postChat = status === "post_chat";
   const speaks = useSessionStore((s) => s.speaks);
   const wants = useSessionStore((s) => s.wants);
   const t = useT();
@@ -159,6 +162,7 @@ export function MessageList({
           })
         )}
         <TypingIndicator />
+        {postChat && <PostChatCard />}
       </div>
       {trans && (
         <TranslationPopover

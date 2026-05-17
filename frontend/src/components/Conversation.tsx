@@ -3,7 +3,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ChatView } from "@/components/chat/ChatView";
 import { FarewellView } from "@/components/chat/FarewellView";
-import { PostChatView } from "@/components/chat/PostChatView";
 import { SearchingView } from "@/components/chat/SearchingView";
 import { SetupView } from "@/components/setup/SetupView";
 import { useMatch } from "@/hooks/useMatch";
@@ -32,12 +31,11 @@ export function Conversation() {
       />
     );
     key = "error";
-  } else if (status === "matched") {
+  } else if (status === "matched" || status === "post_chat") {
+    // post_chat reste dans ChatView : la conversation est visible scrollable,
+    // un PostChatCard apparaît au bas du fil et l'input est masqué.
     view = <ChatView />;
     key = "chat";
-  } else if (status === "post_chat") {
-    view = <PostChatView />;
-    key = "post_chat";
   } else if (status === "ended") {
     view = <FarewellView />;
     key = "farewell";
