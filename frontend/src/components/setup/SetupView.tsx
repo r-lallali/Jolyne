@@ -181,12 +181,12 @@ export function SetupView() {
                     />
                   </div>
 
-                  {/* Flèche séparatrice */}
-                  <div className="flex items-center justify-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-500">
-                      ↓
-                    </div>
-                  </div>
+                  <SwapButton
+                    canSwap={!!speaks && !!wants && isPairAllowed(wants, speaks)}
+                    onSwap={() => {
+                      if (speaks && wants) setLangs(wants, speaks);
+                    }}
+                  />
 
                   <div className="flex flex-col gap-3">
                     <CardLabel>{t.setup.iWantPractice}</CardLabel>
@@ -262,5 +262,46 @@ function CardLabel({ children }: { children: React.ReactNode }) {
     <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-500">
       {children}
     </span>
+  );
+}
+
+// SwapButton remplace l'ancienne flèche décorative ↓. Quand les deux
+// langues sont choisies, un clic les échange (et anime un demi-tour pour
+// donner un feedback visuel). Grisé sinon — pas d'opération possible.
+function SwapButton({
+  canSwap,
+  onSwap,
+}: {
+  canSwap: boolean;
+  onSwap: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-center">
+      <motion.button
+        type="button"
+        onClick={canSwap ? onSwap : undefined}
+        disabled={!canSwap}
+        whileTap={canSwap ? { rotate: 180 } : undefined}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        aria-label="Échanger les langues"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-colors hover:bg-neutral-200 hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-neutral-100 disabled:hover:text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100 dark:disabled:hover:bg-neutral-900 dark:disabled:hover:text-neutral-400"
+      >
+        <svg
+          className="size-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M7 4v16" />
+          <path d="m3 8 4-4 4 4" />
+          <path d="M17 20V4" />
+          <path d="m13 16 4 4 4-4" />
+        </svg>
+      </motion.button>
+    </div>
   );
 }
