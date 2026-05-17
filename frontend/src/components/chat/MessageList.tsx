@@ -93,7 +93,10 @@ export function MessageList({
   };
 
   return (
-    <div ref={ref} className="scrollbar-discreet flex-1 overflow-y-auto">
+    <div
+      ref={ref}
+      className="scrollbar-discreet flex-1 overflow-y-auto overscroll-contain"
+    >
       <div className="mx-auto w-full max-w-2xl space-y-2 px-4 py-4 sm:px-6">
         {messages.length === 0 ? (
           <div className="flex h-[40dvh] flex-col items-center justify-center gap-5">

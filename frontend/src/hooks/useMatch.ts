@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { getFingerprint } from "@/lib/fingerprint";
+import { buzz } from "@/lib/haptics";
 import { sanitizeMessage } from "@/lib/sanitize";
 import { connectMatch, type Connection } from "@/lib/ws";
 import { useChatStore } from "@/stores/chatStore";
@@ -48,19 +49,6 @@ function newMessageId(): string {
     return crypto.randomUUID();
   }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-// Petit feedback haptique mobile (Android principalement — iOS Safari
-// n'expose pas l'API). Silencieux si non supporté. Pas de PII, pas de
-// gating utilisateur — l'effet est imperceptible visuellement.
-function buzz(ms: number): void {
-  try {
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate(ms);
-    }
-  } catch {
-    // Pas supporté / bloqué — pas grave.
-  }
 }
 
 export function useMatch() {

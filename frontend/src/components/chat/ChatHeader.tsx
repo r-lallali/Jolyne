@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { buzz } from "@/lib/haptics";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
@@ -49,7 +50,11 @@ export function ChatHeader({
         </button>
         <button
           type="button"
-          onClick={onNext}
+          onClick={() => {
+            if (!canNext) return;
+            buzz(15);
+            onNext();
+          }}
           disabled={!canNext}
           className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent dark:text-neutral-300 dark:hover:bg-neutral-900"
         >
