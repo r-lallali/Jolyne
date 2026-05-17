@@ -7,6 +7,16 @@ export const LANG_LABEL: Record<LangCode, string> = {
   de: "Deutsch",
 };
 
+// Drapeaux emoji affichés à côté du nom de langue. 🇬🇧 plutôt que 🇺🇸 pour
+// l'anglais — biais européen assumé pour le lancement. À swapper si le
+// public se révèle majoritairement US.
+export const LANG_FLAG: Record<LangCode, string> = {
+  fr: "🇫🇷",
+  en: "🇬🇧",
+  es: "🇪🇸",
+  de: "🇩🇪",
+};
+
 export interface LangPair {
   speaks: LangCode;
   wants: LangCode;

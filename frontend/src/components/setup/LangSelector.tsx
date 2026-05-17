@@ -1,6 +1,6 @@
 "use client";
 
-import { LANG_LABEL, type LangCode } from "@/lib/langs";
+import { LANG_FLAG, LANG_LABEL, type LangCode } from "@/lib/langs";
 import { cn } from "@/lib/cn";
 
 const ALL_LANGS: LangCode[] = ["fr", "en", "es", "de"];
@@ -30,7 +30,7 @@ export function LangSelector({ value, onChange, exclude }: Props) {
             onClick={() => !disabled && onChange(code)}
             disabled={disabled}
             className={cn(
-              "rounded-xl px-3 py-2.5 text-center text-sm font-medium transition-colors",
+              "flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-center text-sm font-medium transition-colors",
               selected
                 ? "bg-neutral-900 text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
                 : disabled
@@ -38,7 +38,10 @@ export function LangSelector({ value, onChange, exclude }: Props) {
                   : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-900/60 dark:text-neutral-300 dark:hover:bg-neutral-800",
             )}
           >
-            {LANG_LABEL[code]}
+            <span aria-hidden className={cn("text-base", disabled && "grayscale")}>
+              {LANG_FLAG[code]}
+            </span>
+            <span>{LANG_LABEL[code]}</span>
           </button>
         );
       })}
