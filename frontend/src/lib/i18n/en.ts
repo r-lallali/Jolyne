@@ -18,10 +18,8 @@ export const en: Messages = {
       "I'm 16 or older and I agree to chat with a stranger.",
     legal: "Legal notice",
     pseudoBlocked: "This nickname contains a blocked term.",
-    queueWaiting: ({ count }) =>
-      count === 0
-        ? "Nobody waiting on this pair right now."
-        : `${count} ${count > 1 ? "people" : "person"} waiting on this pair.`,
+    queueWaitingSuffix: ({ count }) =>
+      count === 1 ? "person waiting" : "people waiting",
   },
   searching: {
     findingPeer: "Finding someone",

@@ -6,6 +6,7 @@ import { AgeGate } from "@/components/AgeGate";
 import { LangSelector } from "@/components/setup/LangSelector";
 import { PseudoInput } from "@/components/setup/PseudoInput";
 import { UILangPicker } from "@/components/setup/UILangPicker";
+import { FlipNumber } from "@/components/ui/FlipNumber";
 import { useMatch } from "@/hooks/useMatch";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useT } from "@/lib/i18n";
@@ -198,9 +199,14 @@ export function SetupView() {
                   </div>
 
                   {queueCount !== null && queueCount >= 0 && (
-                    <p className="text-center text-xs text-neutral-500 dark:text-neutral-400">
-                      {t.setup.queueWaiting({ count: queueCount })}
-                    </p>
+                    <div className="flex flex-col items-center gap-1 pt-1">
+                      <div className="rounded-xl bg-neutral-900 px-4 py-2 font-mono text-3xl font-semibold tracking-tight text-emerald-400 shadow-inner dark:bg-black">
+                        <FlipNumber value={queueCount} />
+                      </div>
+                      <p className="text-[11px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                        {t.setup.queueWaitingSuffix({ count: queueCount })}
+                      </p>
+                    </div>
                   )}
                 </div>
 

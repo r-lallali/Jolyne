@@ -18,10 +18,8 @@ export const de: Messages = {
       "Ich bin 16 Jahre oder älter und stimme zu, mit einer fremden Person zu chatten.",
     legal: "Impressum",
     pseudoBlocked: "Dieser Nickname enthält einen gesperrten Begriff.",
-    queueWaiting: ({ count }) =>
-      count === 0
-        ? "Gerade niemand wartet in diesem Sprachpaar."
-        : `${count} Person${count > 1 ? "en" : ""} warten in diesem Sprachpaar.`,
+    queueWaitingSuffix: ({ count }) =>
+      count === 1 ? "Person wartet" : "Personen warten",
   },
   searching: {
     findingPeer: "Suche jemanden",

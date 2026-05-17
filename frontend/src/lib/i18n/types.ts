@@ -29,7 +29,8 @@ export interface Messages {
     ageGate: string;
     legal: string;
     pseudoBlocked: string;
-    queueWaiting: FormatString<{ count: number }>;
+    // Phrase courte qui suit le compteur "scoreboard" (pas le nombre).
+    queueWaitingSuffix: FormatString<{ count: number }>;
   };
   searching: {
     findingPeer: string;
