@@ -105,7 +105,7 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
   const canCheck = !disabled && !checking && draft.trim().length > 0 && !!wants;
 
   return (
-    <div className="px-3 pb-3 sm:px-6 sm:pb-6">
+    <div className="px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
       <AnimatePresence>
         {matches !== null && (
           <div className="mx-auto mb-2 w-full max-w-2xl">

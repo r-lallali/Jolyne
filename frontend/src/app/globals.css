@@ -28,7 +28,27 @@ html.dark {
 body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  /* Empêche le rebond élastique iOS qui révèle un fond blanc pendant
+     l'overscroll. Cohérent avec une app de chat plein écran. */
+  overscroll-behavior-y: none;
 }
+
+/* iOS Safari zoome automatiquement sur un input dont la font-size est
+   < 16px. Bypass : on force 16px UNIQUEMENT au focus sur mobile, le
+   reste du temps on garde le rendu original. */
+@media (max-width: 640px) {
+  input,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Utilitaires safe-area (notch iPhone / barre Android). À ajouter sur le
+   conteneur de chat pour ne pas que l'input passe sous la barre home. */
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.pl-safe { padding-left: env(safe-area-inset-left); }
+.pr-safe { padding-right: env(safe-area-inset-right); }
 
 .scrollbar-discreet::-webkit-scrollbar {
   width: 6px;

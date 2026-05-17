@@ -1,5 +1,5 @@
 import { Inter } from "next/font/google";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ChatWordmark } from "@/components/ChatWordmark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
@@ -14,6 +14,22 @@ export const metadata: Metadata = {
   title: "Jolyne",
   description: "Pratique une langue avec un natif. 1-vs-1, texte uniquement.",
   robots: { index: true, follow: true },
+};
+
+// Viewport "app" : pas de pinch-zoom (comportement attendu d'un chat,
+// évite le zoom accidentel à 2 doigts), interactiveWidget=resizes-content
+// pour que le clavier mobile ne masque pas l'input.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

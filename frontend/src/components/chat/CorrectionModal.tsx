@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { SheetHandle } from "@/components/ui/SheetHandle";
 import { useT } from "@/lib/i18n";
 
 interface Props {
@@ -61,19 +62,21 @@ export function CorrectionModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-3 pb-3 backdrop-blur-sm sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-6"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <motion.form
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: "100%" }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18, ease: "easeOut" }}
+        exit={{ opacity: 0, y: "100%" }}
+        transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-neutral-950"
+        className="w-full max-w-md rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-xl dark:bg-neutral-950 sm:rounded-2xl sm:pb-5"
       >
+        <SheetHandle />
         <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
           {t.correction.title({ nick: peerNick ?? t.correction.fallbackPeer })}
         </h2>
