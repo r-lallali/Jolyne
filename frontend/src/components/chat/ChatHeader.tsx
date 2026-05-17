@@ -173,31 +173,36 @@ function NextButton({
   );
 }
 
-// CooldownRing : arc SVG qui se vide en durationMs. Le key={cooldownStart}
-// côté parent garantit que le composant se remonte à chaque nouveau
-// cooldown — l'animation repart toujours de plein.
+// CooldownRing : contour pill-shape qui se vide en durationMs autour du
+// bouton. SVG étendu (-inset-1.5) au-delà du bouton pour bien le détourer,
+// stroke épais en noir/blanc selon le thème. pathLength normalisé pour
+// que l'animation reste linéaire quelle que soit la longueur réelle du
+// rectangle arrondi. Remonté à chaque nouveau cooldown via key parent.
 function CooldownRing({ durationMs }: { durationMs: number }) {
-  const r = 16;
-  const c = 2 * Math.PI * r;
   return (
     <svg
       aria-hidden
-      className="pointer-events-none absolute inset-0 size-full -rotate-90"
-      viewBox="0 0 40 40"
+      className="pointer-events-none absolute -inset-1.5 h-[calc(100%+0.75rem)] w-[calc(100%+0.75rem)] text-neutral-900 dark:text-neutral-50"
+      preserveAspectRatio="none"
+      viewBox="0 0 100 40"
     >
-      <motion.circle
-        cx="20"
-        cy="20"
-        r={r}
+      <motion.rect
+        x="1.5"
+        y="1.5"
+        width="97"
+        height="37"
+        rx="20"
+        ry="20"
         fill="none"
-        strokeWidth="2"
         stroke="currentColor"
-        className="text-neutral-300 dark:text-neutral-700"
-        strokeDasharray={c}
-        initial={{ strokeDashoffset: 0 }}
-        animate={{ strokeDashoffset: c }}
-        transition={{ duration: durationMs / 1000, ease: "linear" }}
+        strokeWidth="3"
         strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+        pathLength={1}
+        strokeDasharray="1 1"
+        initial={{ strokeDashoffset: 0 }}
+        animate={{ strokeDashoffset: -1 }}
+        transition={{ duration: durationMs / 1000, ease: "linear" }}
       />
     </svg>
   );
