@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { playPeerChime } from "@/lib/sound";
 import { useChatStore } from "@/stores/chatStore";
 
 // useTabAttention patche document.title quand on reçoit un message peer
@@ -31,6 +32,7 @@ export function useTabAttention() {
       if (typeof document !== "undefined" && document.hidden) {
         unread.current += delta;
         refresh();
+        playPeerChime();
       }
     }
 
