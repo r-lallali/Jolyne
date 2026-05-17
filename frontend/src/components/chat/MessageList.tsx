@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import {
   TranslationPopover,
@@ -11,6 +11,10 @@ import { useT } from "@/lib/i18n";
 import { ICEBREAKERS } from "@/lib/icebreakers";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
+
+// Flag localStorage : "le user a déjà vu le hint, ne pas réafficher".
+const HINT_STORAGE_KEY = "jolyne_translate_hinted";
+const HINT_AUTO_DISMISS_MS = 8_000;
 
 interface Props {
   onCorrect?: (m: ChatMessage) => void;
@@ -37,6 +41,35 @@ export function MessageList({
   // remplace simplement la requête en cours.
   const [trans, setTrans] = useState<TranslationRequest | null>(null);
 
+  // Hint "touche un mot pour le traduire" ancré sur le 1er message peer
+  // de la 1ère session. Une fois vu (tap ou timeout), persistance
+  // localStorage pour ne plus jamais le réafficher.
+  const [hintShown, setHintShown] = useState(false);
+  const firstPeerIdx = messages.findIndex((m) => m.from === "peer");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem(HINT_STORAGE_KEY) === "1") return;
+    if (firstPeerIdx === -1) return;
+    setHintShown(true);
+  }, [firstPeerIdx]);
+  const dismissHint = () => {
+    if (!hintShown) return;
+    setHintShown(false);
+    try {
+      window.localStorage.setItem(HINT_STORAGE_KEY, "1");
+    } catch {
+      // localStorage indispo (mode privé Safari) — tant pis, le hint
+      // réapparaîtra à la prochaine session.
+    }
+  };
+  useEffect(() => {
+    if (!hintShown) return;
+    const id = setTimeout(dismissHint, HINT_AUTO_DISMISS_MS);
+    return () => clearTimeout(id);
+    // dismissHint stable car n'utilise pas de var locale dépendante.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hintShown]);
+
   // Auto-scroll en bas à chaque nouveau message OU quand le peer commence
   // à taper — pour que l'indicateur "X écrit…" reste visible au lieu d'être
   // caché sous le pli.
@@ -48,6 +81,7 @@ export function MessageList({
   }, [messages.length, peerTyping]);
 
   const handleSelect = (text: string, rect: DOMRect) => {
+    dismissHint();
     if (!speaks || !wants) return;
     setTrans({
       text,
@@ -87,7 +121,7 @@ export function MessageList({
             )}
           </div>
         ) : (
-          messages.map((m) => {
+          messages.map((m, i) => {
             // Édition possible uniquement pour mes propres corrections (qui
             // vivent sous des messages peer).
             const canEdit =
@@ -95,17 +129,29 @@ export function MessageList({
               m.from === "peer" &&
               m.correction?.fromMe === true;
             return (
-              <MessageBubble
-                key={m.id}
-                from={m.from}
-                body={m.body}
-                at={m.at}
-                correction={m.correction}
-                peerNick={peerNick}
-                onSelect={handleSelect}
-                onCorrect={onCorrect ? () => onCorrect(m) : undefined}
-                onEditCorrection={canEdit ? () => onEditCorrection!(m) : undefined}
-              />
+              <Fragment key={m.id}>
+                {hintShown && i === firstPeerIdx && (
+                  <div className="flex justify-start">
+                    <button
+                      type="button"
+                      onClick={dismissHint}
+                      className="rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-500/25 dark:text-emerald-400"
+                    >
+                      💡 {t.chat.tapToTranslate}
+                    </button>
+                  </div>
+                )}
+                <MessageBubble
+                  from={m.from}
+                  body={m.body}
+                  at={m.at}
+                  correction={m.correction}
+                  peerNick={peerNick}
+                  onSelect={handleSelect}
+                  onCorrect={onCorrect ? () => onCorrect(m) : undefined}
+                  onEditCorrection={canEdit ? () => onEditCorrection!(m) : undefined}
+                />
+              </Fragment>
             );
           })
         )}
