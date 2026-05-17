@@ -44,10 +44,11 @@ export function Conversation() {
     key = "searching";
   }
 
+  // Pas de initial={false} sur l'AnimatePresence : ça propage via
+  // MotionContext et casse les animations d'entrée internes (ex: slide
+  // pseudo→config) au premier mount. On accepte un léger fade-in sur la
+  // 1re vue.
   return (
-    {/* Pas de initial={false} : ça propage via MotionContext et casse
-        les animations d'entrée internes (ex: slide pseudo→config) au
-        premier mount. On accepte un léger fade-in sur la 1re vue. */}
     <AnimatePresence mode="wait">
       <motion.div
         key={key}
