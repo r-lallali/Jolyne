@@ -43,6 +43,12 @@ export interface Messages {
     title: string;
     hint: string;
   };
+  postChat: {
+    title: string;
+    hint: string;
+    next: string;
+    quit: string;
+  };
   chat: {
     chattingWith: FormatString<{ nick: string }>;
     sayHello: string;

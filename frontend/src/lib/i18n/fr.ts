@@ -33,6 +33,12 @@ export const fr: Messages = {
     title: "Merci, à bientôt.",
     hint: "Reviens pratiquer quand tu veux.",
   },
+  postChat: {
+    title: "Conversation terminée",
+    hint: "Tu veux enchaîner ou faire une pause ?",
+    next: "Suivant",
+    quit: "Quitter",
+  },
   chat: {
     chattingWith: ({ nick }) => `Tu discutes avec ${nick}`,
     sayHello: "Dis bonjour pour démarrer.",

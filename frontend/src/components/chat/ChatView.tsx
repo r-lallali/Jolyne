@@ -25,7 +25,8 @@ const TOAST_MS = 2_200;
 export function ChatView() {
   const peerNick = useChatStore((s) => s.peerNick);
   const messageCount = useChatStore((s) => s.messages.length);
-  const { sendMsg, sendTyping, next, report, correct, stop } = useMatch();
+  const endChat = useChatStore((s) => s.endChat);
+  const { sendMsg, sendTyping, report, correct, stop } = useMatch();
   const t = useT();
   const [reportOpen, setReportOpen] = useState(false);
   const [target, setTarget] = useState<ChatMessage | null>(null);
@@ -83,17 +84,18 @@ export function ChatView() {
     return () => clearTimeout(id);
   }, [toastTick]);
 
-  // Cmd/Ctrl+K = Suivant. Respecte le cooldown post-match (canNext).
+  // Cmd/Ctrl+K = Suivant (= afficher l'écran de fin avec Next/Quitter).
+  // Respecte le cooldown post-match (canNext).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        if (canNext) next();
+        if (canNext) endChat();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [canNext, next]);
+  }, [canNext, endChat]);
 
   const handleReport = (reason: string) => {
     report(reason);
@@ -125,7 +127,7 @@ export function ChatView() {
       <div className="flex h-dvh w-full flex-col sm:h-[92vh] sm:max-w-3xl">
         <ChatHeader
           peerNick={peerNick}
-          onNext={next}
+          onNext={endChat}
           onStop={stop}
           onReport={() => setReportOpen(true)}
           canReport={messageCount > 0}

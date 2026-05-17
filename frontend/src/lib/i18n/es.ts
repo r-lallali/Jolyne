@@ -32,6 +32,12 @@ export const es: Messages = {
     title: "Gracias, hasta pronto.",
     hint: "Vuelve a practicar cuando quieras.",
   },
+  postChat: {
+    title: "Conversación terminada",
+    hint: "¿Seguimos o paramos?",
+    next: "Siguiente",
+    quit: "Salir",
+  },
   chat: {
     chattingWith: ({ nick }) => `Estás chateando con ${nick}`,
     sayHello: "Saluda para empezar.",

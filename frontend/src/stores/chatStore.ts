@@ -5,6 +5,10 @@ export type ChatStatus =
   | "connecting"
   | "queued"
   | "matched"
+  // Conversation terminée (peer parti OU moi qui choisis Suivant), on
+  // attend que l'utilisateur décide de re-queue ou de quitter via le
+  // PostChatView. La WS est encore ouverte et le backend attend lui aussi.
+  | "post_chat"
   | "ended"
   | "error";
 
@@ -50,6 +54,10 @@ interface ChatState {
   applyCorrection: (targetId: string, c: MessageCorrection) => void;
   receivePeerTyping: () => void;
   peerLeft: () => void;
+  // Bascule volontaire vers le PostChatView (clic Suivant confirmé). Le
+  // backend ne reçoit rien à ce stade — il faudra appeler useMatch.next()
+  // depuis l'écran de fin pour re-queue pour de vrai.
+  endChat: () => void;
   farewell: () => void;
   error: (code: string, message?: string) => void;
   reset: () => void;
@@ -127,7 +135,15 @@ export const useChatStore = create<ChatState>((set) => ({
 
   peerLeft: () => {
     clearTypingTimer();
-    set({ status: "queued", peerNick: null, peerTyping: false });
+    // On NE re-queue PAS automatiquement : on bascule sur l'écran de fin
+    // (PostChatView) qui propose Suivant/Quitter. peerNick est conservé
+    // pour pouvoir l'afficher dans le récap.
+    set({ status: "post_chat", peerTyping: false });
+  },
+
+  endChat: () => {
+    clearTypingTimer();
+    set({ status: "post_chat", peerTyping: false });
   },
 
   farewell: () => {
