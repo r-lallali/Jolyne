@@ -29,9 +29,6 @@ interface Props {
 //
 // Quand une correction existe, elle s'affiche en sous-bulle juste sous le
 // message original — même alignement que la bulle parente.
-// Délai pour distinguer un long-press (= traduire le mot tapé) d'un tap
-// court (= laisser passer le tap natif).
-const LONG_PRESS_MS = 500;
 // Fenêtre pendant laquelle le correcteur peut éditer sa correction.
 const EDIT_WINDOW_MS = 30_000;
 
@@ -47,43 +44,27 @@ export function MessageBubble({
 }: Props) {
   const mine = from === "me";
   const ref = useRef<HTMLParagraphElement>(null);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = useT();
 
-  const handleSelect = () => {
+  // Click/tap simple sur une bulle peer : on identifie le mot sous le
+  // pointeur via caretRangeFromPoint, on étend aux frontières de mot, et
+  // on ouvre le tooltip de traduction. Si l'utilisateur a fait une vraie
+  // sélection multi-mots (drag desktop), on la respecte à la place.
+  const handleClick = (e: React.MouseEvent<HTMLParagraphElement>) => {
     if (mine || !onSelect) return;
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) return;
-    const text = sel.toString().trim();
-    // Garde-fous : pas vide, pas un roman, contenu dans cette bulle.
-    if (!text || text.length > 200) return;
-    const range = sel.getRangeAt(0);
-    if (!ref.current?.contains(range.commonAncestorContainer)) return;
-    onSelect(text, range.getBoundingClientRect());
-  };
-
-  // Long-press tactile : on attend 500 ms puis on capture le mot sous le
-  // doigt via caretRangeFromPoint, on étend aux frontières de mot, et on
-  // déclenche le popover comme une sélection normale. Annulé si l'utilisateur
-  // bouge ou relâche avant l'échéance.
-  const handleTouchStart = (e: React.TouchEvent<HTMLParagraphElement>) => {
-    if (mine || !onSelect) return;
-    const touch = e.touches[0];
-    if (!touch) return;
-    const x = touch.clientX;
-    const y = touch.clientY;
-    longPressTimer.current = setTimeout(() => {
-      longPressTimer.current = null;
-      const word = wordAtPoint(x, y, ref.current);
-      if (word) onSelect(word.text, word.rect);
-    }, LONG_PRESS_MS);
-  };
-
-  const cancelLongPress = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    if (sel && !sel.isCollapsed) {
+      const text = sel.toString().trim();
+      if (text && text.length <= 200) {
+        const range = sel.getRangeAt(0);
+        if (ref.current?.contains(range.commonAncestorContainer)) {
+          onSelect(text, range.getBoundingClientRect());
+          return;
+        }
+      }
     }
+    const word = wordAtPoint(e.clientX, e.clientY, ref.current);
+    if (word) onSelect(word.text, word.rect);
   };
 
   // Le bouton ✏️ n'a de sens que pour les messages du peer et tant qu'aucune
@@ -104,17 +85,7 @@ export function MessageBubble({
         <p
           ref={ref}
           title={new Date(at).toLocaleTimeString()}
-          onMouseUp={handleSelect}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={(e) => {
-            cancelLongPress();
-            // Si une sélection a malgré tout été faite (geste long sans
-            // déclencher le timer), on passe par le chemin normal.
-            handleSelect();
-            void e;
-          }}
-          onTouchMove={cancelLongPress}
-          onTouchCancel={cancelLongPress}
+          onClick={handleClick}
           className={cn(
             "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[15px] leading-snug",
             mine
