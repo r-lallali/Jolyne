@@ -44,6 +44,9 @@ interface ChatState {
   errorCode: string | null;
   errorMessage: string | null;
   peerTyping: boolean;
+  // Qui a mis fin à la conversation. Sert au PostChatCard à adapter le
+  // wording ("X a quitté" vs "Conversation terminée"). null hors post_chat.
+  endedBy: "peer" | "self" | null;
 
   setStatus: (s: ChatStatus) => void;
   matched: (peerNick: string) => void;
@@ -85,6 +88,7 @@ export const useChatStore = create<ChatState>((set) => ({
   errorCode: null,
   errorMessage: null,
   peerTyping: false,
+  endedBy: null,
 
   setStatus: (status) => set({ status }),
 
@@ -97,6 +101,7 @@ export const useChatStore = create<ChatState>((set) => ({
       errorCode: null,
       errorMessage: null,
       peerTyping: false,
+      endedBy: null,
     });
   },
 
@@ -138,12 +143,12 @@ export const useChatStore = create<ChatState>((set) => ({
     // On NE re-queue PAS automatiquement : on bascule sur l'écran de fin
     // (PostChatView) qui propose Suivant/Quitter. peerNick est conservé
     // pour pouvoir l'afficher dans le récap.
-    set({ status: "post_chat", peerTyping: false });
+    set({ status: "post_chat", peerTyping: false, endedBy: "peer" });
   },
 
   endChat: () => {
     clearTypingTimer();
-    set({ status: "post_chat", peerTyping: false });
+    set({ status: "post_chat", peerTyping: false, endedBy: "self" });
   },
 
   farewell: () => {
@@ -155,6 +160,7 @@ export const useChatStore = create<ChatState>((set) => ({
       errorCode: null,
       errorMessage: null,
       peerTyping: false,
+      endedBy: null,
     });
   },
 
@@ -177,6 +183,7 @@ export const useChatStore = create<ChatState>((set) => ({
       errorCode: null,
       errorMessage: null,
       peerTyping: false,
+      endedBy: null,
     });
   },
 }));

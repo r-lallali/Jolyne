@@ -45,6 +45,7 @@ export interface Messages {
   };
   postChat: {
     title: string;
+    titlePeerLeft: FormatString<{ nick: string }>;
     hint: string;
     next: string;
     quit: string;

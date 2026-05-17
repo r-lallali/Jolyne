@@ -4,15 +4,22 @@ import { motion } from "framer-motion";
 import { useMatch } from "@/hooks/useMatch";
 import { buzz } from "@/lib/haptics";
 import { useT } from "@/lib/i18n";
+import { useChatStore } from "@/stores/chatStore";
 
-// Bloc inline qui apparaît à la fin de la conversation quand celle-ci
-// se termine (peer parti ou Suivant côté nous). Deux gros boutons : Next
-// (re-queue gratuit si peer déjà parti, sinon chatNext) et Quitter
-// (ferme la WS). L'utilisateur peut scroller au-dessus pour relire ses
-// messages avant de choisir.
+// Bloc inline en fin de conversation. Apparaît dès qu'elle se termine
+// (peer parti ou Suivant volontaire) et propose Next/Quitter. Le bouton
+// Next envoie `ClientNext` au backend — qui re-queue gratuitement si le
+// peer est déjà parti, sinon avec quota.
 export function PostChatCard() {
   const { next, stop } = useMatch();
+  const peerNick = useChatStore((s) => s.peerNick);
+  const endedBy = useChatStore((s) => s.endedBy);
   const t = useT();
+
+  const title =
+    endedBy === "peer" && peerNick
+      ? t.postChat.titlePeerLeft({ nick: peerNick })
+      : t.postChat.title;
 
   const handleNext = () => {
     buzz(15);
@@ -24,36 +31,53 @@ export function PostChatCard() {
     stop();
   };
 
+  // Containers parents → enfants : on stagger l'entrée des sous-éléments
+  // (titre, hint, boutons) pour une apparition plus fluide qu'un fade-in
+  // simultané.
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.06, delayChildren: 0.04 },
+    },
+  };
+  const item = {
+    hidden: { opacity: 0, y: 8 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: "easeOut" } },
+  };
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: "easeOut" }}
-      className="mt-4 flex flex-col items-stretch gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 dark:border-neutral-800 dark:bg-neutral-900/60"
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="mx-auto mt-6 flex w-full max-w-sm flex-col items-stretch gap-3 px-2 py-4"
     >
-      <div className="text-center">
+      <motion.div variants={item} className="text-center">
         <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-          {t.postChat.title}
+          {title}
         </p>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
           {t.postChat.hint}
         </p>
-      </div>
-      <button
+      </motion.div>
+      <motion.button
+        variants={item}
         type="button"
         onClick={handleNext}
         autoFocus
         className="w-full rounded-2xl bg-neutral-900 px-6 py-4 text-base font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
       >
         {t.postChat.next}
-      </button>
-      <button
+      </motion.button>
+      <motion.button
+        variants={item}
         type="button"
         onClick={handleQuit}
-        className="w-full rounded-2xl bg-neutral-100 px-6 py-4 text-base font-medium text-neutral-700 transition-colors hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-neutral-100"
+        className="w-full rounded-2xl px-6 py-3 text-sm font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
       >
         {t.postChat.quit}
-      </button>
+      </motion.button>
     </motion.div>
   );
 }

@@ -81,7 +81,7 @@ export function MessageList({
       top: ref.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages.length, peerTyping]);
+  }, [messages.length, peerTyping, postChat]);
 
   const handleSelect = (text: string, rect: DOMRect) => {
     dismissHint();

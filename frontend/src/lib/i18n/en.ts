@@ -35,6 +35,7 @@ export const en: Messages = {
   },
   postChat: {
     title: "Conversation ended",
+    titlePeerLeft: ({ nick }) => `${nick} left the conversation`,
     hint: "Keep going or call it a day?",
     next: "Next",
     quit: "Quit",

@@ -35,7 +35,8 @@ export const fr: Messages = {
   },
   postChat: {
     title: "Conversation terminée",
-    hint: "Tu veux enchaîner ou faire une pause ?",
+    titlePeerLeft: ({ nick }) => `${nick} a quitté la conversation`,
+    hint: "On enchaîne ou on s'arrête là ?",
     next: "Suivant",
     quit: "Quitter",
   },
