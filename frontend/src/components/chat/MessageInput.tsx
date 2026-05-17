@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { GrammarPopover } from "@/components/chat/GrammarPopover";
 import { checkGrammar, GrammarError, type GrammarMatch } from "@/lib/grammar";
 import { useT } from "@/lib/i18n";
+import { detectPII } from "@/lib/pii";
 import { translateText } from "@/lib/translate";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -22,6 +23,9 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
   const [matches, setMatches] = useState<GrammarMatch[] | null>(null);
   const [checkedAgainst, setCheckedAgainst] = useState(""); // texte exact vérifié
   const [grammarErr, setGrammarErr] = useState<string | null>(null);
+  // PII : on demande confirmation au 1er submit si pattern détecté. Reset
+  // dès que le texte change pour éviter une confirmation périmée.
+  const [piiPending, setPiiPending] = useState(false);
   const wants = useSessionStore((s) => s.wants);
   const speaks = useSessionStore((s) => s.speaks);
   const peerNick = useChatStore((s) => s.peerNick);
@@ -34,22 +38,32 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
     if (peerNick) inputRef.current?.focus();
   }, [peerNick]);
 
+  const reallySend = (body: string) => {
+    onSend(body);
+    setDraft("");
+    setMatches(null);
+    setGrammarErr(null);
+    setPiiPending(false);
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (disabled) return;
     const body = draft.trim();
     if (!body) return;
-    onSend(body);
-    setDraft("");
-    setMatches(null);
-    setGrammarErr(null);
+    if (!piiPending && detectPII(body)) {
+      setPiiPending(true);
+      return;
+    }
+    reallySend(body);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDraft(e.target.value);
     if (onTyping && e.target.value.length > 0) onTyping();
-    // Invalide les suggestions dès que le texte change.
+    // Invalide les suggestions et la confirmation PII dès que le texte change.
     if (matches !== null) setMatches(null);
+    if (piiPending) setPiiPending(false);
   };
 
   const runCheck = async () => {
@@ -109,6 +123,21 @@ export function MessageInput({ onSend, onTyping, disabled }: Props) {
         <p className="mx-auto mb-1 max-w-2xl text-center text-xs text-red-600 dark:text-red-400">
           {grammarErr}
         </p>
+      )}
+
+      {piiPending && (
+        <div className="mx-auto mb-2 flex w-full max-w-2xl items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+          <span className="text-amber-800 dark:text-amber-300">
+            {t.chat.piiWarn}
+          </span>
+          <button
+            type="button"
+            onClick={() => reallySend(draft.trim())}
+            className="shrink-0 rounded-md bg-amber-500/20 px-2 py-1 font-medium text-amber-800 hover:bg-amber-500/30 dark:text-amber-200"
+          >
+            {t.chat.piiSendAnyway}
+          </button>
+        </div>
       )}
 
       <form

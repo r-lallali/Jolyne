@@ -47,6 +47,10 @@ export const de: Messages = {
     reportTitle: "Diesen Partner melden",
     peerTyping: ({ nick }) => `${nick} schreibt`,
     grammarLabel: "Grammatik prüfen",
+    piiWarn: "Deine Nachricht enthält persönliche Infos. Trotzdem senden?",
+    piiSendAnyway: "Trotzdem senden",
+    reconnecting: "Verbindung wird wiederhergestellt…",
+    tapToTranslate: "Tippe ein Wort an, um es zu übersetzen",
   },
   translate: {
     label: "Übersetzen",

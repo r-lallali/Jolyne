@@ -54,6 +54,10 @@ export interface Messages {
     reportTitle: string;
     peerTyping: FormatString<{ nick: string }>;
     grammarLabel: string;
+    piiWarn: string;
+    piiSendAnyway: string;
+    reconnecting: string;
+    tapToTranslate: string;
   };
   translate: {
     label: string;

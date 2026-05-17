@@ -47,6 +47,10 @@ export const en: Messages = {
     reportTitle: "Report this peer",
     peerTyping: ({ nick }) => `${nick} is typing`,
     grammarLabel: "Check grammar",
+    piiWarn: "Your message contains personal info. Send anyway?",
+    piiSendAnyway: "Send anyway",
+    reconnecting: "Reconnecting…",
+    tapToTranslate: "Tap a word to translate it",
   },
   translate: {
     label: "Translate",
