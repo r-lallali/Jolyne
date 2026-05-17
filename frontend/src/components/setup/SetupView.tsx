@@ -79,10 +79,11 @@ export function SetupView() {
   // Hash routing pour les étapes : URL = `/#config` ou `/`. setStep piloté
   // par hashchange — un seul chemin pour bouton in-app + back/swipe Safari.
   //
-  // animateConfigEnter : on slide la carte config QUE quand l'utilisateur
-  // clique Suivant (= démarche volontaire d'avancer). Pas au back/swipe
-  // (sinon notre anim se superpose à celle du navigateur → flicker).
+  // animateConfigEnter / animatePseudoEnter : on slide la carte cible QUE
+  // quand le user déclenche une action in-app (clic Suivant ou Retour).
+  // Sur back/swipe natif on snap pour ne pas superposer deux animations.
   const animateConfigEnter = useRef(false);
+  const animatePseudoEnter = useRef(false);
 
   const goConfig = () => {
     if (!canNext) return;
@@ -91,7 +92,7 @@ export function SetupView() {
   };
 
   const goBack = () => {
-    animateConfigEnter.current = false;
+    animatePseudoEnter.current = true;
     if (typeof window !== "undefined" && window.location.hash) {
       window.history.back();
     } else {
@@ -103,9 +104,11 @@ export function SetupView() {
     if (typeof window === "undefined") return;
     const sync = () => {
       const target = window.location.hash === "#config" ? "config" : "pseudo";
-      // Tout retour vers pseudo désarme l'anim — la prochaine arrivée à
-      // config sera animée seulement si elle vient d'un clic Suivant.
+      // Reset croisé : arriver sur une étape désarme l'anim d'entrée de
+      // l'autre, pour que la prochaine arrivée respecte le déclencheur
+      // (button=animer, swipe=snap).
       if (target === "pseudo") animateConfigEnter.current = false;
+      if (target === "config") animatePseudoEnter.current = false;
       setStep(target);
     };
     sync();
@@ -139,7 +142,14 @@ export function SetupView() {
           native du swipe-back Safari. */}
       <div className="w-full">
         {step === "pseudo" && (
-          <div className="w-full">
+          <motion.div
+            initial={
+              animatePseudoEnter.current ? { x: -60, opacity: 0 } : false
+            }
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="w-full"
+          >
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -167,7 +177,7 @@ export function SetupView() {
                 </button>
               </Card>
             </form>
-          </div>
+          </motion.div>
         )}
 
         {step === "config" && (
