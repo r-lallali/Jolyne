@@ -14,6 +14,13 @@ export const metadata: Metadata = {
   title: "Jolyne",
   description: "Pratique une langue avec un natif. 1-vs-1, texte uniquement.",
   robots: { index: true, follow: true },
+  // PWA / "Ajouter à l'écran d'accueil" iOS : on annonce qu'on tourne en
+  // standalone (sans barre Safari). Le manifest gère le reste pour Android.
+  appleWebApp: {
+    capable: true,
+    title: "Jolyne",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 // Viewport "app" : pas de pinch-zoom (comportement attendu d'un chat,
