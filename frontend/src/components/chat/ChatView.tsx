@@ -15,8 +15,9 @@ import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 
 // Cooldown anti-zap : on bloque le bouton Suivant pendant 3s après un
 // nouveau match. Évite qu'un user fasse "matched → next" sans laisser à
-// l'autre le temps d'écrire bonjour.
-const NEXT_COOLDOWN_MS = 3_000;
+// l'autre le temps d'écrire bonjour. Le temps restant est exposé en prop
+// pour le ring countdown autour du bouton.
+export const NEXT_COOLDOWN_MS = 3_000;
 
 // Toast "Correction envoyée" : ~2.2 s puis fade-out.
 const TOAST_MS = 2_200;
@@ -29,6 +30,9 @@ export function ChatView() {
   const [reportOpen, setReportOpen] = useState(false);
   const [target, setTarget] = useState<ChatMessage | null>(null);
   const [canNext, setCanNext] = useState(false);
+  // Timestamp du match courant pour piloter le ring countdown dans le
+  // header. Reset à chaque nouveau peer.
+  const [cooldownStart, setCooldownStart] = useState<number | null>(null);
   const [toastTick, setToastTick] = useState(0); // chaque incrément = un nouveau toast
   const [showToast, setShowToast] = useState(false);
   const [backGuard, setBackGuard] = useState(false);
@@ -62,8 +66,12 @@ export function ChatView() {
   }, []);
 
   useEffect(() => {
-    if (!peerNick) return;
+    if (!peerNick) {
+      setCooldownStart(null);
+      return;
+    }
     setCanNext(false);
+    setCooldownStart(Date.now());
     const id = setTimeout(() => setCanNext(true), NEXT_COOLDOWN_MS);
     return () => clearTimeout(id);
   }, [peerNick]);
@@ -122,6 +130,8 @@ export function ChatView() {
           onReport={() => setReportOpen(true)}
           canReport={messageCount > 0}
           canNext={canNext}
+          cooldownStart={cooldownStart}
+          cooldownMs={NEXT_COOLDOWN_MS}
         />
         <MessageList
           onCorrect={(m) => setTarget(m)}

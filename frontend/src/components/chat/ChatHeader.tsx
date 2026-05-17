@@ -13,6 +13,9 @@ interface Props {
   onReport: () => void;
   canReport: boolean;
   canNext: boolean;
+  // Timestamp du début du cooldown anti-zap (null hors période).
+  cooldownStart: number | null;
+  cooldownMs: number;
 }
 
 export function ChatHeader({
@@ -22,6 +25,8 @@ export function ChatHeader({
   onReport,
   canReport,
   canNext,
+  cooldownStart,
+  cooldownMs,
 }: Props) {
   const t = useT();
   return (
@@ -48,18 +53,14 @@ export function ChatHeader({
         >
           <FlagIcon />
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (!canNext) return;
-            buzz(15);
-            onNext();
-          }}
-          disabled={!canNext}
-          className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent dark:text-neutral-300 dark:hover:bg-neutral-900"
-        >
-          {t.chat.next}
-        </button>
+        <NextButton
+          canNext={canNext}
+          cooldownStart={cooldownStart}
+          cooldownMs={cooldownMs}
+          onConfirm={onNext}
+          nextLabel={t.chat.next}
+          confirmLabel={t.chat.confirmQuit}
+        />
         <QuitButton
           onConfirm={onStop}
           quitLabel={t.chat.quit}
@@ -84,6 +85,120 @@ function FlagIcon() {
     >
       <path d="M4 22V4" />
       <path d="M4 4h12l-2 4 2 4H4" />
+    </svg>
+  );
+}
+
+// NextButton : ring countdown + click-to-confirm.
+//   - Tant que le cooldown post-match n'est pas écoulé, le bouton est
+//     désactivé et un arc SVG se vide de plein à vide.
+//   - Une fois cliquable, premier clic → "Confirmer ?" pendant 3s, second
+//     clic dans la fenêtre → onConfirm. Anti-misclick.
+function NextButton({
+  canNext,
+  cooldownStart,
+  cooldownMs,
+  onConfirm,
+  nextLabel,
+  confirmLabel,
+}: {
+  canNext: boolean;
+  cooldownStart: number | null;
+  cooldownMs: number;
+  onConfirm: () => void;
+  nextLabel: string;
+  confirmLabel: string;
+}) {
+  const [armed, setArmed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
+  // Reset l'état "Confirmer ?" si un nouveau cooldown démarre (nouveau match).
+  useEffect(() => {
+    if (cooldownStart !== null) {
+      setArmed(false);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+  }, [cooldownStart]);
+
+  const click = () => {
+    if (!canNext) return;
+    if (armed) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+      setArmed(false);
+      buzz(15);
+      onConfirm();
+      return;
+    }
+    setArmed(true);
+    timerRef.current = setTimeout(() => {
+      setArmed(false);
+      timerRef.current = null;
+    }, 3000);
+  };
+
+  const showRing = cooldownStart !== null && !canNext;
+
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      {showRing && (
+        <CooldownRing key={cooldownStart} durationMs={cooldownMs} />
+      )}
+      <button
+        type="button"
+        onClick={click}
+        disabled={!canNext}
+        className={cn(
+          "relative rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+          armed
+            ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-400"
+            : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900",
+          !canNext &&
+            "cursor-not-allowed text-neutral-400 hover:bg-transparent dark:text-neutral-600",
+        )}
+      >
+        {armed ? confirmLabel : nextLabel}
+      </button>
+    </span>
+  );
+}
+
+// CooldownRing : arc SVG qui se vide en durationMs. Le key={cooldownStart}
+// côté parent garantit que le composant se remonte à chaque nouveau
+// cooldown — l'animation repart toujours de plein.
+function CooldownRing({ durationMs }: { durationMs: number }) {
+  const r = 16;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg
+      aria-hidden
+      className="pointer-events-none absolute inset-0 size-full -rotate-90"
+      viewBox="0 0 40 40"
+    >
+      <motion.circle
+        cx="20"
+        cy="20"
+        r={r}
+        fill="none"
+        strokeWidth="2"
+        stroke="currentColor"
+        className="text-neutral-300 dark:text-neutral-700"
+        strokeDasharray={c}
+        initial={{ strokeDashoffset: 0 }}
+        animate={{ strokeDashoffset: c }}
+        transition={{ duration: durationMs / 1000, ease: "linear" }}
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
