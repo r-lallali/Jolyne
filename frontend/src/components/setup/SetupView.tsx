@@ -1,7 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { AgeGate } from "@/components/AgeGate";
 import { LangSelector } from "@/components/setup/LangSelector";
 import { PseudoInput } from "@/components/setup/PseudoInput";
@@ -18,17 +18,10 @@ const ALL_LANGS: LangCode[] = ["fr", "en", "es", "de"];
 
 type Step = "pseudo" | "config";
 
-const slideVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 80 : -80, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir > 0 ? -80 : 80, opacity: 0 }),
-};
-
 export function SetupView() {
   const t = useT();
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>("pseudo");
-  const [dir, setDir] = useState(1);
 
   useEffect(() => {
     setMounted(true);
@@ -83,18 +76,16 @@ export function SetupView() {
     ? ALL_LANGS.filter((c) => !isPairAllowed(speaks, c))
     : ALL_LANGS;
 
-  // Hash routing pour les étapes : URL = `/#config` ou `/` (pseudo). Standard
-  // navigateur, donc back / swipe-back / snapshots Safari fonctionnent
-  // nativement sans manipulation history. setStep est piloté par hashchange
-  // — un seul chemin pour les deux gestes.
+  // Hash routing pour les étapes : URL = `/#config` ou `/`. setStep est
+  // piloté par hashchange — un seul chemin pour bouton in-app + back/swipe
+  // navigateur. Pas d'animation React entre les étapes (sinon elle se
+  // superpose à la swipe-back native Safari → flicker).
   const goConfig = () => {
     if (!canNext) return;
-    setDir(1);
     window.location.hash = "config";
   };
 
   const goBack = () => {
-    setDir(-1);
     if (typeof window !== "undefined" && window.location.hash) {
       window.history.back();
     } else {
@@ -133,61 +124,44 @@ export function SetupView() {
         </h1>
       </header>
 
-      {/* Conteneur des steps */}
-      <div className="relative w-full" style={{ minHeight: 320 }}>
-        <AnimatePresence mode="wait" custom={dir}>
-          {step === "pseudo" && (
-            <motion.div
-              key="pseudo"
-              custom={dir}
-              variants={slideVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.25, ease: "easeInOut" }}
-              className="w-full"
+      {/* Conteneur des steps : pas d'AnimatePresence entre pseudo/config —
+          la transition est instantanée pour ne pas se battre avec l'anim
+          native du swipe-back Safari. */}
+      <div className="w-full">
+        {step === "pseudo" && (
+          <div className="w-full">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                goConfig();
+              }}
             >
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  goConfig();
-                }}
-              >
-                <Card>
-                  <CardLabel>{t.setup.chooseNick}</CardLabel>
-                  <PseudoInput
-                    value={pseudo}
-                    onChange={setPseudo}
-                    placeholder={t.setup.nickPlaceholder}
-                  />
-                  {pseudoBlocked && (
-                    <p className="mt-3 text-center text-xs text-red-600 dark:text-red-400">
-                      {t.setup.pseudoBlocked}
-                    </p>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={!canNext}
-                    className="mt-6 w-full rounded-xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20 dark:bg-white dark:text-neutral-950"
-                  >
-                    {t.setup.next}
-                  </button>
-                </Card>
-              </form>
-            </motion.div>
-          )}
+              <Card>
+                <CardLabel>{t.setup.chooseNick}</CardLabel>
+                <PseudoInput
+                  value={pseudo}
+                  onChange={setPseudo}
+                  placeholder={t.setup.nickPlaceholder}
+                />
+                {pseudoBlocked && (
+                  <p className="mt-3 text-center text-xs text-red-600 dark:text-red-400">
+                    {t.setup.pseudoBlocked}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={!canNext}
+                  className="mt-6 w-full rounded-xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20 dark:bg-white dark:text-neutral-950"
+                >
+                  {t.setup.next}
+                </button>
+              </Card>
+            </form>
+          </div>
+        )}
 
-          {step === "config" && (
-            <motion.div
-              key="config"
-              custom={dir}
-              variants={slideVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.25, ease: "easeInOut" }}
-              className="w-full"
-            >
+        {step === "config" && (
+          <div className="w-full">
               <Card>
                 {/* Sélection des langues */}
                 <div className="flex flex-col gap-6">
@@ -252,9 +226,8 @@ export function SetupView() {
                   </button>
                 </div>
               </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
       </div>
 
       <footer className="mt-10 flex items-center gap-4 text-center">
