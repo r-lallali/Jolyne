@@ -12,6 +12,28 @@ import { useSessionStore } from "@/stores/sessionStore";
 // qu'UNE seule WS active dans l'app.
 let activeConn: Connection | null = null;
 
+// Listeners "exit" enregistrés une fois au chargement du module.
+//   - pagehide / beforeunload : la WS doit être fermée AVANT que le navigateur
+//     pose la page en bfcache (Safari/Firefox/Chrome mobile). Sans ça, le
+//     peer continue de nous voir "présent" jusqu'à expiration du heartbeat
+//     côté serveur (~30 s).
+//   - pageshow avec event.persisted : la page est restaurée depuis le
+//     bfcache ; la WS qu'on avait fermée est morte. On reset le store pour
+//     ne pas laisser le user croire qu'il est encore matché.
+if (typeof window !== "undefined") {
+  const closeOnExit = () => {
+    activeConn?.close();
+    activeConn = null;
+  };
+  window.addEventListener("pagehide", closeOnExit);
+  window.addEventListener("beforeunload", closeOnExit);
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted) {
+      useChatStore.getState().reset();
+    }
+  });
+}
+
 // Throttle des évènements "typing" sortants : on envoie au max une fois par
 // 2s. Le serveur les relaie tels quels au peer, qui les utilise pour
 // rallumer son indicateur "X écrit…" (auto-clear côté store après 3.5s).
