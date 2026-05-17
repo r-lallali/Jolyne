@@ -8,6 +8,7 @@ import { useChatStore } from "@/stores/chatStore";
 
 export function SearchingView() {
   const status = useChatStore((s) => s.status);
+  const peerNick = useChatStore((s) => s.peerNick);
   const { stop } = useMatch();
   const t = useT();
 
@@ -20,13 +21,20 @@ export function SearchingView() {
     return () => window.removeEventListener("keydown", onKey);
   }, [stop]);
 
+  // Reconnect : on était matché, le WS a coupé. peerNick est préservé par
+  // le store le temps de la transition. On utilise ça pour distinguer une
+  // 1ère connexion d'une reconnexion en pleine conversation.
+  const reconnecting = status === "connecting" && peerNick !== null;
+
   // On gèle le label sur les seuls statuts que cette vue est censée
   // afficher ("connecting"/"queued"). Sinon, au moment d'un Annuler, le
   // store passe à "ended" *avant* que l'animation d'exit ne se termine,
   // ce qui faisait flasher "Connexion" pendant ~220 ms.
-  const [label, setLabel] = useState(() =>
-    status === "queued" ? t.searching.findingPeer : t.searching.connecting,
-  );
+  const [label, setLabel] = useState(() => {
+    if (status === "queued") return t.searching.findingPeer;
+    if (reconnecting) return t.chat.reconnecting;
+    return t.searching.connecting;
+  });
   const [sub, setSub] = useState(() =>
     status === "queued"
       ? t.searching.findingPeerHint
@@ -37,10 +45,10 @@ export function SearchingView() {
       setLabel(t.searching.findingPeer);
       setSub(t.searching.findingPeerHint);
     } else if (status === "connecting") {
-      setLabel(t.searching.connecting);
+      setLabel(reconnecting ? t.chat.reconnecting : t.searching.connecting);
       setSub(t.searching.connectingHint);
     }
-  }, [status, t]);
+  }, [status, t, reconnecting]);
 
   return (
     <div className="flex h-dvh w-full flex-col items-center justify-center gap-10 px-6 sm:h-[92vh]">
