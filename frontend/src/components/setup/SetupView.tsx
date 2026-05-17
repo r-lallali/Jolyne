@@ -83,16 +83,24 @@ export function SetupView() {
     ? ALL_LANGS.filter((c) => !isPairAllowed(speaks, c))
     : ALL_LANGS;
 
+  // Navigation entre les étapes via history.pushState. Important : on push
+  // AVANT setStep, sinon Safari snapshot l'entrée précédente avec déjà la
+  // vue config affichée (et le swipe-back révèle ce snapshot fantôme).
+  // Le popstate handler lit history.state pour déterminer l'étape — comme
+  // ça forward navigation (cas rare) reste cohérent.
   const goConfig = () => {
     if (!canNext) return;
+    if (typeof window !== "undefined") {
+      window.history.pushState(
+        { jolyne: "setup-config" },
+        "",
+        window.location.href,
+      );
+    }
     setDir(1);
     setStep("config");
   };
 
-  // Le bouton "Retour" délègue au browser back. L'effet ci-dessous écoute
-  // popstate et fait le setStep — un seul chemin pour les deux gestes
-  // (bouton in-app + retour navigateur). Évite que le retour navigateur
-  // saute vers la page précédente (ex: /legal) en sautant l'étape pseudo.
   const goBack = () => {
     if (typeof window !== "undefined") {
       window.history.back();
@@ -103,19 +111,18 @@ export function SetupView() {
   };
 
   useEffect(() => {
-    if (step !== "config" || typeof window === "undefined") return;
-    window.history.pushState(
-      { jolyne: "setup-config" },
-      "",
-      window.location.href,
-    );
-    const onPop = () => {
-      setDir(-1);
-      setStep("pseudo");
+    if (typeof window === "undefined") return;
+    const onPop = (e: PopStateEvent) => {
+      const s =
+        (e.state as { jolyne?: string } | null)?.jolyne === "setup-config"
+          ? "config"
+          : "pseudo";
+      setDir(s === "config" ? 1 : -1);
+      setStep(s);
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [step]);
+  }, []);
 
   const handleSpeaksChange = (code: LangCode) => {
     // Reset wants si la nouvelle paire (code → wants) n'est plus ouverte.
