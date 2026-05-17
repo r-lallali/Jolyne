@@ -16,6 +16,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ralys/jolyne/backend/internal/bans"
+	"github.com/ralys/jolyne/backend/internal/blocking"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/quota"
@@ -46,14 +47,15 @@ const (
 )
 
 type Deps struct {
-	RDB     *redis.Client
-	Matcher *matcher.Matcher
-	Hub     *Hub
-	Quota   *quota.Engine
-	Block   *moderation.Blocklist
-	Reports *reports.Service // nil si Postgres / clé de chiffrement absents
-	Bans    *bans.Service    // nil si Postgres absent
-	Log     *slog.Logger
+	RDB      *redis.Client
+	Matcher  *matcher.Matcher
+	Hub      *Hub
+	Quota    *quota.Engine
+	Block    *moderation.Blocklist
+	Reports  *reports.Service  // nil si Postgres / clé de chiffrement absents
+	Bans     *bans.Service     // nil si Postgres absent
+	Blocking *blocking.Service // block-list personnelle (auto-ajout sur report)
+	Log      *slog.Logger
 }
 
 // Handler sert la route /ws/match. La validation des paramètres se fait
@@ -209,6 +211,20 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		}
 
 		lastPeer = peerID
+
+		// Auto-block sur signalement : si on a déjà reporté ce peer dans une
+		// session passée, on bail immédiatement. On ouvre brièvement la room
+		// pour envoyer un Left au peer (qui re-queue), puis on re-loop.
+		if h.d.Blocking != nil {
+			blocked, err := h.d.Blocking.IsBlocked(ctx, sess.Fingerprint, peerFingerprint)
+			if err != nil {
+				h.d.Log.Warn("blocking check failed", "err", err)
+			} else if blocked {
+				ghostMatch(ctx, h.d.RDB, roomID, sess.ID)
+				continue
+			}
+		}
+
 		exit := h.runChat(ctx, conn, sess, chatPeer{
 			ID:          peerID,
 			Nick:        peerNick,
@@ -389,6 +405,12 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 					conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal})
 					continue
 				}
+				// Auto-block : signaler = ne plus jamais matcher cette personne.
+				if h.d.Blocking != nil {
+					if err := h.d.Blocking.Add(ctx, sess.Fingerprint, peer.Fingerprint); err != nil {
+						h.d.Log.Warn("blocking add failed", "err", err)
+					}
+				}
 				conn.Send(ServerFrame{Type: ServerReported})
 				// Après signalement on quitte la conv proprement et on
 				// re-queue — comme un Next, sans consommer le quota.
@@ -401,6 +423,20 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			}
 		}
 	}
+}
+
+// ghostMatch ouvre la room le temps d'envoyer un Left au peer puis la
+// ferme. Utilisé quand on bail un match unilatéralement (auto-block) sans
+// passer par runChat — le peer re-queue immédiatement au lieu d'attendre.
+func ghostMatch(ctx context.Context, rdb *redis.Client, roomID, selfID string) {
+	room, err := openRoom(ctx, rdb, roomID, selfID)
+	if err != nil {
+		return
+	}
+	sendCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	_ = room.SendLeft(sendCtx)
+	cancel()
+	_ = room.Close()
 }
 
 func truncate(s string, max int) string {

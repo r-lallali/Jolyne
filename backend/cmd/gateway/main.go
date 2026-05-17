@@ -15,6 +15,7 @@ import (
 
 	"github.com/ralys/jolyne/backend/internal/admin"
 	"github.com/ralys/jolyne/backend/internal/bans"
+	"github.com/ralys/jolyne/backend/internal/blocking"
 	"github.com/ralys/jolyne/backend/internal/config"
 	"github.com/ralys/jolyne/backend/internal/crypto"
 	"github.com/ralys/jolyne/backend/internal/db"
@@ -120,14 +121,15 @@ func run() error {
 	}
 
 	svc.wsHandler = ws.NewHandler(ws.Deps{
-		RDB:     rdb,
-		Matcher: matcher.New(rdb),
-		Hub:     ws.NewHub(),
-		Quota:   quota.NewEngine(rdb, nil),
-		Block:   moderation.DefaultBlocklist(),
-		Reports: reportSvc,
-		Bans:    banSvc,
-		Log:     log,
+		RDB:      rdb,
+		Matcher:  matcher.New(rdb),
+		Hub:      ws.NewHub(),
+		Quota:    quota.NewEngine(rdb, nil),
+		Block:    moderation.DefaultBlocklist(),
+		Reports:  reportSvc,
+		Bans:     banSvc,
+		Blocking: blocking.New(rdb),
+		Log:      log,
 	})
 
 	// Back-office admin. Désactivé si POSTGRES_DSN/ADMIN_USERS/ADMIN_SESSION_SECRET
