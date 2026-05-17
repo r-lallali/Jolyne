@@ -89,18 +89,15 @@ function FlagIcon() {
   );
 }
 
-// NextButton : ring countdown + click-to-confirm.
-//   - Tant que le cooldown post-match n'est pas écoulé, le bouton est
-//     désactivé et un arc SVG se vide de plein à vide.
-//   - Une fois cliquable, premier clic → "Confirmer ?" pendant 3s, second
-//     clic dans la fenêtre → onConfirm. Anti-misclick.
+// NextButton : bouton circulaire avec ring countdown + click-to-confirm.
+// Forme circulaire pour que le ring SVG soit un vrai cercle. Icône chevron
+// au repos, checkmark une fois armé (anti-misclick).
 function NextButton({
   canNext,
   cooldownStart,
   cooldownMs,
   onConfirm,
   nextLabel,
-  confirmLabel,
 }: {
   canNext: boolean;
   cooldownStart: number | null;
@@ -119,7 +116,6 @@ function NextButton({
     [],
   );
 
-  // Reset l'état "Confirmer ?" si un nouveau cooldown démarre (nouveau match).
   useEffect(() => {
     if (cooldownStart !== null) {
       setArmed(false);
@@ -150,7 +146,7 @@ function NextButton({
   const showRing = cooldownStart !== null && !canNext;
 
   return (
-    <span className="relative inline-flex items-center justify-center">
+    <span className="relative inline-flex size-9 items-center justify-center">
       {showRing && (
         <CooldownRing key={cooldownStart} durationMs={cooldownMs} />
       )}
@@ -158,50 +154,81 @@ function NextButton({
         type="button"
         onClick={click}
         disabled={!canNext}
+        aria-label={nextLabel}
+        title={nextLabel}
         className={cn(
-          "relative rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+          "relative inline-flex size-8 items-center justify-center rounded-full transition-colors",
           armed
-            ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-400"
+            ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400"
             : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900",
           !canNext &&
             "cursor-not-allowed text-neutral-400 hover:bg-transparent dark:text-neutral-600",
         )}
       >
-        {armed ? confirmLabel : nextLabel}
+        {armed ? <CheckIcon /> : <NextIcon />}
       </button>
     </span>
   );
 }
 
-// CooldownRing : contour pill-shape qui se vide en durationMs autour du
-// bouton. SVG étendu (-inset-1.5) au-delà du bouton pour bien le détourer,
-// stroke épais en noir/blanc selon le thème. pathLength normalisé pour
-// que l'animation reste linéaire quelle que soit la longueur réelle du
-// rectangle arrondi. Remonté à chaque nouveau cooldown via key parent.
+function NextIcon() {
+  return (
+    <svg
+      className="size-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m13 5 7 7-7 7" />
+      <path d="m5 5 7 7-7 7" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      className="size-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 12l5 5L20 6" />
+    </svg>
+  );
+}
+
+// CooldownRing : VRAI cercle SVG qui se vide en durationMs autour du
+// bouton circulaire. Stroke épais noir/blanc selon le thème. Remonté à
+// chaque nouveau cooldown via key parent.
 function CooldownRing({ durationMs }: { durationMs: number }) {
+  const r = 17;
+  const c = 2 * Math.PI * r;
   return (
     <svg
       aria-hidden
-      className="pointer-events-none absolute -inset-1.5 h-[calc(100%+0.75rem)] w-[calc(100%+0.75rem)] text-neutral-900 dark:text-neutral-50"
-      preserveAspectRatio="none"
-      viewBox="0 0 100 40"
+      className="pointer-events-none absolute inset-0 size-full -rotate-90 text-neutral-900 dark:text-neutral-50"
+      viewBox="0 0 36 36"
     >
-      <motion.rect
-        x="1.5"
-        y="1.5"
-        width="97"
-        height="37"
-        rx="20"
-        ry="20"
+      <motion.circle
+        cx="18"
+        cy="18"
+        r={r}
         fill="none"
         stroke="currentColor"
-        strokeWidth="3"
+        strokeWidth="2"
         strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-        pathLength={1}
-        strokeDasharray="1 1"
+        strokeDasharray={c}
         initial={{ strokeDashoffset: 0 }}
-        animate={{ strokeDashoffset: -1 }}
+        animate={{ strokeDashoffset: c }}
         transition={{ duration: durationMs / 1000, ease: "linear" }}
       />
     </svg>
