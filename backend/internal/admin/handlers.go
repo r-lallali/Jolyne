@@ -153,7 +153,7 @@ func (h *Handlers) HandleGetReport(w http.ResponseWriter, r *http.Request) {
 
 // HandleResolveReport (POST /api/admin/reports/{id}/resolve)
 //
-//	Body : {"status": "resolved" | "dismissed", "note": "..."}
+//	Body : {"status": "resolved", "note": "..."}
 func (h *Handlers) HandleResolveReport(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDFromPath(r.URL.Path, "/api/admin/reports/")
 	if err != nil {

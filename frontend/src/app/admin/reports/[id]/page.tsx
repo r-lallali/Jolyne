@@ -56,7 +56,7 @@ export default function AdminReportDetailPage({
   }, [id]);
 
   const act = async (
-    action: "resolved" | "dismissed" | "reopened",
+    action: "resolved" | "reopened",
     redirect = true,
   ) => {
     setBusy(true);
@@ -65,7 +65,7 @@ export default function AdminReportDetailPage({
       if (action === "reopened") {
         await reopenReport(id, note);
       } else {
-        await resolveReport(id, action, note);
+        await resolveReport(id, note);
       }
       if (redirect) {
         window.location.href = "/admin/reports";
@@ -217,14 +217,6 @@ export default function AdminReportDetailPage({
             </button>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => act("dismissed")}
-                disabled={busy}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-200 disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-neutral-800"
-              >
-                Ignorer
-              </button>
               <button
                 type="button"
                 onClick={() => act("resolved")}

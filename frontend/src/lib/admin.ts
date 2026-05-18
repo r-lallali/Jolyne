@@ -11,7 +11,7 @@ export interface ReportSummary {
   reported_nick: string;
   reported_fingerprint: string;
   reason: string;
-  status: "open" | "resolved" | "dismissed";
+  status: "open" | "resolved";
   created_at: string;
 }
 
@@ -22,6 +22,8 @@ export interface CapturedMessage {
 }
 
 export interface ReportEvent {
+  // report_dismissed garde sa place pour les entrées audit_log historiques
+  // (la catégorie a été supprimée, mais l'historique des décisions reste).
   action: "report_resolved" | "report_dismissed" | "report_reopened";
   actor: string;
   note?: string;
@@ -83,7 +85,7 @@ export async function fetchMe(): Promise<{ email: string } | null> {
   return request<{ email: string }>("/api/admin/me");
 }
 
-export type ReportFilter = "open" | "resolved" | "dismissed" | "closed" | "";
+export type ReportFilter = "open" | "resolved" | "closed" | "";
 
 export async function listReports(
   status: ReportFilter = "open",
@@ -101,12 +103,11 @@ export async function getReport(id: number): Promise<ReportDetail | null> {
 
 export async function resolveReport(
   id: number,
-  status: "resolved" | "dismissed",
   note: string,
 ): Promise<void> {
   await request<void>(`/api/admin/reports/${id}/resolve`, {
     method: "POST",
-    body: JSON.stringify({ status, note }),
+    body: JSON.stringify({ status: "resolved", note }),
   });
 }
 

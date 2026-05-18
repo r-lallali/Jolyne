@@ -42,7 +42,9 @@ type ReportDetail struct {
 // ReportEvent est une entrée d'audit_log pour ce signalement (résolu /
 // ignoré / réouvert). Triée par ordre chronologique ascendant.
 type ReportEvent struct {
-	Action    string    `json:"action"` // report_resolved | report_dismissed | report_reopened
+	// report_resolved | report_reopened (et report_dismissed historique
+	// pour les audit_log antérieurs à la suppression de cette catégorie).
+	Action    string    `json:"action"`
 	Actor     string    `json:"actor"`
 	Note      string    `json:"note,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
@@ -67,13 +69,14 @@ func (s *Store) ListReports(ctx context.Context, status string, limit, offset in
 	if offset < 0 {
 		offset = 0
 	}
-	// "closed" est un alias pour resolved + dismissed (file "Résolus" côté admin).
+	// "closed" est un alias pour 'resolved' — historique de quand on avait
+	// aussi 'dismissed', gardé pour ne pas casser l'URL côté admin.
 	const q = `
 		SELECT id, reported_nick, reported_fingerprint,
 		       COALESCE(reason, ''), status, created_at
 		FROM reports
 		WHERE ($1 = ''
-		       OR ($1 = 'closed' AND status IN ('resolved','dismissed'))
+		       OR ($1 = 'closed' AND status = 'resolved')
 		       OR status = $1)
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3`
@@ -93,8 +96,9 @@ func (s *Store) ListReports(ctx context.Context, status string, limit, offset in
 	return out, rows.Err()
 }
 
-// ReportHistory : remonte les événements admin (resolved / dismissed /
-// reopened) consignés dans audit_log pour ce signalement, ordre chrono.
+// ReportHistory : remonte les événements admin (resolved / reopened, plus
+// d'éventuels dismissed historiques) consignés dans audit_log pour ce
+// signalement, ordre chrono.
 func (s *Store) ReportHistory(ctx context.Context, id int64) ([]ReportEvent, error) {
 	const q = `
 		SELECT action, actor, COALESCE(reason, ''), created_at
@@ -173,11 +177,11 @@ var (
 	ErrReportNotClosed = fmt.Errorf("admin: report n'est pas clos")
 )
 
-// ResolveReport : marque un signalement traité (resolved/dismissed) + audit.
+// ResolveReport : marque un signalement traité (resolved) + audit.
 // Refuse silencieusement si le signalement n'est plus dans l'état 'open'
 // (évite de logger une action qui n'a rien changé).
 func (s *Store) ResolveReport(ctx context.Context, id int64, status, note, by, ipHash string) error {
-	if status != "resolved" && status != "dismissed" {
+	if status != "resolved" {
 		return fmt.Errorf("admin: status invalide: %s", status)
 	}
 	tx, err := s.pool.Begin(ctx)
@@ -241,7 +245,7 @@ func (s *Store) ReopenReport(ctx context.Context, id int64, note, by, ipHash str
 			resolved_at = NULL,
 			resolved_by = NULL,
 			resolution_note = NULL
-		WHERE id = $1 AND status IN ('resolved','dismissed')`, id)
+		WHERE id = $1 AND status = 'resolved'`, id)
 	if err != nil {
 		return fmt.Errorf("admin: update report (reopen): %w", err)
 	}
