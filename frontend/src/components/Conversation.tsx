@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useRef } from "react";
 import { ChatView } from "@/components/chat/ChatView";
 import { FarewellView } from "@/components/chat/FarewellView";
 import { SearchingView } from "@/components/chat/SearchingView";
@@ -15,6 +16,27 @@ export function Conversation() {
   const errorMessage = useChatStore((s) => s.errorMessage);
   const reset = useChatStore((s) => s.reset);
   const { start } = useMatch();
+
+  // Sur tout retour vers "idle" (quit, error→back, bfcache), on remet
+  // l'URL à plat. Sinon un hash #config résiduel (laissé par la nav
+  // setup avant la conv) refait atterrir SetupView sur l'étape config
+  // au lieu de pseudo.
+  const prevStatus = useRef(status);
+  useEffect(() => {
+    if (
+      status === "idle" &&
+      prevStatus.current !== "idle" &&
+      typeof window !== "undefined" &&
+      window.location.hash
+    ) {
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search,
+      );
+    }
+    prevStatus.current = status;
+  }, [status]);
 
   let view: React.ReactNode;
   let key: string;

@@ -148,7 +148,7 @@ function NextButton({
   const showRing = cooldownStart !== null && !canNext;
 
   return (
-    <span className="relative inline-flex items-center justify-center">
+    <span className="relative inline-flex h-12 w-12 items-center justify-center">
       {showRing && (
         <CooldownRing key={cooldownStart} durationMs={cooldownMs} />
       )}
@@ -157,7 +157,7 @@ function NextButton({
         onClick={click}
         disabled={!canNext}
         className={cn(
-          "relative rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+          "relative flex h-10 w-10 items-center justify-center rounded-full text-[10px] font-semibold leading-none transition-colors",
           armed
             ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-400"
             : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900",
@@ -171,34 +171,29 @@ function NextButton({
   );
 }
 
-// CooldownRing : contour pill qui se vide en durationMs. SVG étendu de
-// -inset-1.5 autour du bouton, stroke 3px noir/blanc selon le thème.
-// pathLength normalisé pour anim linéaire quelle que soit la largeur du
-// rectangle arrondi. Remonté à chaque nouveau cooldown via key parent.
+// CooldownRing : VRAI cercle SVG qui se vide en durationMs autour d'un
+// bouton circulaire 40x40 dans un wrapper carré 48x48. Stroke 2 noir/blanc.
+// Remonté à chaque nouveau cooldown via key parent.
 function CooldownRing({ durationMs }: { durationMs: number }) {
+  const r = 22;
+  const c = 2 * Math.PI * r;
   return (
     <svg
       aria-hidden
-      className="pointer-events-none absolute -inset-1.5 h-[calc(100%+0.75rem)] w-[calc(100%+0.75rem)] text-neutral-900 dark:text-neutral-50"
-      preserveAspectRatio="none"
-      viewBox="0 0 100 40"
+      className="pointer-events-none absolute inset-0 size-full -rotate-90 text-neutral-900 dark:text-neutral-50"
+      viewBox="0 0 48 48"
     >
-      <motion.rect
-        x="1.5"
-        y="1.5"
-        width="97"
-        height="37"
-        rx="20"
-        ry="20"
+      <motion.circle
+        cx="24"
+        cy="24"
+        r={r}
         fill="none"
         stroke="currentColor"
-        strokeWidth="3"
+        strokeWidth="2"
         strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-        pathLength={1}
-        strokeDasharray="1 1"
+        strokeDasharray={c}
         initial={{ strokeDashoffset: 0 }}
-        animate={{ strokeDashoffset: -1 }}
+        animate={{ strokeDashoffset: c }}
         transition={{ duration: durationMs / 1000, ease: "linear" }}
       />
     </svg>
