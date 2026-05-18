@@ -20,6 +20,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/crypto"
 	"github.com/ralys/jolyne/backend/internal/db"
 	"github.com/ralys/jolyne/backend/internal/grammar"
+	"github.com/ralys/jolyne/backend/internal/mailer"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/obs"
@@ -27,6 +28,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/redisx"
 	"github.com/ralys/jolyne/backend/internal/reports"
 	"github.com/ralys/jolyne/backend/internal/translate"
+	"github.com/ralys/jolyne/backend/internal/users"
 	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
@@ -135,7 +137,7 @@ func run() error {
 	// Back-office admin. Désactivé si POSTGRES_DSN/ADMIN_USERS/ADMIN_SESSION_SECRET
 	// ne sont pas tous renseignés.
 	if svc.pg != nil && cfg.AdminUsersRaw != "" && cfg.AdminSessionKey != "" {
-		users, err := admin.ParseUsers(cfg.AdminUsersRaw)
+		adminUsers, err := admin.ParseUsers(cfg.AdminUsersRaw)
 		if err != nil {
 			return fmt.Errorf("admin users: %w", err)
 		}
@@ -155,7 +157,7 @@ func run() error {
 		}
 		svc.admin = &admin.Handlers{
 			Cfg: admin.Config{
-				Users:         users,
+				Users:         adminUsers,
 				IPAllowlist:   allowlist,
 				SessionSecret: secret,
 				CookieDomain:  cfg.AdminCookieDomain,
@@ -167,12 +169,44 @@ func run() error {
 			Log:   log,
 		}
 		log.Info("admin back-office ready",
-			"users", len(users),
-			"emails", admin.LoadedEmails(users),
+			"users", len(adminUsers),
+			"emails", admin.LoadedEmails(adminUsers),
 			"ip_allowlist", len(allowlist),
 			"cookie_domain", cfg.AdminCookieDomain)
 	} else {
 		log.Info("admin back-office disabled — Postgres / ADMIN_USERS / ADMIN_SESSION_SECRET manquants")
+	}
+
+	// Auth utilisateur (magic link). Désactivée si Postgres absent OU
+	// USER_SESSION_SECRET vide. Mailjet est OPTIONNEL en dev : si non
+	// configuré, le lien est juste loggé pour copier-coller.
+	if svc.pg != nil && cfg.UserSessionKey != "" {
+		userSecret, err := base64.StdEncoding.DecodeString(cfg.UserSessionKey)
+		if err != nil || len(userSecret) < 32 {
+			return fmt.Errorf("user session secret: must be base64 ≥32 bytes")
+		}
+		ml := mailer.New(mailer.Config{
+			Host:     cfg.MailjetSMTPHost,
+			Port:     cfg.MailjetSMTPPort,
+			Username: cfg.MailjetAPIKey,
+			Password: cfg.MailjetSecret,
+			From:     cfg.MailjetFrom,
+		})
+		svc.users = &users.Handlers{
+			Store:         users.NewStore(svc.pg),
+			Mailer:        ml,
+			SessionSecret: userSecret,
+			CookieDomain:  cfg.UserCookieDomain,
+			CookieSecure:  cfg.IsProd(),
+			PublicURL:     cfg.PublicAppURL,
+			Log:           log,
+		}
+		log.Info("user auth ready",
+			"mailer", ml != nil,
+			"cookie_domain", cfg.UserCookieDomain,
+			"public_url", cfg.PublicAppURL)
+	} else {
+		log.Info("user auth disabled — Postgres / USER_SESSION_SECRET manquants")
 	}
 
 	srv := &http.Server{

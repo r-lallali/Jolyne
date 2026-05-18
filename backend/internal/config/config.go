@@ -41,6 +41,19 @@ type Config struct {
 	// LanguageTool self-hosted. Vide → endpoint /api/grammar désactivé.
 	LanguageToolURL string
 
+	// Auth utilisateur (magic link via Mailjet). Tout en une fois — si l'un
+	// manque l'auth est désactivée (les endpoints /api/auth/* renvoient 404).
+	UserSessionKey   string // base64, ≥ 32 octets
+	UserCookieDomain string // ex: "ralys.ovh" pour partager entre subdomains
+	PublicAppURL     string // ex: https://jolyne.ralys.ovh — racine front
+
+	// Mailjet SMTP (in-v3.mailjet.com:587 par défaut).
+	MailjetSMTPHost string
+	MailjetSMTPPort int
+	MailjetAPIKey   string // username SMTP
+	MailjetSecret   string // password SMTP
+	MailjetFrom     string // ex: "Jolyne <hello@jolyne.ralys.ovh>" (sender vérifié)
+
 	ShutdownGrace time.Duration
 }
 
@@ -63,6 +76,14 @@ func Load() (Config, error) {
 		LibreTranslateURL:    os.Getenv("LIBRETRANSLATE_URL"),
 		LibreTranslateAPIKey: os.Getenv("LIBRETRANSLATE_API_KEY"),
 		LanguageToolURL:      os.Getenv("LANGUAGETOOL_URL"),
+		UserSessionKey:       os.Getenv("USER_SESSION_SECRET"),
+		UserCookieDomain:     os.Getenv("USER_COOKIE_DOMAIN"),
+		PublicAppURL:         os.Getenv("PUBLIC_APP_URL"),
+		MailjetSMTPHost:      getEnv("MAILJET_SMTP_HOST", "in-v3.mailjet.com"),
+		MailjetSMTPPort:      getEnvInt("MAILJET_SMTP_PORT", 587),
+		MailjetAPIKey:        os.Getenv("MAILJET_API_KEY"),
+		MailjetSecret:        os.Getenv("MAILJET_SECRET_KEY"),
+		MailjetFrom:          os.Getenv("MAILJET_FROM"),
 		ShutdownGrace:        getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
 	}
 	if err := cfg.validate(); err != nil {

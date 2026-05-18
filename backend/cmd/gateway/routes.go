@@ -14,18 +14,20 @@ import (
 	"github.com/ralys/jolyne/backend/internal/grammar"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/translate"
+	"github.com/ralys/jolyne/backend/internal/users"
 	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
 // services regroupe les dépendances utilisées par les handlers HTTP.
 type services struct {
-	rdb         *redis.Client
-	pg          *pgxpool.Pool // nil si POSTGRES_DSN non renseigné
-	wsHandler   *ws.Handler
-	admin       *admin.Handlers // nil si back-office désactivé
-	translate   *translate.Handler
-	grammar     *grammar.Handler
-	publicCORS  string // origin autorisée pour /api/translate et /api/grammar
+	rdb        *redis.Client
+	pg         *pgxpool.Pool // nil si POSTGRES_DSN non renseigné
+	wsHandler  *ws.Handler
+	admin      *admin.Handlers // nil si back-office désactivé
+	translate  *translate.Handler
+	grammar    *grammar.Handler
+	users      *users.Handlers // nil si auth utilisateur désactivée
+	publicCORS string          // origin autorisée pour /api/translate et /api/grammar
 }
 
 func routes(s services) http.Handler {
@@ -39,6 +41,13 @@ func routes(s services) http.Handler {
 	}
 	if s.grammar != nil {
 		mux.Handle("/api/grammar", publicCORS(s.publicCORS)(s.grammar))
+	}
+
+	if s.users != nil {
+		mux.Handle("/api/auth/request", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleRequest))))
+		mux.Handle("/api/auth/verify", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleVerify))))
+		mux.Handle("/api/auth/logout", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleLogout))))
+		mux.Handle("/api/auth/me", publicCORS(s.publicCORS)(methodOnly("GET", http.HandlerFunc(s.users.HandleMe))))
 	}
 
 	if s.admin != nil {
@@ -75,8 +84,9 @@ func queueSize(rdb *redis.Client) http.HandlerFunc {
 	}
 }
 
-// publicCORS autorise un seul origin (le frontend public) en POST/OPTIONS.
-// Si `origin` est vide, on n'ajoute aucun header — utile en dev local où le
+// publicCORS autorise un seul origin (le frontend public). credentials=true
+// pour que le cookie de session user soit envoyé sur /api/auth/me. Si
+// `origin` est vide, on n'ajoute aucun header — utile en dev local où le
 // frontend tape directement le backend sans cross-origin.
 func publicCORS(origin string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -84,7 +94,8 @@ func publicCORS(origin string) func(http.Handler) http.Handler {
 			reqOrigin := r.Header.Get("Origin")
 			if origin != "" && reqOrigin == origin {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
-				w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 				w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 				w.Header().Set("Vary", "Origin")
 			}

@@ -18,6 +18,15 @@ services:
       POSTGRES_AUTO_MIGRATE: "true"
       LIBRETRANSLATE_URL: http://libretranslate:5000
       LANGUAGETOOL_URL: http://languagetool:8010
+      # Auth utilisateur (dev). Secret de dev figé, ne pas réutiliser en prod.
+      USER_SESSION_SECRET: "ZGV2X3VzZXJfc2Vzc2lvbl9zZWNyZXRfMzJfYnl0ZXNfbWluX2RldnQK"
+      USER_COOKIE_DOMAIN: ""
+      PUBLIC_APP_URL: "http://localhost:3000"
+      # Mailjet : vide en dev → le backend log le magic link sur stdout
+      # à la place d'envoyer un email.
+      MAILJET_API_KEY: ""
+      MAILJET_SECRET_KEY: ""
+      MAILJET_FROM: ""
     ports:
       - "8080:8080"
     depends_on:

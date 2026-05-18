@@ -41,6 +41,14 @@ services:
       # Self-host LibreTranslate + LanguageTool sur le même réseau.
       LIBRETRANSLATE_URL: http://libretranslate:5000
       LANGUAGETOOL_URL: http://languagetool:8010
+      # Auth utilisateur magic link. Base64 ≥32 octets via openssl rand -base64 32.
+      USER_SESSION_SECRET: ${USER_SESSION_SECRET:-}
+      USER_COOKIE_DOMAIN: ${USER_COOKIE_DOMAIN:-${ADMIN_COOKIE_DOMAIN:-}}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://${JOLYNE_DOMAIN}}
+      # Mailjet SMTP (in-v3.mailjet.com:587). API_KEY + SECRET_KEY = SMTP user/pass.
+      MAILJET_API_KEY: ${MAILJET_API_KEY:-}
+      MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY:-}
+      MAILJET_FROM: ${MAILJET_FROM:-}
     depends_on:
       redis:
         condition: service_healthy
