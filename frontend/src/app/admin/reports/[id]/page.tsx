@@ -149,15 +149,15 @@ export default function AdminReportDetailPage({
 
       <section className="mb-8">
         <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
-          Conversation capturée ({report.messages.length})
+          Conversation capturée ({(report.messages ?? []).length})
         </h2>
         <div className="space-y-2 rounded-xl bg-neutral-100/60 p-4 dark:bg-neutral-900/50">
-          {report.messages.length === 0 ? (
+          {(report.messages ?? []).length === 0 ? (
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
               Aucun message dans la fenêtre de capture.
             </p>
           ) : (
-            report.messages.map((m, i) => (
+            (report.messages ?? []).map((m, i) => (
               <div key={i} className="text-sm">
                 <span className="font-medium text-neutral-900 dark:text-neutral-100">
                   {m.from}
@@ -174,13 +174,13 @@ export default function AdminReportDetailPage({
         </div>
       </section>
 
-      {report.history.length > 0 && (
+      {(report.history ?? []).length > 0 && (
         <section className="mb-8">
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
-            Historique des décisions ({report.history.length})
+            Historique des décisions ({(report.history ?? []).length})
           </h2>
           <ol className="space-y-3">
-            {report.history.map((ev, i) => (
+            {(report.history ?? []).map((ev, i) => (
               <HistoryItem key={i} event={ev} />
             ))}
           </ol>

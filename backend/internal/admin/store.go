@@ -82,7 +82,7 @@ func (s *Store) ListReports(ctx context.Context, status string, limit, offset in
 		return nil, fmt.Errorf("admin: list reports: %w", err)
 	}
 	defer rows.Close()
-	var out []ReportSummary
+	out := []ReportSummary{}
 	for rows.Next() {
 		var r ReportSummary
 		if err := rows.Scan(&r.ID, &r.ReportedNick, &r.ReportedFingerprint, &r.Reason, &r.Status, &r.CreatedAt); err != nil {
@@ -106,7 +106,9 @@ func (s *Store) ReportHistory(ctx context.Context, id int64) ([]ReportEvent, err
 		return nil, fmt.Errorf("admin: report history: %w", err)
 	}
 	defer rows.Close()
-	var out []ReportEvent
+	// Slice non-nil pour que JSON sérialise [] et pas null — sinon le
+	// front crash sur `.length`.
+	out := []ReportEvent{}
 	for rows.Next() {
 		var e ReportEvent
 		if err := rows.Scan(&e.Action, &e.Actor, &e.Note, &e.CreatedAt); err != nil {
@@ -152,6 +154,9 @@ func (s *Store) GetReport(ctx context.Context, id int64) (ReportDetail, error) {
 		return ReportDetail{}, fmt.Errorf("admin: unmarshal messages: %w", err)
 	}
 	d.Messages = wrapper.Messages
+	if d.Messages == nil {
+		d.Messages = []reports.CapturedMessage{}
+	}
 	history, err := s.ReportHistory(ctx, id)
 	if err != nil {
 		return ReportDetail{}, err
