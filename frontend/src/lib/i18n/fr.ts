@@ -126,4 +126,21 @@ export const fr: Messages = {
     es: "Español",
     de: "Deutsch",
   },
+  auth: {
+    loginCta: "Se connecter",
+    loginTitle: "Connexion par email",
+    loginHint:
+      "Reçois un lien magique. Pas de mot de passe à retenir.",
+    emailPlaceholder: "ton@email.com",
+    sendLink: "Recevoir le lien",
+    linkSent: "Lien envoyé",
+    linkSentHint: "Regarde ta boîte mail (et les spams) puis clique le lien.",
+    invalidEmail: "Email invalide",
+    verifying: "Connexion…",
+    verified: "Connecté.",
+    verifyFailed: "Lien invalide ou expiré.",
+    backToChat: "Retour à Jolyne",
+    logoutCta: "Se déconnecter",
+    loggedInAs: ({ email }) => `Connecté · ${email}`,
+  },
 };

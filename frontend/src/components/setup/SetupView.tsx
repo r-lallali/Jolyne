@@ -6,9 +6,11 @@ import { AgeGate } from "@/components/AgeGate";
 import { LangSelector } from "@/components/setup/LangSelector";
 import { PseudoInput } from "@/components/setup/PseudoInput";
 import { UILangPicker } from "@/components/setup/UILangPicker";
+import { LoginSheet } from "@/components/auth/LoginSheet";
 import { FlipNumber } from "@/components/ui/FlipNumber";
 import { useMatch } from "@/hooks/useMatch";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useUserStore } from "@/stores/userStore";
 import { useT } from "@/lib/i18n";
 import { allowedWantsFor, isPairAllowed, type LangCode } from "@/lib/langs";
 import { containsProfanity } from "@/lib/profanity";
@@ -22,6 +24,9 @@ export function SetupView() {
   const t = useT();
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>("pseudo");
+  const [loginOpen, setLoginOpen] = useState(false);
+  const user = useUserStore((s) => s.user);
+  const userLogout = useUserStore((s) => s.logout);
 
   useEffect(() => {
     setMounted(true);
@@ -257,7 +262,7 @@ export function SetupView() {
         )}
       </div>
 
-      <footer className="mt-10 flex items-center gap-4 text-center">
+      <footer className="mt-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center">
         <a
           href="/legal"
           className="text-xs text-neutral-500 underline-offset-4 transition-colors hover:text-neutral-900 hover:underline dark:text-neutral-500 dark:hover:text-neutral-100"
@@ -268,7 +273,33 @@ export function SetupView() {
           ·
         </span>
         <UILangPicker />
+        <span aria-hidden className="text-xs text-neutral-400 dark:text-neutral-700">
+          ·
+        </span>
+        {user ? (
+          <span className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+            <span className="max-w-[160px] truncate">
+              {t.auth.loggedInAs({ email: user.email })}
+            </span>
+            <button
+              type="button"
+              onClick={() => userLogout()}
+              className="underline-offset-4 transition-colors hover:text-neutral-900 hover:underline dark:hover:text-neutral-100"
+            >
+              {t.auth.logoutCta}
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setLoginOpen(true)}
+            className="text-xs text-neutral-500 underline-offset-4 transition-colors hover:text-neutral-900 hover:underline dark:text-neutral-500 dark:hover:text-neutral-100"
+          >
+            {t.auth.loginCta}
+          </button>
+        )}
       </footer>
+      <LoginSheet open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   );
 }

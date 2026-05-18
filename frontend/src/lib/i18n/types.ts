@@ -131,4 +131,20 @@ export interface Messages {
     es: string;
     de: string;
   };
+  auth: {
+    loginCta: string;
+    loginTitle: string;
+    loginHint: string;
+    emailPlaceholder: string;
+    sendLink: string;
+    linkSent: string;
+    linkSentHint: string;
+    invalidEmail: string;
+    verifying: string;
+    verified: string;
+    verifyFailed: string;
+    backToChat: string;
+    logoutCta: string;
+    loggedInAs: FormatString<{ email: string }>;
+  };
 }

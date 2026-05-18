@@ -1,5 +1,6 @@
 import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
+import { AuthBootstrap } from "@/components/auth/AuthBootstrap";
 import { ChatWordmark } from "@/components/ChatWordmark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
@@ -47,6 +48,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={inter.variable}>
       <body className="font-sans antialiased">
+        <AuthBootstrap />
         <ChatWordmark />
         <div className="fixed right-3 top-3 z-50 sm:right-4 sm:top-4">
           <ThemeToggle />
