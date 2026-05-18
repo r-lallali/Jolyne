@@ -57,10 +57,6 @@ interface ChatState {
   applyCorrection: (targetId: string, c: MessageCorrection) => void;
   receivePeerTyping: () => void;
   peerLeft: () => void;
-  // Bascule volontaire vers le PostChatView (clic Suivant confirmé). Le
-  // backend ne reçoit rien à ce stade — il faudra appeler useMatch.next()
-  // depuis l'écran de fin pour re-queue pour de vrai.
-  endChat: () => void;
   farewell: () => void;
   error: (code: string, message?: string) => void;
   reset: () => void;
@@ -141,14 +137,11 @@ export const useChatStore = create<ChatState>((set) => ({
   peerLeft: () => {
     clearTypingTimer();
     // On NE re-queue PAS automatiquement : on bascule sur l'écran de fin
-    // (PostChatView) qui propose Suivant/Quitter. peerNick est conservé
-    // pour pouvoir l'afficher dans le récap.
+    // (PostChatCard inline) qui propose Suivant/Quitter. peerNick est
+    // conservé pour pouvoir l'afficher dans le récap. Uniquement déclenché
+    // côté receveur — pour le côté qui clique Suivant/Quitter on re-queue
+    // ou on stop direct sans passer par le post_chat.
     set({ status: "post_chat", peerTyping: false, endedBy: "peer" });
-  },
-
-  endChat: () => {
-    clearTypingTimer();
-    set({ status: "post_chat", peerTyping: false, endedBy: "self" });
   },
 
   farewell: () => {

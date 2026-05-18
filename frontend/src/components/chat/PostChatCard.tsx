@@ -53,6 +53,13 @@ export function PostChatCard() {
       animate="show"
       className="mx-auto mt-6 flex w-full flex-col items-center gap-3 py-4"
     >
+      {/* Trait de séparation : marque la frontière entre la conversation
+          et le bloc d'action. Centré, fin, neutre. */}
+      <motion.div
+        variants={item}
+        aria-hidden
+        className="h-px w-16 bg-neutral-300 dark:bg-neutral-700"
+      />
       <motion.div variants={item} className="text-center">
         <p className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
           {title}
