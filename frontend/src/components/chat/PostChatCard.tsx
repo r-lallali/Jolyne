@@ -51,33 +51,36 @@ export function PostChatCard() {
       variants={container}
       initial="hidden"
       animate="show"
-      className="mx-auto mt-6 flex w-full max-w-sm flex-col items-stretch gap-3 px-2 py-4"
+      className="mx-auto mt-6 flex w-full flex-col items-center gap-3 py-4"
     >
       <motion.div variants={item} className="text-center">
-        <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
           {title}
         </p>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
           {t.postChat.hint}
         </p>
       </motion.div>
-      <motion.button
+      <motion.div
         variants={item}
-        type="button"
-        onClick={handleNext}
-        autoFocus
-        className="w-full rounded-2xl bg-neutral-900 px-6 py-4 text-base font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
+        className="flex max-w-md flex-wrap justify-center gap-2"
       >
-        {t.postChat.next}
-      </motion.button>
-      <motion.button
-        variants={item}
-        type="button"
-        onClick={handleQuit}
-        className="w-full rounded-2xl px-6 py-3 text-sm font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
-      >
-        {t.postChat.quit}
-      </motion.button>
+        <button
+          type="button"
+          onClick={handleNext}
+          autoFocus
+          className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs text-neutral-700 transition-colors hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+        >
+          {t.postChat.next}
+        </button>
+        <button
+          type="button"
+          onClick={handleQuit}
+          className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs text-neutral-700 transition-colors hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+        >
+          {t.postChat.quit}
+        </button>
+      </motion.div>
     </motion.div>
   );
 }
