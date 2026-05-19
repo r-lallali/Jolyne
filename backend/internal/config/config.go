@@ -54,6 +54,12 @@ type Config struct {
 	MailjetSecret   string // password SMTP
 	MailjetFrom     string // ex: "Jolyne <hello@jolyne.ralys.ovh>" (sender vérifié)
 
+	// Cloudinary (photos de profil). Vide → upload désactivé (handler 503).
+	CloudinaryCloudName string
+	CloudinaryAPIKey    string
+	CloudinaryAPISecret string
+	CloudinaryFolder    string // ex: "jolyne/avatars"
+
 	ShutdownGrace time.Duration
 }
 
@@ -84,6 +90,10 @@ func Load() (Config, error) {
 		MailjetAPIKey:        os.Getenv("MAILJET_API_KEY"),
 		MailjetSecret:        os.Getenv("MAILJET_SECRET_KEY"),
 		MailjetFrom:          os.Getenv("MAILJET_FROM"),
+		CloudinaryCloudName:  os.Getenv("CLOUDINARY_CLOUD_NAME"),
+		CloudinaryAPIKey:     os.Getenv("CLOUDINARY_API_KEY"),
+		CloudinaryAPISecret:  os.Getenv("CLOUDINARY_API_SECRET"),
+		CloudinaryFolder:     getEnv("CLOUDINARY_FOLDER", "jolyne/avatars"),
 		ShutdownGrace:        getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
 	}
 	if err := cfg.validate(); err != nil {

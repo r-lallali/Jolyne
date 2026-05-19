@@ -13,6 +13,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/admin"
 	"github.com/ralys/jolyne/backend/internal/grammar"
 	"github.com/ralys/jolyne/backend/internal/matcher"
+	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/translate"
 	"github.com/ralys/jolyne/backend/internal/users"
 	"github.com/ralys/jolyne/backend/internal/ws"
@@ -23,11 +24,12 @@ type services struct {
 	rdb        *redis.Client
 	pg         *pgxpool.Pool // nil si POSTGRES_DSN non renseigné
 	wsHandler  *ws.Handler
-	admin      *admin.Handlers // nil si back-office désactivé
+	admin      *admin.Handlers   // nil si back-office désactivé
 	translate  *translate.Handler
 	grammar    *grammar.Handler
-	users      *users.Handlers // nil si auth utilisateur désactivée
-	publicCORS string          // origin autorisée pour /api/translate et /api/grammar
+	users      *users.Handlers   // nil si auth utilisateur désactivée
+	profile    *profile.Handlers // nil si auth utilisateur désactivée
+	publicCORS string            // origin autorisée pour /api/translate et /api/grammar
 }
 
 func routes(s services) http.Handler {
@@ -51,6 +53,40 @@ func routes(s services) http.Handler {
 		mux.Handle("/api/auth/reset", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleReset))))
 		mux.Handle("/api/auth/logout", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleLogout))))
 		mux.Handle("/api/auth/me", publicCORS(s.publicCORS)(methodOnly("GET", http.HandlerFunc(s.users.HandleMe))))
+	}
+
+	if s.profile != nil && s.users != nil {
+		// Toutes les routes /api/account/* requièrent l'auth user via le
+		// middleware RequireAuth des handlers users.
+		auth := s.users.RequireAuth
+		cors := publicCORS(s.publicCORS)
+		// Config publique Cloudinary (cloud_name uniquement) — pas d'auth
+		// pour pouvoir afficher les photos avant login.
+		mux.Handle("/api/account/cloudinary-config",
+			cors(methodOnly("GET", http.HandlerFunc(s.profile.HandleCloudConfig))))
+		// /api/account : GET ou PUT le profile + photos courant.
+		mux.Handle("/api/account", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				s.profile.HandleGet(w, r)
+			case http.MethodPut:
+				s.profile.HandlePut(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))))
+		mux.Handle("/api/account/photos/sign",
+			cors(auth(methodOnly("POST", http.HandlerFunc(s.profile.HandleSignPhotoUpload)))))
+		mux.Handle("/api/account/photos",
+			cors(auth(methodOnly("POST", http.HandlerFunc(s.profile.HandleSetPhoto)))))
+		// DELETE /api/account/photos/{position}
+		mux.Handle("/api/account/photos/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodDelete {
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			s.profile.HandleDeletePhoto(w, r)
+		}))))
 	}
 
 	if s.admin != nil {

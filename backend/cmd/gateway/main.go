@@ -24,6 +24,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/obs"
+	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/redisx"
 	"github.com/ralys/jolyne/backend/internal/reports"
@@ -205,6 +206,21 @@ func run() error {
 			"mailer", ml != nil,
 			"cookie_domain", cfg.UserCookieDomain,
 			"public_url", cfg.PublicAppURL)
+
+		// Profil + photos : dépend de la même DB et nécessite que l'auth
+		// soit dispo (les routes /api/account sont gated par RequireAuth).
+		cld := profile.CloudinaryConfig{
+			CloudName: cfg.CloudinaryCloudName,
+			APIKey:    cfg.CloudinaryAPIKey,
+			APISecret: cfg.CloudinaryAPISecret,
+			Folder:    cfg.CloudinaryFolder,
+		}
+		svc.profile = &profile.Handlers{
+			Store:      profile.NewStore(svc.pg),
+			Cloudinary: cld,
+			Log:        log,
+		}
+		log.Info("profile endpoints ready", "cloudinary", cld.IsConfigured())
 	} else {
 		log.Info("user auth disabled — Postgres / USER_SESSION_SECRET manquants")
 	}

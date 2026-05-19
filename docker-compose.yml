@@ -49,6 +49,11 @@ services:
       MAILJET_API_KEY: ${MAILJET_API_KEY:-}
       MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY:-}
       MAILJET_FROM: ${MAILJET_FROM:-}
+      # Cloudinary (photos profil). Dashboard → Account Details.
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-jolyne/avatars}
     depends_on:
       redis:
         condition: service_healthy
