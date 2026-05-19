@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AuthError, verifyToken } from "@/lib/auth";
+import { AuthError, verifyEmail } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { useUserStore } from "@/stores/userStore";
 
-// Landing du magic link : on lit ?t=... dans l'URL, on POST verify, on
-// hydrate le store et on propose un retour vers Jolyne. Cookie set par le
-// backend → la racine détecte le user au prochain fetchMe.
+// Landing du lien email de vérification : lit ?t=..., POST /verify-email,
+// marque le compte vérifié et ouvre une session.
 type State =
   | { kind: "verifying" }
   | { kind: "ok"; email: string }
@@ -26,17 +25,14 @@ export default function VerifyPage() {
       setState({ kind: "err" });
       return;
     }
-    verifyToken(token)
+    verifyEmail(token)
       .then((u) => {
         setUser(u);
         setState({ kind: "ok", email: u.email });
       })
       .catch((e) => {
-        if (e instanceof AuthError) {
-          setState({ kind: "err" });
-        } else {
-          setState({ kind: "err" });
-        }
+        void (e instanceof AuthError);
+        setState({ kind: "err" });
       });
   }, [setUser]);
 
@@ -59,7 +55,7 @@ export default function VerifyPage() {
             href="/"
             className="mt-2 rounded-xl bg-neutral-900 px-5 py-3 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
           >
-            {t.auth.backToChat}
+            {t.auth.backToApp}
           </Link>
         </>
       )}
@@ -72,7 +68,7 @@ export default function VerifyPage() {
             href="/"
             className="mt-2 text-sm text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline dark:text-neutral-400 dark:hover:text-neutral-100"
           >
-            {t.auth.backToChat}
+            {t.auth.backToApp}
           </Link>
         </>
       )}

@@ -3,29 +3,43 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { SheetHandle } from "@/components/ui/SheetHandle";
-import { AuthError, requestMagicLink } from "@/lib/auth";
+import {
+  AuthError,
+  forgotPassword,
+  login as apiLogin,
+  signup as apiSignup,
+} from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { useUserStore } from "@/stores/userStore";
 
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+type Tab = "login" | "signup" | "forgot";
 
-// Bottom-sheet (mobile) / modal centrée (desktop) pour demander un magic
-// link par email. Le backend renvoie toujours 204 → le UX ne révèle pas
-// quels emails existent. On affiche "Lien envoyé" dans tous les cas.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_MIN = 8;
+
+// Bottom-sheet (mobile) / modal centrée (desktop) à onglets : Connexion /
+// Inscription / Mot de passe oublié. Email + password en clair côté UI,
+// hashé via bcrypt côté backend. Connexion immédiate après signup ou login.
 export function LoginSheet({ open, onClose }: Props) {
   const t = useT();
+  const setUser = useUserStore((s) => s.setUser);
+  const [tab, setTab] = useState<Tab>("login");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
+      setTab("login");
       setEmail("");
+      setPassword("");
       setSent(false);
       setBusy(false);
       setErr(null);
@@ -43,24 +57,70 @@ export function LoginSheet({ open, onClose }: Props) {
 
   if (!open) return null;
 
+  const switchTab = (next: Tab) => {
+    setTab(next);
+    setSent(false);
+    setErr(null);
+    setPassword("");
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErr(null);
     const trimmed = email.trim();
     if (!EMAIL_RE.test(trimmed)) {
       setErr(t.auth.invalidEmail);
       return;
     }
+    if (tab !== "forgot" && password.length < PASSWORD_MIN) {
+      setErr(t.auth.passwordTooShort);
+      return;
+    }
     setBusy(true);
-    setErr(null);
     try {
-      await requestMagicLink(trimmed);
-      setSent(true);
+      if (tab === "login") {
+        const u = await apiLogin(trimmed, password);
+        setUser(u);
+        onClose();
+      } else if (tab === "signup") {
+        const u = await apiSignup(trimmed, password);
+        setUser(u);
+        onClose();
+      } else {
+        await forgotPassword(trimmed);
+        setSent(true);
+      }
     } catch (e) {
-      setErr(e instanceof AuthError ? "Service indisponible" : "Erreur");
+      if (e instanceof AuthError) {
+        if (tab === "login" && e.status === 401) setErr(t.auth.invalidCredentials);
+        else if (tab === "signup" && e.status === 409) setErr(t.auth.emailAlreadyUsed);
+        else setErr("Erreur");
+      } else {
+        setErr("Erreur");
+      }
     } finally {
       setBusy(false);
     }
   };
+
+  const title =
+    tab === "login"
+      ? t.auth.loginTitle
+      : tab === "signup"
+        ? t.auth.signupTitle
+        : t.auth.forgotTitle;
+  const hint =
+    tab === "login"
+      ? t.auth.loginHint
+      : tab === "signup"
+        ? t.auth.signupHint
+        : t.auth.forgotHint;
+  const cta =
+    tab === "login"
+      ? t.auth.submitLogin
+      : tab === "signup"
+        ? t.auth.submitSignup
+        : t.auth.submitForgot;
 
   return (
     <div
@@ -83,10 +143,10 @@ export function LoginSheet({ open, onClose }: Props) {
         {sent ? (
           <div className="py-4 text-center">
             <p className="text-base font-medium text-neutral-900 dark:text-neutral-50">
-              {t.auth.linkSent}
+              {t.auth.emailSent}
             </p>
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-              {t.auth.linkSentHint}
+              {t.auth.emailSentHint}
             </p>
             <button
               type="button"
@@ -98,12 +158,25 @@ export function LoginSheet({ open, onClose }: Props) {
           </div>
         ) : (
           <>
-            <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-              {t.auth.loginTitle}
+            <div className="flex gap-2">
+              <TabBtn active={tab === "login"} onClick={() => switchTab("login")}>
+                {t.auth.tabLogin}
+              </TabBtn>
+              <TabBtn active={tab === "signup"} onClick={() => switchTab("signup")}>
+                {t.auth.tabSignup}
+              </TabBtn>
+              <TabBtn active={tab === "forgot"} onClick={() => switchTab("forgot")}>
+                {t.auth.tabForgot}
+              </TabBtn>
+            </div>
+
+            <h2 className="mt-5 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+              {title}
             </h2>
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-              {t.auth.loginHint}
+              {hint}
             </p>
+
             <input
               type="email"
               value={email}
@@ -114,6 +187,18 @@ export function LoginSheet({ open, onClose }: Props) {
               inputMode="email"
               className="mt-4 w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
             />
+            {tab !== "forgot" && (
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={t.auth.passwordPlaceholder}
+                autoComplete={
+                  tab === "signup" ? "new-password" : "current-password"
+                }
+                className="mt-2 w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
+              />
+            )}
             {err && (
               <p className="mt-2 text-xs text-red-600 dark:text-red-400">
                 {err}
@@ -132,12 +217,37 @@ export function LoginSheet({ open, onClose }: Props) {
                 disabled={busy}
                 className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:opacity-30 dark:bg-neutral-50 dark:text-neutral-900"
               >
-                {t.auth.sendLink}
+                {cta}
               </button>
             </div>
           </>
         )}
       </motion.form>
     </div>
+  );
+}
+
+function TabBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors " +
+        (active
+          ? "bg-neutral-900 text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
+          : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800")
+      }
+    >
+      {children}
+    </button>
   );
 }
