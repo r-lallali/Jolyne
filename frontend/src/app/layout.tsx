@@ -25,8 +25,8 @@ export const metadata: Metadata = {
 };
 
 // Viewport "app" : pas de pinch-zoom (comportement attendu d'un chat,
-// évite le zoom accidentel à 2 doigts), interactiveWidget=resizes-content
-// pour que le clavier mobile ne masque pas l'input.
+// évite le zoom accidentel à 2 doigts). `interactiveWidget` retiré : Safari
+// loggue un warning bruyant et le bénéfice clavier mobile reste marginal.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -37,7 +37,6 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
-  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

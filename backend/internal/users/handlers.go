@@ -123,26 +123,28 @@ func (h *Handlers) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleMe : GET /api/auth/me → 200 {user} si session valide, 401 sinon.
+// HandleMe : GET /api/auth/me → 200 {user: {...}|null}.
+// On renvoie 200 avec user=null plutôt que 401 quand pas de session, pour
+// que le DevTools ne flag pas l'appel bootstrap comme une erreur.
 func (h *Handlers) HandleMe(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	cookie, err := r.Cookie(SessionCookieName)
 	if err != nil {
-		http.Error(w, "no session", http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]any{"user": nil})
 		return
 	}
 	sess, err := VerifySession(cookie.Value, h.SessionSecret)
 	if err != nil {
-		http.Error(w, "invalid session", http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]any{"user": nil})
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 	user, err := h.Store.GetByID(ctx, sess.UserID)
 	if err != nil {
-		http.Error(w, "user not found", http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]any{"user": nil})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"user": map[string]any{"id": user.ID, "email": user.Email},
 	})

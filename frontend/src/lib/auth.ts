@@ -40,9 +40,12 @@ export async function fetchMe(): Promise<AuthUser | null> {
     method: "GET",
     credentials: "include",
   });
+  // Le backend renvoie 200 + user:null quand pas de session (pour ne pas
+  // bruiter le DevTools avec un 401 sur le bootstrap). 401 reste défensif
+  // pour les serveurs antérieurs à ce fix.
   if (res.status === 401) return null;
   if (!res.ok) throw new AuthError(`me: ${res.status}`);
-  const data = (await res.json()) as { user: AuthUser };
+  const data = (await res.json()) as { user: AuthUser | null };
   return data.user;
 }
 
