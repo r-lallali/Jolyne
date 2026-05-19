@@ -168,4 +168,23 @@ export interface Messages {
     notVerifiedBadge: string;
     accountCta: string;
   };
+  account: {
+    title: string;
+    photos: string;
+    photosHint: string;
+    displayName: string;
+    displayNamePlaceholder: string;
+    bio: string;
+    bioPlaceholder: string;
+    birthdate: string;
+    save: string;
+    saving: string;
+    saved: string;
+    uploading: string;
+    uploadError: string;
+    deletePhoto: string;
+    addPhoto: string;
+    mainPhoto: string;
+    uploadUnavailable: string;
+  };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { LoginSheet } from "@/components/auth/LoginSheet";
 import { useT } from "@/lib/i18n";
@@ -65,6 +66,13 @@ export function AuthTopRight() {
                 </p>
               )}
             </div>
+            <Link
+              href="/account"
+              onClick={() => setMenuOpen(false)}
+              className="block w-full px-3 py-2 text-left text-xs text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
+            >
+              {t.auth.accountCta}
+            </Link>
             <button
               type="button"
               onClick={async () => {
