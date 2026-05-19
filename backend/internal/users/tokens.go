@@ -13,9 +13,19 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// TokenTTL : validité d'un magic link. Court pour limiter la fenêtre
-// d'attaque si un email fuite.
-const TokenTTL = 15 * time.Minute
+// TokenTTL : validité d'un lien email (verify-email, password-reset).
+// 1h pour laisser au user le temps de retrouver l'email, pas plus
+// (limite la fenêtre d'attaque si l'email fuite).
+const TokenTTL = 60 * time.Minute
+
+// Purposes possibles. Un token n'est valide QUE pour le purpose pour
+// lequel il a été émis — empêche de réutiliser un reset comme un verify.
+type TokenPurpose string
+
+const (
+	PurposeVerifyEmail   TokenPurpose = "verify_email"
+	PurposePasswordReset TokenPurpose = "password_reset"
+)
 
 var ErrTokenInvalid = errors.New("users: token invalide ou expiré")
 
@@ -23,7 +33,7 @@ var ErrTokenInvalid = errors.New("users: token invalide ou expiré")
 // stocke son hash SHA-256 en DB et renvoie le token EN CLAIR. Le caller
 // l'envoie par email — le token clair ne doit plus jamais transiter
 // ailleurs (jamais loggé, jamais persisté).
-func (s *Store) IssueToken(ctx context.Context, userID int64) (string, error) {
+func (s *Store) IssueToken(ctx context.Context, userID int64, purpose TokenPurpose) (string, error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return "", fmt.Errorf("users: random: %w", err)
@@ -32,8 +42,8 @@ func (s *Store) IssueToken(ctx context.Context, userID int64) (string, error) {
 	hash := hashToken(token)
 	expires := time.Now().Add(TokenTTL)
 	_, err := s.pool.Exec(ctx,
-		`INSERT INTO auth_tokens (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
-		hash, userID, expires,
+		`INSERT INTO auth_tokens (token_hash, user_id, expires_at, purpose) VALUES ($1, $2, $3, $4)`,
+		hash, userID, expires, string(purpose),
 	)
 	if err != nil {
 		return "", fmt.Errorf("users: insert token: %w", err)
@@ -41,9 +51,9 @@ func (s *Store) IssueToken(ctx context.Context, userID int64) (string, error) {
 	return token, nil
 }
 
-// ConsumeToken : vérifie le token (hash), refuse si expiré ou déjà consommé,
-// le marque consommé atomiquement, renvoie le user_id associé.
-func (s *Store) ConsumeToken(ctx context.Context, token string) (int64, error) {
+// ConsumeToken : vérifie le token (hash) ET son purpose. Refuse si expiré,
+// déjà consommé, ou purpose ne matche pas. Marque consommé atomiquement.
+func (s *Store) ConsumeToken(ctx context.Context, token string, purpose TokenPurpose) (int64, error) {
 	hash := hashToken(token)
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -54,10 +64,11 @@ func (s *Store) ConsumeToken(ctx context.Context, token string) (int64, error) {
 	var userID int64
 	var expiresAt time.Time
 	var consumedAt *time.Time
+	var dbPurpose string
 	err = tx.QueryRow(ctx,
-		`SELECT user_id, expires_at, consumed_at FROM auth_tokens WHERE token_hash = $1 FOR UPDATE`,
+		`SELECT user_id, expires_at, consumed_at, purpose FROM auth_tokens WHERE token_hash = $1 FOR UPDATE`,
 		hash,
-	).Scan(&userID, &expiresAt, &consumedAt)
+	).Scan(&userID, &expiresAt, &consumedAt, &dbPurpose)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, ErrTokenInvalid
@@ -68,6 +79,9 @@ func (s *Store) ConsumeToken(ctx context.Context, token string) (int64, error) {
 		return 0, ErrTokenInvalid
 	}
 	if time.Now().After(expiresAt) {
+		return 0, ErrTokenInvalid
+	}
+	if dbPurpose != string(purpose) {
 		return 0, ErrTokenInvalid
 	}
 

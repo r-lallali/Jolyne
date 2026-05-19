@@ -44,8 +44,11 @@ func routes(s services) http.Handler {
 	}
 
 	if s.users != nil {
-		mux.Handle("/api/auth/request", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleRequest))))
-		mux.Handle("/api/auth/verify", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleVerify))))
+		mux.Handle("/api/auth/signup", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleSignup))))
+		mux.Handle("/api/auth/login", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleLogin))))
+		mux.Handle("/api/auth/verify-email", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleVerifyEmail))))
+		mux.Handle("/api/auth/forgot", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleForgot))))
+		mux.Handle("/api/auth/reset", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleReset))))
 		mux.Handle("/api/auth/logout", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleLogout))))
 		mux.Handle("/api/auth/me", publicCORS(s.publicCORS)(methodOnly("GET", http.HandlerFunc(s.users.HandleMe))))
 	}
