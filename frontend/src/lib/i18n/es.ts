@@ -162,6 +162,7 @@ export const es: Messages = {
     loggedInAs: ({ email }) => `Conectado · ${email}`,
     notVerifiedBadge: "Email por verificar",
     accountCta: "Mi cuenta",
+    chatsCta: "Mis conversaciones",
   },
   friendPrompt: {
     title: ({ nick }) => `¿Añadir a ${nick} como amigo?`,

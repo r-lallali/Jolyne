@@ -167,6 +167,7 @@ export interface Messages {
     loggedInAs: FormatString<{ email: string }>;
     notVerifiedBadge: string;
     accountCta: string;
+    chatsCta: string;
   };
   friendPrompt: {
     title: FormatString<{ nick: string }>;

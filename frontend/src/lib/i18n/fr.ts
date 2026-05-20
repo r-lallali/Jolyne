@@ -162,6 +162,7 @@ export const fr: Messages = {
     loggedInAs: ({ email }) => `Connecté · ${email}`,
     notVerifiedBadge: "Email à vérifier",
     accountCta: "Mon compte",
+    chatsCta: "Mes conversations",
   },
   friendPrompt: {
     title: ({ nick }) => `Ajouter ${nick} en ami ?`,

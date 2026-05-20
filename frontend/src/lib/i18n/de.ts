@@ -163,6 +163,7 @@ export const de: Messages = {
     loggedInAs: ({ email }) => `Angemeldet · ${email}`,
     notVerifiedBadge: "E-Mail noch nicht verifiziert",
     accountCta: "Mein Konto",
+    chatsCta: "Meine Konversationen",
   },
   friendPrompt: {
     title: ({ nick }) => `${nick} als Freund hinzufügen?`,

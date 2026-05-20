@@ -67,6 +67,13 @@ export function AuthTopRight() {
               )}
             </div>
             <Link
+              href="/chats"
+              onClick={() => setMenuOpen(false)}
+              className="block w-full px-3 py-2 text-left text-xs text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
+            >
+              {t.auth.chatsCta}
+            </Link>
+            <Link
               href="/account"
               onClick={() => setMenuOpen(false)}
               className="block w-full px-3 py-2 text-left text-xs text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
