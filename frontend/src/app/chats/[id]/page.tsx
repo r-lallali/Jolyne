@@ -6,17 +6,13 @@ import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
 import {
   FriendMessage,
   FriendProfile,
-  getFriendMessages,
   getFriendProfile,
-  postFriendMessage,
   removeFriend,
 } from "@/lib/friends";
+import { openFriendWS, FriendWSHandle } from "@/lib/friend_ws";
 import { useT } from "@/lib/i18n";
 import { isPromptKey } from "@/lib/prompts";
 import { useUserStore } from "@/stores/userStore";
-
-// Polling : on rafraichit toutes les 4s tant que l'onglet est focus.
-const POLL_MS = 4_000;
 
 export default function FriendChatPage({
   params,
@@ -35,6 +31,7 @@ export default function FriendChatPage({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<FriendWSHandle | null>(null);
 
   useEffect(() => {
     if (!hydrated || !user || !Number.isFinite(id)) return;
@@ -46,28 +43,32 @@ export default function FriendChatPage({
       .catch(() => {});
   }, [hydrated, user, id]);
 
-  // Polling messages — pauseable via document.hidden.
+  // WebSocket : historique poussé à la connexion + messages live + signal
+  // peer_removed. Reconnexion auto avec backoff côté `openFriendWS`.
   useEffect(() => {
     if (!hydrated || !user || !Number.isFinite(id)) return;
-    let stopped = false;
-    const tick = async () => {
-      if (stopped) return;
-      if (typeof document !== "undefined" && document.hidden) return;
-      try {
-        const fresh = await getFriendMessages(id);
-        if (!stopped) {
-          setMsgs(fresh.messages);
-          setPeerRemovedMe(fresh.peer_removed_me);
-        }
-      } catch {
-        // silent
+    const handle = openFriendWS(id, (ev) => {
+      switch (ev.type) {
+        case "history":
+          setMsgs(ev.messages);
+          break;
+        case "msg":
+          setMsgs((prev) =>
+            prev.some((m) => m.id === ev.msg.id) ? prev : [...prev, ev.msg],
+          );
+          break;
+        case "peer_removed":
+          setPeerRemovedMe(true);
+          break;
+        case "error":
+          // silent — la reco fera son office si la conn est cassée
+          break;
       }
-    };
-    tick();
-    const interval = setInterval(tick, POLL_MS);
+    });
+    wsRef.current = handle;
     return () => {
-      stopped = true;
-      clearInterval(interval);
+      handle.close();
+      wsRef.current = null;
     };
   }, [hydrated, user, id]);
 
@@ -78,14 +79,13 @@ export default function FriendChatPage({
     });
   }, [msgs.length]);
 
-  const send = async (e: React.FormEvent) => {
+  const send = (e: React.FormEvent) => {
     e.preventDefault();
     const body = draft.trim();
-    if (!body || sending) return;
+    if (!body || sending || !wsRef.current) return;
     setSending(true);
     try {
-      const m = await postFriendMessage(id, body);
-      setMsgs((prev) => [...prev, m]);
+      wsRef.current.send(body);
       setDraft("");
     } finally {
       setSending(false);

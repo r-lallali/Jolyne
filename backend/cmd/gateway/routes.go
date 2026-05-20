@@ -22,22 +22,26 @@ import (
 
 // services regroupe les dépendances utilisées par les handlers HTTP.
 type services struct {
-	rdb        *redis.Client
-	pg         *pgxpool.Pool // nil si POSTGRES_DSN non renseigné
-	wsHandler  *ws.Handler
-	admin      *admin.Handlers   // nil si back-office désactivé
-	translate  *translate.Handler
-	grammar    *grammar.Handler
-	users      *users.Handlers   // nil si auth utilisateur désactivée
-	profile    *profile.Handlers // nil si auth utilisateur désactivée
-	friends    *friends.Handlers // nil si auth utilisateur désactivée
-	publicCORS string            // origin autorisée pour /api/translate et /api/grammar
+	rdb             *redis.Client
+	pg              *pgxpool.Pool // nil si POSTGRES_DSN non renseigné
+	wsHandler       *ws.Handler
+	wsFriendHandler *ws.FriendHandler // nil si auth user / friends désactivés
+	admin           *admin.Handlers   // nil si back-office désactivé
+	translate       *translate.Handler
+	grammar         *grammar.Handler
+	users           *users.Handlers   // nil si auth utilisateur désactivée
+	profile         *profile.Handlers // nil si auth utilisateur désactivée
+	friends         *friends.Handlers // nil si auth utilisateur désactivée
+	publicCORS      string            // origin autorisée pour /api/translate et /api/grammar
 }
 
 func routes(s services) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz(s))
 	mux.Handle("GET /ws/match", s.wsHandler)
+	if s.wsFriendHandler != nil {
+		mux.Handle("GET /ws/friend/", s.wsFriendHandler)
+	}
 	mux.Handle("/api/queue-size", publicCORS(s.publicCORS)(http.HandlerFunc(queueSize(s.rdb))))
 
 	if s.translate != nil {

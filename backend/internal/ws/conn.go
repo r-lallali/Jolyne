@@ -32,7 +32,7 @@ var upgrader = websocket.Upgrader{
 type Conn struct {
 	ws       *websocket.Conn
 	Inbound  chan ClientFrame
-	Outbound chan ServerFrame
+	Outbound chan any
 	done     chan struct{}
 }
 
@@ -40,7 +40,7 @@ func newConn(ws *websocket.Conn) *Conn {
 	return &Conn{
 		ws:       ws,
 		Inbound:  make(chan ClientFrame, outboundBuffer),
-		Outbound: make(chan ServerFrame, outboundBuffer),
+		Outbound: make(chan any, outboundBuffer),
 		done:     make(chan struct{}),
 	}
 }
@@ -51,7 +51,7 @@ func (c *Conn) Done() <-chan struct{} { return c.done }
 // WriteAndClose envoie UNE frame de manière synchrone puis ferme la conn.
 // Utilisé pour les rejets fatals (ex: ban) où il faut garantir que le
 // client reçoit la frame avant la fermeture.
-func (c *Conn) WriteAndClose(f ServerFrame) {
+func (c *Conn) WriteAndClose(f any) {
 	_ = c.ws.SetWriteDeadline(time.Now().Add(writeWait))
 	_ = c.ws.WriteJSON(f)
 	c.close()
@@ -60,7 +60,7 @@ func (c *Conn) WriteAndClose(f ServerFrame) {
 // Send pousse une frame vers le client. Non bloquant : si l'outbound est
 // plein, la connexion est tuée (cf. CLAUDE.md "kill la connexion, ne jamais
 // bloquer"). Renvoie false si non envoyée.
-func (c *Conn) Send(f ServerFrame) bool {
+func (c *Conn) Send(f any) bool {
 	select {
 	case c.Outbound <- f:
 		return true

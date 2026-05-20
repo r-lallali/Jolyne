@@ -258,6 +258,17 @@ func run() error {
 			Log:     log,
 		}
 		log.Info("friends endpoints ready")
+
+		// WS friend chat : /ws/friend/{id} — persisté, push temps-réel.
+		if wsDeps.Friends != nil && wsDeps.UserAuth != nil {
+			svc.wsFriendHandler = ws.NewFriendHandler(ws.FriendDeps{
+				RDB:      rdb,
+				Friends:  wsDeps.Friends,
+				UserAuth: wsDeps.UserAuth,
+				Log:      log,
+			})
+			log.Info("friend ws handler ready")
+		}
 	} else {
 		log.Info("user auth disabled — Postgres / USER_SESSION_SECRET manquants")
 	}
