@@ -168,6 +168,24 @@ export interface Messages {
     notVerifiedBadge: string;
     accountCta: string;
   };
+  friendPrompt: {
+    title: FormatString<{ nick: string }>;
+    hint: string;
+    accept: string;
+    waiting: string;
+    skipped: string;
+    made: string;
+    openChat: string;
+  };
+  chats: {
+    title: string;
+    empty: string;
+    placeholder: string;
+    send: string;
+    back: string;
+    remove: string;
+    removeConfirm: string;
+  };
   account: {
     title: string;
     photos: string;

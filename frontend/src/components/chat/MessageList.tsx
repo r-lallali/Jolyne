@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { MessageBubble } from "@/components/chat/MessageBubble";
+import { FriendPromptCard } from "@/components/chat/FriendPromptCard";
 import { PostChatCard } from "@/components/chat/PostChatCard";
 import {
   TranslationPopover,
@@ -35,6 +36,7 @@ export function MessageList({
   const peerTyping = useChatStore((s) => s.peerTyping);
   const status = useChatStore((s) => s.status);
   const postChat = status === "post_chat";
+  const friendPrompt = useChatStore((s) => s.friendPrompt);
   const speaks = useSessionStore((s) => s.speaks);
   const wants = useSessionStore((s) => s.wants);
   const t = useT();
@@ -81,7 +83,7 @@ export function MessageList({
       top: ref.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages.length, peerTyping, postChat]);
+  }, [messages.length, peerTyping, postChat, friendPrompt]);
 
   const handleSelect = (text: string, rect: DOMRect) => {
     dismissHint();
@@ -162,6 +164,7 @@ export function MessageList({
           })
         )}
         <TypingIndicator />
+        {friendPrompt && <FriendPromptCard />}
         {postChat && <PostChatCard />}
       </div>
       {trans && (

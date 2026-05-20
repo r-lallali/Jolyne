@@ -16,6 +16,9 @@ export type ServerFrame =
   | { type: "peer_left" }
   | { type: "typing" }
   | { type: "reported" }
+  | { type: "friend_prompt"; peer_nick: string; window_sec: number }
+  | { type: "friend_made"; friend_id: number }
+  | { type: "friend_skipped" }
   | { type: "error"; code: string; message?: string };
 
 export type ClientFrame =
@@ -29,7 +32,8 @@ export type ClientFrame =
       original: string;
       body: string;
       note?: string;
-    };
+    }
+  | { type: "friend_accept" };
 
 export interface ConnectOpts {
   baseURL: string; // ex: wss://jolyne.ralys.ovh

@@ -37,6 +37,19 @@ export interface ChatMessage {
   correction?: MessageCorrection;
 }
 
+// État du prompt ami 10-min :
+//   - null               : pas de prompt (avant 10 min, ou anonyme)
+//   - "shown"            : le serveur a envoyé friend_prompt, j'attends
+//   - "self_accepted"    : j'ai cliqué Accepter, j'attends le peer
+//   - { kind: "made", friendId } : les deux ont accepté, on est amis
+//   - "skipped"          : fenêtre expirée sans double accept
+export type FriendPromptState =
+  | null
+  | { kind: "shown" }
+  | { kind: "self_accepted" }
+  | { kind: "made"; friendId: number }
+  | { kind: "skipped" };
+
 interface ChatState {
   status: ChatStatus;
   peerNick: string | null;
@@ -47,6 +60,8 @@ interface ChatState {
   // Qui a mis fin à la conversation. Sert au PostChatCard à adapter le
   // wording ("X a quitté" vs "Conversation terminée"). null hors post_chat.
   endedBy: "peer" | "self" | null;
+  // Prompt ami 10-min (uniquement si les deux peers sont authentifiés).
+  friendPrompt: FriendPromptState;
 
   setStatus: (s: ChatStatus) => void;
   matched: (peerNick: string) => void;
@@ -60,6 +75,11 @@ interface ChatState {
   farewell: () => void;
   error: (code: string, message?: string) => void;
   reset: () => void;
+  // Friend prompt transitions
+  showFriendPrompt: () => void;
+  selfAcceptFriend: () => void;
+  friendMade: (friendId: number) => void;
+  friendSkipped: () => void;
 }
 
 // Timer du "peer écrit…" : module-level car il n'y a qu'une seule conv à
@@ -85,6 +105,7 @@ export const useChatStore = create<ChatState>((set) => ({
   errorMessage: null,
   peerTyping: false,
   endedBy: null,
+  friendPrompt: null,
 
   setStatus: (status) => set({ status }),
 
@@ -98,6 +119,7 @@ export const useChatStore = create<ChatState>((set) => ({
       errorMessage: null,
       peerTyping: false,
       endedBy: null,
+      friendPrompt: null,
     });
   },
 
@@ -177,6 +199,13 @@ export const useChatStore = create<ChatState>((set) => ({
       errorMessage: null,
       peerTyping: false,
       endedBy: null,
+      friendPrompt: null,
     });
   },
+
+  showFriendPrompt: () => set({ friendPrompt: { kind: "shown" } }),
+  selfAcceptFriend: () => set({ friendPrompt: { kind: "self_accepted" } }),
+  friendMade: (friendId) =>
+    set({ friendPrompt: { kind: "made", friendId } }),
+  friendSkipped: () => set({ friendPrompt: { kind: "skipped" } }),
 }));

@@ -127,6 +127,16 @@ export function useMatch() {
             // Le serveur enchaîne avec un peer_left/queued, la transition
             // d'UI se fait via ces évènements. On ne touche pas au store.
             break;
+          case "friend_prompt":
+            c.showFriendPrompt();
+            break;
+          case "friend_made":
+            c.friendMade(f.friend_id);
+            buzz(20);
+            break;
+          case "friend_skipped":
+            c.friendSkipped();
+            break;
           case "error":
             c.error(f.code, f.message);
             break;
@@ -200,5 +210,16 @@ export function useMatch() {
     [chat],
   );
 
-  return { start, sendMsg, sendTyping, next, report, correct, stop };
+  // Accepte le prompt ami (10-min). Le serveur déclenche friend_made si
+  // le peer a aussi accepté dans la fenêtre de 60 s.
+  const acceptFriend = useCallback(() => {
+    const ok = activeConn?.send({ type: "friend_accept" }) ?? false;
+    if (ok) {
+      chat.getState().selfAcceptFriend();
+      buzz(15);
+    }
+    return ok;
+  }, [chat]);
+
+  return { start, sendMsg, sendTyping, next, report, correct, stop, acceptFriend };
 }
