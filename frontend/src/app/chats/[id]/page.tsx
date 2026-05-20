@@ -12,6 +12,7 @@ import {
   removeFriend,
 } from "@/lib/friends";
 import { useT } from "@/lib/i18n";
+import { isPromptKey } from "@/lib/prompts";
 import { useUserStore } from "@/stores/userStore";
 
 // Polling : on rafraichit toutes les 4s tant que l'onglet est focus.
@@ -30,6 +31,7 @@ export default function FriendChatPage({
   const [profile, setProfile] = useState<FriendProfile | null>(null);
   const [cloud, setCloud] = useState("");
   const [msgs, setMsgs] = useState<FriendMessage[]>([]);
+  const [peerRemovedMe, setPeerRemovedMe] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,10 @@ export default function FriendChatPage({
       if (typeof document !== "undefined" && document.hidden) return;
       try {
         const fresh = await getFriendMessages(id);
-        if (!stopped) setMsgs(fresh);
+        if (!stopped) {
+          setMsgs(fresh.messages);
+          setPeerRemovedMe(fresh.peer_removed_me);
+        }
       } catch {
         // silent
       }
@@ -148,9 +153,18 @@ export default function FriendChatPage({
       >
         <div className="mx-auto w-full max-w-2xl space-y-2 px-4 py-4 sm:px-6">
           {profile?.bio && (
-            <p className="mb-4 rounded-2xl bg-neutral-100/60 px-4 py-3 text-xs italic text-neutral-600 dark:bg-neutral-900/50 dark:text-neutral-400">
+            <p className="mb-3 rounded-2xl bg-neutral-100/60 px-4 py-3 text-xs italic text-neutral-600 dark:bg-neutral-900/50 dark:text-neutral-400">
               {profile.bio}
             </p>
+          )}
+          {profile?.prompts && profile.prompts.some((p) => p.prompt && p.answer) && (
+            <div className="mb-4 space-y-2">
+              {profile.prompts
+                .filter((p) => p.prompt && p.answer)
+                .map((p, i) => (
+                  <PromptCard key={i} promptKey={p.prompt} answer={p.answer} />
+                ))}
+            </div>
           )}
           {msgs.map((m) => {
             const mine = user && m.sender_id === user.id;
@@ -173,9 +187,41 @@ export default function FriendChatPage({
               </div>
             );
           })}
+          {peerRemovedMe && (
+            <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-center dark:border-neutral-800 dark:bg-neutral-900/60">
+              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
+                {t.friendChat.peerRemovedTitle}
+              </p>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                {t.friendChat.peerRemovedHint}
+              </p>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <Link
+                  href="/chats"
+                  className="rounded-full bg-neutral-100 px-4 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                >
+                  {t.friendChat.keepConversation}
+                </Link>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm(t.friendChat.deleteConfirm)) return;
+                    try {
+                      await removeFriend(id);
+                      window.location.href = "/chats";
+                    } catch {}
+                  }}
+                  className="rounded-full bg-red-600 px-4 py-2 text-xs font-medium text-white hover:bg-red-700"
+                >
+                  {t.friendChat.deleteConversation}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
+      {!peerRemovedMe && (
       <form
         onSubmit={send}
         className="px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
@@ -210,6 +256,22 @@ export default function FriendChatPage({
           </button>
         </div>
       </form>
+      )}
     </main>
+  );
+}
+
+function PromptCard({ promptKey, answer }: { promptKey: string; answer: string }) {
+  const t = useT();
+  const label = isPromptKey(promptKey) ? t.prompts[promptKey] : promptKey;
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+        {label}
+      </p>
+      <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-900 dark:text-neutral-100">
+        {answer}
+      </p>
+    </div>
   );
 }

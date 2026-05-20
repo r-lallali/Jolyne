@@ -8,6 +8,7 @@ export interface FriendSummary {
   peer_id: number;
   peer_name: string;
   peer_photo_id?: string;
+  peer_removed_me: boolean;
   created_at: string;
   last_message_at: string;
 }
@@ -25,6 +26,8 @@ export interface FriendProfile {
   bio: string;
   birthdate: string | null;
   photos: { position: number; public_id: string }[];
+  prompts: { prompt: string; answer: string }[];
+  peer_removed_me: boolean;
 }
 
 export class FriendsError extends Error {
@@ -52,12 +55,19 @@ export async function listFriends(): Promise<FriendSummary[]> {
   return d.friends ?? [];
 }
 
-export async function getFriendMessages(id: number): Promise<FriendMessage[]> {
-  const d = await api<{ messages: FriendMessage[] }>(
+export interface FriendMessagesResponse {
+  messages: FriendMessage[];
+  peer_removed_me: boolean;
+}
+
+export async function getFriendMessages(
+  id: number,
+): Promise<FriendMessagesResponse> {
+  const d = await api<FriendMessagesResponse>(
     "GET",
     `/api/friends/${id}/messages`,
   );
-  return d.messages ?? [];
+  return { messages: d.messages ?? [], peer_removed_me: !!d.peer_removed_me };
 }
 
 export async function postFriendMessage(id: number, body: string): Promise<FriendMessage> {
