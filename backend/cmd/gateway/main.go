@@ -241,12 +241,23 @@ func run() error {
 			APISecret: cfg.CloudinaryAPISecret,
 			Folder:    cfg.CloudinaryFolder,
 		}
+		profileStore := profile.NewStore(svc.pg)
 		svc.profile = &profile.Handlers{
-			Store:      profile.NewStore(svc.pg),
+			Store:      profileStore,
 			Cloudinary: cld,
 			Log:        log,
 		}
 		log.Info("profile endpoints ready", "cloudinary", cld.IsConfigured())
+
+		// Friends : amitiés mutuelles + chats persistés. On réutilise le
+		// même Friends.Store que wsDeps pour cohérence (deux instances
+		// fonctionneraient mais autant éviter).
+		svc.friends = &friends.Handlers{
+			Store:   wsDeps.Friends,
+			Profile: profileStore,
+			Log:     log,
+		}
+		log.Info("friends endpoints ready")
 	} else {
 		log.Info("user auth disabled — Postgres / USER_SESSION_SECRET manquants")
 	}

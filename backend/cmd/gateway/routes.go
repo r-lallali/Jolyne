@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ralys/jolyne/backend/internal/admin"
+	"github.com/ralys/jolyne/backend/internal/friends"
 	"github.com/ralys/jolyne/backend/internal/grammar"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/profile"
@@ -29,6 +30,7 @@ type services struct {
 	grammar    *grammar.Handler
 	users      *users.Handlers   // nil si auth utilisateur désactivée
 	profile    *profile.Handlers // nil si auth utilisateur désactivée
+	friends    *friends.Handlers // nil si auth utilisateur désactivée
 	publicCORS string            // origin autorisée pour /api/translate et /api/grammar
 }
 
@@ -86,6 +88,30 @@ func routes(s services) http.Handler {
 				return
 			}
 			s.profile.HandleDeletePhoto(w, r)
+		}))))
+	}
+
+	if s.friends != nil && s.users != nil {
+		auth := s.users.RequireAuth
+		cors := publicCORS(s.publicCORS)
+		mux.Handle("/api/friends", cors(auth(methodOnly("GET", http.HandlerFunc(s.friends.HandleList)))))
+		// `/api/friends/{id}` (DELETE), `/api/friends/{id}/messages`
+		// (GET/POST), `/api/friends/{id}/profile` (GET).
+		mux.Handle("/api/friends/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			path := r.URL.Path
+			switch {
+			case strings.HasSuffix(path, "/messages") && r.Method == http.MethodGet:
+				s.friends.HandleGetMessages(w, r)
+			case strings.HasSuffix(path, "/messages") && r.Method == http.MethodPost:
+				s.friends.HandlePostMessage(w, r)
+			case strings.HasSuffix(path, "/profile") && r.Method == http.MethodGet:
+				s.friends.HandleGetProfile(w, r)
+			case r.Method == http.MethodDelete &&
+				!strings.HasSuffix(path, "/messages") && !strings.HasSuffix(path, "/profile"):
+				s.friends.HandleRemove(w, r)
+			default:
+				http.NotFound(w, r)
+			}
 		}))))
 	}
 
