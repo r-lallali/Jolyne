@@ -20,15 +20,21 @@ const scriptSrc = isDev
   ? "'self' 'unsafe-inline' 'unsafe-eval'"
   : "'self' 'unsafe-inline'";
 
+// Cloudinary : api.cloudinary.com pour les uploads signés (POST direct),
+// res.cloudinary.com pour les <img src>. Toujours autoriser, même en
+// dev — sinon l'upload échoue silencieusement sur "Refused to connect".
+const cloudinaryConnect = "https://api.cloudinary.com";
+const cloudinaryImg = "https://res.cloudinary.com";
+
 const connectSrc = isDev
-  ? `'self' ws: wss: http://localhost:* ${httpURL} ${wsURL}`
-  : `'self' ${httpURL} ${wsURL}`;
+  ? `'self' ws: wss: http://localhost:* ${httpURL} ${wsURL} ${cloudinaryConnect}`
+  : `'self' ${httpURL} ${wsURL} ${cloudinaryConnect}`;
 
 const csp = [
   "default-src 'self'",
   `script-src ${scriptSrc}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
+  `img-src 'self' data: ${cloudinaryImg}`,
   "font-src 'self' data:",
   `connect-src ${connectSrc}`,
   "frame-ancestors 'none'",
