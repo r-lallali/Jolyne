@@ -85,6 +85,13 @@ export function ChatView() {
     return () => clearTimeout(id);
   }, [peerNick]);
 
+  // En post_chat, le bouton Next est désactivé pour une autre raison
+  // (conversation finie, pas cooldown anti-zap). On retire le ring pour
+  // qu'il ne se relance pas à tort autour du bouton désactivé.
+  useEffect(() => {
+    if (postChat) setCooldownStart(null);
+  }, [postChat]);
+
   useEffect(() => {
     if (toastTick === 0) return;
     setShowToast(true);
