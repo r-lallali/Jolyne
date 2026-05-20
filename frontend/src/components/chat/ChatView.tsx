@@ -10,7 +10,9 @@ import { MessageList } from "@/components/chat/MessageList";
 import { ReportModal } from "@/components/chat/ReportModal";
 import { useMatch } from "@/hooks/useMatch";
 import { useTabAttention } from "@/hooks/useTabAttention";
+import { fetchCloudName } from "@/lib/account";
 import { useT } from "@/lib/i18n";
+import { isPromptKey } from "@/lib/prompts";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 
 // Cooldown anti-zap : on bloque le bouton Suivant pendant 3s après un
@@ -26,6 +28,11 @@ export function ChatView() {
   const peerNick = useChatStore((s) => s.peerNick);
   const status = useChatStore((s) => s.status);
   const messageCount = useChatStore((s) => s.messages.length);
+  const peerProfile = useChatStore((s) => s.peerProfile);
+  const [cloudName, setCloudName] = useState("");
+  useEffect(() => {
+    fetchCloudName().then(setCloudName).catch(() => {});
+  }, []);
   const { sendMsg, sendTyping, next, report, correct, stop } = useMatch();
   const t = useT();
   const postChat = status === "post_chat";
@@ -128,6 +135,8 @@ export function ChatView() {
       <div className="flex h-dvh w-full flex-col sm:h-[92vh] sm:max-w-3xl">
         <ChatHeader
           peerNick={peerNick}
+          peerPhotoId={peerProfile?.photoId}
+          cloudName={cloudName}
           onNext={next}
           onStop={stop}
           onReport={() => setReportOpen(true)}
@@ -136,6 +145,10 @@ export function ChatView() {
           cooldownStart={cooldownStart}
           cooldownMs={NEXT_COOLDOWN_MS}
         />
+        {peerProfile &&
+          peerProfile.prompts.some((p) => p.prompt && p.answer) && (
+            <PeerPromptStrip prompts={peerProfile.prompts} />
+          )}
         <MessageList
           onCorrect={postChat ? undefined : (m) => setTarget(m)}
           onEditCorrection={postChat ? undefined : (m) => setTarget(m)}
@@ -183,5 +196,38 @@ export function ChatView() {
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+// PeerPromptStrip : carrousel horizontal scrollable des 3 prompts du peer,
+// affiché entre le header et la liste de messages. Évite de bouffer la
+// hauteur de chat sur mobile (pas un side panel — `max-w-3xl` est trop
+// étroit pour un sidebar lisible).
+function PeerPromptStrip({
+  prompts,
+}: {
+  prompts: { prompt: string; answer: string }[];
+}) {
+  const t = useT();
+  const visible = prompts.filter((p) => p.prompt && p.answer);
+  if (visible.length === 0) return null;
+  return (
+    <div className="border-b border-neutral-200 px-4 py-3 dark:border-neutral-800 sm:px-6">
+      <div className="scrollbar-discreet -mx-1 flex gap-2 overflow-x-auto px-1">
+        {visible.map((p, i) => (
+          <div
+            key={i}
+            className="min-w-[14rem] shrink-0 rounded-2xl bg-neutral-100 px-3 py-2 dark:bg-neutral-900"
+          >
+            <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              {isPromptKey(p.prompt) ? t.prompts[p.prompt] : p.prompt}
+            </p>
+            <p className="mt-0.5 whitespace-pre-wrap text-xs text-neutral-800 dark:text-neutral-200">
+              {p.answer}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

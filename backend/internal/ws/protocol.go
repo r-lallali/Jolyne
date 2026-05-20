@@ -47,10 +47,17 @@ const (
 	ServerReported     ServerType = "reported"
 	ServerError        ServerType = "error"
 	ServerCorrection   ServerType = "correction"    // correction reçue d'un peer
-	ServerFriendPrompt ServerType = "friend_prompt" // "tu veux ajouter ce peer ?"
-	ServerFriendMade   ServerType = "friend_made"   // les deux ont accepté
+	ServerFriendPrompt  ServerType = "friend_prompt"  // "tu veux ajouter ce peer ?"
+	ServerFriendMade    ServerType = "friend_made"    // les deux ont accepté
 	ServerFriendSkipped ServerType = "friend_skipped" // fenêtre expirée sans match
+	ServerPeerProfile   ServerType = "peer_profile"   // peer authentifié : avatar + prompts
 )
+
+// ServerPrompt : libellé i18n côté front. Vide si slot non rempli.
+type ServerPrompt struct {
+	Prompt string `json:"prompt"`
+	Answer string `json:"answer"`
+}
 
 type ServerFrame struct {
 	Type     ServerType `json:"type"`
@@ -69,8 +76,13 @@ type ServerFrame struct {
 	// Frame `friend_made` : ID de la ligne friends côté DB pour ouvrir le
 	// chat persisté côté client. Frame `friend_prompt` : window en
 	// secondes pendant laquelle on attend la réponse mutuelle.
-	FriendID     int64 `json:"friend_id,omitempty"`
-	WindowSec    int   `json:"window_sec,omitempty"`
+	FriendID  int64 `json:"friend_id,omitempty"`
+	WindowSec int   `json:"window_sec,omitempty"`
+
+	// Frame `peer_profile` : photo principale Cloudinary (public_id) +
+	// 3 slots Q&R. Affichés en sidebar pendant le chat anonyme.
+	PeerPhotoID string         `json:"peer_photo_id,omitempty"`
+	PeerPrompts []ServerPrompt `json:"peer_prompts,omitempty"`
 }
 
 // Codes d'erreur applicatifs (envoyés dans ServerFrame.Code).

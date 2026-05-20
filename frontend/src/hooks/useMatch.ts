@@ -137,6 +137,12 @@ export function useMatch() {
           case "friend_skipped":
             c.friendSkipped();
             break;
+          case "peer_profile":
+            c.setPeerProfile({
+              photoId: f.peer_photo_id ?? "",
+              prompts: f.peer_prompts ?? [],
+            });
+            break;
           case "error":
             c.error(f.code, f.message);
             break;

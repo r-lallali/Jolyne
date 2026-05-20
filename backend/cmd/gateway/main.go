@@ -247,6 +247,10 @@ func run() error {
 			Cloudinary: cld,
 			Log:        log,
 		}
+		// On branche le store profil au handler WS pour pouvoir pousser
+		// peer_profile au match quand le peer est authentifié.
+		wsDeps.Profiles = profileStore
+		svc.wsHandler = ws.NewHandler(wsDeps)
 		log.Info("profile endpoints ready", "cloudinary", cld.IsConfigured())
 
 		// Friends : amitiés mutuelles + chats persistés. On réutilise le

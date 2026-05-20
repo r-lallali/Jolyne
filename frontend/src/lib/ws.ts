@@ -19,6 +19,11 @@ export type ServerFrame =
   | { type: "friend_prompt"; peer_nick: string; window_sec: number }
   | { type: "friend_made"; friend_id: number }
   | { type: "friend_skipped" }
+  | {
+      type: "peer_profile";
+      peer_photo_id?: string;
+      peer_prompts?: { prompt: string; answer: string }[];
+    }
   | { type: "error"; code: string; message?: string };
 
 export type ClientFrame =

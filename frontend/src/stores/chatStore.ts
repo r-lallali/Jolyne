@@ -50,6 +50,13 @@ export type FriendPromptState =
   | { kind: "made"; friendId: number }
   | { kind: "skipped" };
 
+// Profil public du peer si authentifié — photo principale Cloudinary
+// (public_id) + 3 slots Q&R. null si peer anonyme ou profil non chargé.
+export interface PeerProfile {
+  photoId: string;
+  prompts: { prompt: string; answer: string }[];
+}
+
 interface ChatState {
   status: ChatStatus;
   peerNick: string | null;
@@ -62,6 +69,7 @@ interface ChatState {
   endedBy: "peer" | "self" | null;
   // Prompt ami 10-min (uniquement si les deux peers sont authentifiés).
   friendPrompt: FriendPromptState;
+  peerProfile: PeerProfile | null;
 
   setStatus: (s: ChatStatus) => void;
   matched: (peerNick: string) => void;
@@ -80,6 +88,7 @@ interface ChatState {
   selfAcceptFriend: () => void;
   friendMade: (friendId: number) => void;
   friendSkipped: () => void;
+  setPeerProfile: (p: PeerProfile | null) => void;
 }
 
 // Timer du "peer écrit…" : module-level car il n'y a qu'une seule conv à
@@ -106,6 +115,7 @@ export const useChatStore = create<ChatState>((set) => ({
   peerTyping: false,
   endedBy: null,
   friendPrompt: null,
+  peerProfile: null,
 
   setStatus: (status) => set({ status }),
 
@@ -120,6 +130,7 @@ export const useChatStore = create<ChatState>((set) => ({
       peerTyping: false,
       endedBy: null,
       friendPrompt: null,
+      peerProfile: null,
     });
   },
 
@@ -200,6 +211,7 @@ export const useChatStore = create<ChatState>((set) => ({
       peerTyping: false,
       endedBy: null,
       friendPrompt: null,
+      peerProfile: null,
     });
   },
 
@@ -208,4 +220,5 @@ export const useChatStore = create<ChatState>((set) => ({
   friendMade: (friendId) =>
     set({ friendPrompt: { kind: "made", friendId } }),
   friendSkipped: () => set({ friendPrompt: { kind: "skipped" } }),
+  setPeerProfile: (p) => set({ peerProfile: p }),
 }));

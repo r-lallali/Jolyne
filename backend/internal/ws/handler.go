@@ -20,6 +20,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/friends"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
+	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/reports"
 	"github.com/ralys/jolyne/backend/internal/session"
@@ -68,7 +69,10 @@ type Deps struct {
 	// Friends (optionnel). Si présent, le prompt ami 10-min est éligible
 	// quand les deux peers sont authentifiés.
 	Friends *friends.Store
-	Log     *slog.Logger
+	// Profiles (optionnel). Si présent et que le peer est authentifié,
+	// on envoie un ServerPeerProfile au match (avatar + 3 prompts).
+	Profiles *profile.Store
+	Log      *slog.Logger
 }
 
 // UserAuth abstrait les bouts du package users dont le WS a besoin
@@ -322,6 +326,13 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 	}()
 	conn.Send(ServerFrame{Type: ServerMatched, Room: roomID, PeerNick: peer.Nick})
 
+	// Si le peer est authentifié + qu'on a accès au store profil, on
+	// pousse un peer_profile (avatar + prompts) — best-effort, on ne
+	// bloque pas le chat si la récup échoue.
+	if peer.UserID > 0 && h.d.Profiles != nil {
+		h.sendPeerProfile(ctx, conn, peer.UserID)
+	}
+
 	captured := make([]reports.CapturedMessage, 0, captureWindow)
 	push := func(from, body string) {
 		captured = append(captured, reports.CapturedMessage{
@@ -558,6 +569,39 @@ func tryMakeFriends(ctx context.Context, h *Handler, conn *Conn, myUID, peerUID 
 	}
 	conn.Send(ServerFrame{Type: ServerFriendMade, FriendID: f.ID})
 	return true
+}
+
+// sendPeerProfile : récupère display_name / photo principale / prompts du
+// peer authentifié et pousse une frame ServerPeerProfile au client local.
+// Best-effort : silence sur erreur (chat anonyme reste fonctionnel).
+func (h *Handler) sendPeerProfile(ctx context.Context, conn *Conn, peerUID int64) {
+	fetchCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	p, err := h.d.Profiles.Get(fetchCtx, peerUID)
+	if err != nil {
+		return
+	}
+	photos, _ := h.d.Profiles.ListPhotos(fetchCtx, peerUID)
+	photoID := ""
+	for _, ph := range photos {
+		if ph.Position == 1 {
+			photoID = ph.PublicID
+			break
+		}
+	}
+	if photoID == "" && len(photos) > 0 {
+		photoID = photos[0].PublicID
+	}
+	prompts := []ServerPrompt{
+		{Prompt: p.Prompt1, Answer: p.Answer1},
+		{Prompt: p.Prompt2, Answer: p.Answer2},
+		{Prompt: p.Prompt3, Answer: p.Answer3},
+	}
+	conn.Send(ServerFrame{
+		Type:        ServerPeerProfile,
+		PeerPhotoID: photoID,
+		PeerPrompts: prompts,
+	})
 }
 
 // ghostMatch ouvre la room le temps d'envoyer un Left au peer puis la

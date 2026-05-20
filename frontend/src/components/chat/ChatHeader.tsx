@@ -2,12 +2,17 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { cloudinaryUrl } from "@/lib/account";
 import { buzz } from "@/lib/haptics";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
   peerNick: string | null;
+  // Avatar Cloudinary du peer s'il est authentifié — public_id + cloud_name.
+  // Tous deux vides = pas d'avatar, on garde juste le point vert + nick.
+  peerPhotoId?: string;
+  cloudName?: string;
   onNext: () => void;
   onStop: () => void;
   onReport: () => void;
@@ -20,6 +25,8 @@ interface Props {
 
 export function ChatHeader({
   peerNick,
+  peerPhotoId,
+  cloudName,
   onNext,
   onStop,
   onReport,
@@ -29,15 +36,26 @@ export function ChatHeader({
   cooldownMs,
 }: Props) {
   const t = useT();
+  const hasAvatar = !!(peerPhotoId && cloudName);
   return (
     <header className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
       <div className="flex min-w-0 items-center gap-2.5">
-        <motion.span
-          aria-hidden
-          animate={{ opacity: [1, 0.5, 1], scale: [1, 1.15, 1] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className="inline-block size-2 rounded-full bg-emerald-500"
-        />
+        {hasAvatar ? (
+          <span className="inline-block size-7 shrink-0 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
+            <img
+              src={cloudinaryUrl(cloudName!, peerPhotoId!, { w: 96, h: 96 })}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </span>
+        ) : (
+          <motion.span
+            aria-hidden
+            animate={{ opacity: [1, 0.5, 1], scale: [1, 1.15, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="inline-block size-2 rounded-full bg-emerald-500"
+          />
+        )}
         <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
           {peerNick ?? "—"}
         </p>
