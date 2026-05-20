@@ -35,6 +35,7 @@ type friendDTO struct {
 	PeerID        int64  `json:"peer_id"`
 	PeerName      string `json:"peer_name"`
 	PeerPhotoID   string `json:"peer_photo_id,omitempty"`
+	PeerRemovedMe bool   `json:"peer_removed_me"`
 	CreatedAt     string `json:"created_at"`
 	LastMessageAt string `json:"last_message_at"`
 }
@@ -69,6 +70,7 @@ func (h *Handlers) HandleList(w http.ResponseWriter, r *http.Request) {
 			PeerID:        f.PeerID,
 			PeerName:      h.peerDisplayName(ctx, f.PeerID),
 			PeerPhotoID:   h.peerPhoto(ctx, f.PeerID),
+			PeerRemovedMe: f.PeerRemovedMe,
 			CreatedAt:     f.CreatedAt.UTC().Format(time.RFC3339),
 			LastMessageAt: f.LastMessageAt.UTC().Format(time.RFC3339),
 		})
@@ -117,7 +119,8 @@ func (h *Handlers) HandleGetMessages(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	if _, err := h.Store.Get(ctx, id, user.ID); err != nil {
+	f, err := h.Store.Get(ctx, id, user.ID)
+	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
@@ -135,7 +138,10 @@ func (h *Handlers) HandleGetMessages(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"messages": out})
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"messages":        out,
+		"peer_removed_me": f.PeerRemovedMe,
+	})
 }
 
 // HandlePostMessage : POST /api/friends/{id}/messages {body} → message créé.
@@ -216,12 +222,23 @@ func (h *Handlers) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 		outPhotos = append(outPhotos, photoOut{Position: ph.Position, PublicID: ph.PublicID})
 	}
 	w.Header().Set("Content-Type", "application/json")
+	type promptOut struct {
+		Prompt string `json:"prompt"`
+		Answer string `json:"answer"`
+	}
+	prompts := [3]promptOut{
+		{Prompt: p.Prompt1, Answer: p.Answer1},
+		{Prompt: p.Prompt2, Answer: p.Answer2},
+		{Prompt: p.Prompt3, Answer: p.Answer3},
+	}
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"peer_id":      f.PeerID,
-		"display_name": p.DisplayName,
-		"bio":          p.Bio,
-		"birthdate":    formatDate(p.Birthdate),
-		"photos":       outPhotos,
+		"peer_id":         f.PeerID,
+		"display_name":    p.DisplayName,
+		"bio":             p.Bio,
+		"birthdate":       formatDate(p.Birthdate),
+		"photos":          outPhotos,
+		"prompts":         prompts,
+		"peer_removed_me": f.PeerRemovedMe,
 	})
 }
 

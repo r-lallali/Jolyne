@@ -3,10 +3,16 @@
 
 const BASE = process.env.NEXT_PUBLIC_BACKEND_HTTP_URL ?? "";
 
+export interface PromptDTO {
+  prompt: string; // clé i18n d'un prompt fermé, "" = slot vide
+  answer: string;
+}
+
 export interface ProfileDTO {
   display_name: string;
   bio: string;
   birthdate?: string | null; // ISO yyyy-mm-dd
+  prompts: [PromptDTO, PromptDTO, PromptDTO];
 }
 
 export interface PhotoDTO {

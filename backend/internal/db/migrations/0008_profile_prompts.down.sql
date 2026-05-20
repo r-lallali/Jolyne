@@ -1,0 +1,7 @@
+ALTER TABLE user_profiles
+    DROP COLUMN IF EXISTS prompt_1,
+    DROP COLUMN IF EXISTS answer_1,
+    DROP COLUMN IF EXISTS prompt_2,
+    DROP COLUMN IF EXISTS answer_2,
+    DROP COLUMN IF EXISTS prompt_3,
+    DROP COLUMN IF EXISTS answer_3;

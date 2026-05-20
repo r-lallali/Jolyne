@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   AccountDTO,
+  PromptDTO,
   cloudinaryUrl,
   deletePhoto,
   fetchAccount,
@@ -14,6 +15,7 @@ import {
   uploadToCloudinary,
 } from "@/lib/account";
 import { useT } from "@/lib/i18n";
+import { PROMPT_KEYS, PromptKey, isPromptKey } from "@/lib/prompts";
 import { useUserStore } from "@/stores/userStore";
 
 const MAX_PHOTOS = 6;
@@ -32,6 +34,11 @@ export default function AccountPage() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [birthdate, setBirthdate] = useState("");
+  const [prompts, setPrompts] = useState<[PromptDTO, PromptDTO, PromptDTO]>([
+    { prompt: "", answer: "" },
+    { prompt: "", answer: "" },
+    { prompt: "", answer: "" },
+  ]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -43,6 +50,13 @@ export default function AccountPage() {
         setDisplayName(acc.profile.display_name);
         setBio(acc.profile.bio);
         setBirthdate(acc.profile.birthdate ?? "");
+        if (acc.profile.prompts) {
+          setPrompts([
+            { ...acc.profile.prompts[0] },
+            { ...acc.profile.prompts[1] },
+            { ...acc.profile.prompts[2] },
+          ]);
+        }
       })
       .catch(() => {
         // silent — la page reste vide, le user voit l'état initial
@@ -58,6 +72,7 @@ export default function AccountPage() {
         display_name: displayName,
         bio,
         birthdate: birthdate || null,
+        prompts,
       });
       setAccount(updated);
       setSavingState("saved");
@@ -172,6 +187,33 @@ export default function AccountPage() {
             className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
           />
         </Field>
+
+        <section className="pt-2">
+          <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+            {t.account.prompts}
+          </h2>
+          <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-500">
+            {t.account.promptsHint}
+          </p>
+          <div className="mt-3 space-y-3">
+            {prompts.map((slot, idx) => (
+              <PromptSlot
+                key={idx}
+                slot={slot}
+                taken={prompts
+                  .map((p, i) => (i === idx ? "" : p.prompt))
+                  .filter((k) => k !== "")}
+                onChange={(next) => {
+                  setPrompts((prev) => {
+                    const cp = prev.slice() as [PromptDTO, PromptDTO, PromptDTO];
+                    cp[idx] = next;
+                    return cp;
+                  });
+                }}
+              />
+            ))}
+          </div>
+        </section>
 
         <div className="flex items-center justify-end gap-3 pt-2">
           {savingState === "saved" && (
@@ -306,6 +348,56 @@ function PhotoSlot({
         onChange={onPick}
         className="hidden"
       />
+    </div>
+  );
+}
+
+function PromptSlot({
+  slot,
+  taken,
+  onChange,
+}: {
+  slot: PromptDTO;
+  taken: string[];
+  onChange: (next: PromptDTO) => void;
+}) {
+  const t = useT();
+  const promptKey = isPromptKey(slot.prompt) ? (slot.prompt as PromptKey) : "";
+  return (
+    <div className="rounded-2xl bg-neutral-100 p-3 dark:bg-neutral-900">
+      <div className="flex items-center gap-2">
+        <select
+          value={promptKey}
+          onChange={(e) => onChange({ prompt: e.target.value, answer: slot.answer })}
+          className="flex-1 rounded-lg bg-white px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-800 dark:text-neutral-100 dark:focus:ring-neutral-700"
+        >
+          <option value="">{t.account.pickPrompt}</option>
+          {PROMPT_KEYS.map((k) => (
+            <option key={k} value={k} disabled={taken.includes(k)}>
+              {t.prompts[k]}
+            </option>
+          ))}
+        </select>
+        {promptKey && (
+          <button
+            type="button"
+            onClick={() => onChange({ prompt: "", answer: "" })}
+            className="rounded-lg px-2 py-2 text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
+          >
+            {t.account.clearPrompt}
+          </button>
+        )}
+      </div>
+      {promptKey && (
+        <textarea
+          value={slot.answer}
+          onChange={(e) => onChange({ prompt: promptKey, answer: e.target.value })}
+          placeholder={t.account.answerPlaceholder}
+          maxLength={200}
+          rows={2}
+          className="mt-2 w-full resize-none rounded-lg bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-800 dark:text-neutral-100 dark:focus:ring-neutral-700"
+        />
+      )}
     </div>
   );
 }

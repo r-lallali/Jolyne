@@ -205,5 +205,37 @@ export interface Messages {
     addPhoto: string;
     mainPhoto: string;
     uploadUnavailable: string;
+    prompts: string;
+    promptsHint: string;
+    pickPrompt: string;
+    answerPlaceholder: string;
+    clearPrompt: string;
+  };
+  // Libellés des prompts Q&R style Hinge (clés stables côté DB, voir
+  // `lib/prompts.ts`). Toute clé ajoutée dans PROMPT_KEYS doit avoir
+  // un libellé ici dans les 4 langues.
+  prompts: {
+    language_goal: string;
+    favorite_word: string;
+    dream_destination: string;
+    perfect_weekend: string;
+    guilty_pleasure: string;
+    best_advice: string;
+    two_truths_one_lie: string;
+    go_to_song: string;
+    comfort_food: string;
+    hot_take: string;
+    if_i_could_meet: string;
+    small_thing_makes_me_happy: string;
+    im_passionate_about: string;
+    im_learning: string;
+    im_proud_of: string;
+  };
+  friendChat: {
+    peerRemovedTitle: string;
+    peerRemovedHint: string;
+    keepConversation: string;
+    deleteConversation: string;
+    deleteConfirm: string;
   };
 }

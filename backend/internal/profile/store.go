@@ -25,7 +25,12 @@ type Profile struct {
 	DisplayName string
 	Bio         string
 	Birthdate   *time.Time
-	UpdatedAt   time.Time
+	// 3 slots Q&R style Hinge. PromptN = clé i18n d'un prompt fermé,
+	// AnswerN = réponse libre (≤ AnswerMax). Slot vide = (zero, zero).
+	Prompt1, Answer1 string
+	Prompt2, Answer2 string
+	Prompt3, Answer3 string
+	UpdatedAt        time.Time
 }
 
 type Photo struct {
@@ -40,6 +45,8 @@ const (
 	DisplayNameMax = 40
 	BioMax         = 280
 	MaxPhotos      = 6
+	PromptKeyMax   = 64
+	AnswerMax      = 200
 )
 
 type Store struct {
@@ -53,11 +60,15 @@ func NewStore(pool *pgxpool.Pool) *Store { return &Store{pool: pool} }
 // profile vide implicite.
 func (s *Store) Get(ctx context.Context, userID int64) (Profile, error) {
 	const q = `
-		SELECT user_id, display_name, bio, birthdate, updated_at
+		SELECT user_id, display_name, bio, birthdate,
+		       prompt_1, answer_1, prompt_2, answer_2, prompt_3, answer_3,
+		       updated_at
 		FROM user_profiles WHERE user_id = $1`
 	var p Profile
 	err := s.pool.QueryRow(ctx, q, userID).Scan(
-		&p.UserID, &p.DisplayName, &p.Bio, &p.Birthdate, &p.UpdatedAt,
+		&p.UserID, &p.DisplayName, &p.Bio, &p.Birthdate,
+		&p.Prompt1, &p.Answer1, &p.Prompt2, &p.Answer2, &p.Prompt3, &p.Answer3,
+		&p.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -73,19 +84,53 @@ func (s *Store) Get(ctx context.Context, userID int64) (Profile, error) {
 func (s *Store) Upsert(ctx context.Context, p Profile) (Profile, error) {
 	p.DisplayName = truncate(strings.TrimSpace(p.DisplayName), DisplayNameMax)
 	p.Bio = truncate(strings.TrimSpace(p.Bio), BioMax)
+	p.Prompt1 = truncate(strings.TrimSpace(p.Prompt1), PromptKeyMax)
+	p.Prompt2 = truncate(strings.TrimSpace(p.Prompt2), PromptKeyMax)
+	p.Prompt3 = truncate(strings.TrimSpace(p.Prompt3), PromptKeyMax)
+	p.Answer1 = truncate(strings.TrimSpace(p.Answer1), AnswerMax)
+	p.Answer2 = truncate(strings.TrimSpace(p.Answer2), AnswerMax)
+	p.Answer3 = truncate(strings.TrimSpace(p.Answer3), AnswerMax)
+	// Si le prompt est vide, on vide aussi la réponse — un slot orphelin
+	// (answer sans prompt) ne s'affiche pas, autant le nettoyer.
+	if p.Prompt1 == "" {
+		p.Answer1 = ""
+	}
+	if p.Prompt2 == "" {
+		p.Answer2 = ""
+	}
+	if p.Prompt3 == "" {
+		p.Answer3 = ""
+	}
 	const q = `
-		INSERT INTO user_profiles (user_id, display_name, bio, birthdate, updated_at)
-		VALUES ($1, $2, $3, $4, now())
+		INSERT INTO user_profiles (
+			user_id, display_name, bio, birthdate,
+			prompt_1, answer_1, prompt_2, answer_2, prompt_3, answer_3,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
 		ON CONFLICT (user_id) DO UPDATE SET
 			display_name = EXCLUDED.display_name,
 			bio          = EXCLUDED.bio,
 			birthdate    = EXCLUDED.birthdate,
+			prompt_1     = EXCLUDED.prompt_1,
+			answer_1     = EXCLUDED.answer_1,
+			prompt_2     = EXCLUDED.prompt_2,
+			answer_2     = EXCLUDED.answer_2,
+			prompt_3     = EXCLUDED.prompt_3,
+			answer_3     = EXCLUDED.answer_3,
 			updated_at   = now()
-		RETURNING user_id, display_name, bio, birthdate, updated_at`
+		RETURNING user_id, display_name, bio, birthdate,
+		          prompt_1, answer_1, prompt_2, answer_2, prompt_3, answer_3,
+		          updated_at`
 	var out Profile
 	err := s.pool.QueryRow(ctx, q,
 		p.UserID, p.DisplayName, p.Bio, p.Birthdate,
-	).Scan(&out.UserID, &out.DisplayName, &out.Bio, &out.Birthdate, &out.UpdatedAt)
+		p.Prompt1, p.Answer1, p.Prompt2, p.Answer2, p.Prompt3, p.Answer3,
+	).Scan(
+		&out.UserID, &out.DisplayName, &out.Bio, &out.Birthdate,
+		&out.Prompt1, &out.Answer1, &out.Prompt2, &out.Answer2, &out.Prompt3, &out.Answer3,
+		&out.UpdatedAt,
+	)
 	if err != nil {
 		return Profile{}, fmt.Errorf("profile: upsert: %w", err)
 	}

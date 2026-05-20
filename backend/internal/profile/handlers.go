@@ -25,10 +25,16 @@ func (h *Handlers) log() *slog.Logger {
 	return slog.Default()
 }
 
+type promptDTO struct {
+	Prompt string `json:"prompt"`
+	Answer string `json:"answer"`
+}
+
 type profileDTO struct {
-	DisplayName string  `json:"display_name"`
-	Bio         string  `json:"bio"`
-	Birthdate   *string `json:"birthdate,omitempty"` // ISO yyyy-mm-dd
+	DisplayName string       `json:"display_name"`
+	Bio         string       `json:"bio"`
+	Birthdate   *string      `json:"birthdate,omitempty"` // ISO yyyy-mm-dd
+	Prompts     [3]promptDTO `json:"prompts"`
 }
 
 type photoDTO struct {
@@ -93,6 +99,12 @@ func (h *Handlers) HandlePut(w http.ResponseWriter, r *http.Request) {
 		DisplayName: body.DisplayName,
 		Bio:         body.Bio,
 		Birthdate:   bd,
+		Prompt1:     body.Prompts[0].Prompt,
+		Answer1:     body.Prompts[0].Answer,
+		Prompt2:     body.Prompts[1].Prompt,
+		Answer2:     body.Prompts[1].Answer,
+		Prompt3:     body.Prompts[2].Prompt,
+		Answer3:     body.Prompts[2].Answer,
 	})
 	if err != nil {
 		h.log().Error("account upsert", "err", err)
@@ -197,6 +209,11 @@ func profileToDTO(p Profile) profileDTO {
 	out := profileDTO{
 		DisplayName: p.DisplayName,
 		Bio:         p.Bio,
+		Prompts: [3]promptDTO{
+			{Prompt: p.Prompt1, Answer: p.Answer1},
+			{Prompt: p.Prompt2, Answer: p.Answer2},
+			{Prompt: p.Prompt3, Answer: p.Answer3},
+		},
 	}
 	if p.Birthdate != nil {
 		s := p.Birthdate.Format("2006-01-02")
