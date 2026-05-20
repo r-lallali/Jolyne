@@ -107,10 +107,13 @@ function FlagIcon() {
   );
 }
 
-// NextButton : pill text avec ring pill countdown + click-to-confirm.
-// Le ring suit la forme pill du bouton (pas un cercle parfait, parce que
-// le texte rend la forme rectangulaire). Click 1 → "Confirmer ?" 3s ;
-// click 2 → onConfirm.
+// NextButton : pill compact "→ Suivant" avec ring d'outline pill qui se
+// vide en 3s autour du bouton. Click 1 → "Confirmer ?" en emerald (3s) ;
+// click 2 dans la fenêtre = onConfirm.
+//
+// Le ring est un SVG rounded-rect dont le `pathLength` est normalisé à 1
+// pour qu'on puisse animer `strokeDashoffset: 0 → 1` indépendamment de
+// la taille réelle du contour.
 function NextButton({
   canNext,
   cooldownStart,
@@ -166,7 +169,7 @@ function NextButton({
   const showRing = cooldownStart !== null && !canNext;
 
   return (
-    <span className="relative inline-flex h-12 w-12 items-center justify-center">
+    <span className="relative inline-flex items-center">
       {showRing && (
         <CooldownRing key={cooldownStart} durationMs={cooldownMs} />
       )}
@@ -175,7 +178,7 @@ function NextButton({
         onClick={click}
         disabled={!canNext}
         className={cn(
-          "relative flex h-10 w-10 items-center justify-center rounded-full text-[10px] font-semibold leading-none transition-colors",
+          "group relative inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium leading-none transition-all",
           armed
             ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-400"
             : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900",
@@ -183,35 +186,57 @@ function NextButton({
             "cursor-not-allowed text-neutral-400 hover:bg-transparent dark:text-neutral-600",
         )}
       >
-        {armed ? confirmLabel : nextLabel}
+        <span className="tracking-tight">
+          {armed ? confirmLabel : nextLabel}
+        </span>
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={cn(
+            "size-3.5 transition-transform",
+            !armed && canNext && "group-hover:translate-x-0.5",
+          )}
+        >
+          <path d="M5 12h14" />
+          <path d="m12 5 7 7-7 7" />
+        </svg>
       </button>
     </span>
   );
 }
 
-// CooldownRing : VRAI cercle SVG qui se vide en durationMs autour d'un
-// bouton circulaire 40x40 dans un wrapper carré 48x48. Stroke 2 noir/blanc.
-// Remonté à chaque nouveau cooldown via key parent.
+// CooldownRing : outline pill SVG qui se vide en durationMs autour du
+// bouton Next. `pathLength={1}` normalise le contour pour animer 0→1.
+// Stroke fin, currentColor, atténué (opacity-40) pour rester discret.
 function CooldownRing({ durationMs }: { durationMs: number }) {
-  const r = 22;
-  const c = 2 * Math.PI * r;
   return (
     <svg
       aria-hidden
-      className="pointer-events-none absolute inset-0 size-full -rotate-90 text-neutral-900 dark:text-neutral-50"
-      viewBox="0 0 48 48"
+      className="pointer-events-none absolute inset-0 h-full w-full text-neutral-400 dark:text-neutral-500"
+      preserveAspectRatio="none"
+      viewBox="0 0 100 100"
     >
-      <motion.circle
-        cx="24"
-        cy="24"
-        r={r}
+      <motion.rect
+        x="1"
+        y="1"
+        width="98"
+        height="98"
+        rx="50"
+        ry="50"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
+        pathLength={1}
+        strokeDasharray={1}
         strokeLinecap="round"
-        strokeDasharray={c}
         initial={{ strokeDashoffset: 0 }}
-        animate={{ strokeDashoffset: c }}
+        animate={{ strokeDashoffset: 1 }}
         transition={{ duration: durationMs / 1000, ease: "linear" }}
       />
     </svg>
