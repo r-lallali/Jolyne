@@ -13,6 +13,10 @@ type Session struct {
 	Fingerprint string // ID device opaque (hash côté client)
 	IPHash      string // IP hashée — jamais l'IP brute (RGPD)
 	Plan        Plan
+	// UserID > 0 si la WS a été ouverte avec un cookie de session user
+	// valide. 0 = anonyme. Sert au flow ami (10-min prompt + match
+	// mutuel) qui n'est proposé QUE si les deux peers sont authentifiés.
+	UserID int64
 }
 
 type Plan string

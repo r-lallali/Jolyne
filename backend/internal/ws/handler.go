@@ -55,7 +55,18 @@ type Deps struct {
 	Reports  *reports.Service  // nil si Postgres / clé de chiffrement absents
 	Bans     *bans.Service     // nil si Postgres absent
 	Blocking *blocking.Service // block-list personnelle (auto-ajout sur report)
+	// Auth user (optionnelle, pour résoudre le cookie au handshake et
+	// remplir Session.UserID si valide). nil = WS toujours anonyme.
+	UserAuth *UserAuth
 	Log      *slog.Logger
+}
+
+// UserAuth abstrait les bouts du package users dont le WS a besoin
+// (verify cookie + cookie name). Évite l'import circulaire.
+type UserAuth struct {
+	CookieName    string
+	SessionSecret []byte
+	Verify        func(token string, secret []byte) (int64, error)
 }
 
 // Handler sert la route /ws/match. La validation des paramètres se fait
@@ -81,6 +92,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Résout le cookie user AVANT l'upgrade — si présent et valide, la
+	// session WS porte UserID > 0 et le flow ami devient éligible. Sinon
+	// la WS reste anonyme.
+	userID := h.resolveUserID(r)
+
 	conn, err := Upgrade(w, r)
 	if err != nil {
 		h.d.Log.Warn("ws upgrade failed", "err", err)
@@ -95,6 +111,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		hashIP(r),
 		session.PlanFree,
 	)
+	sess.UserID = userID
 
 	// Check ban actif AVANT registration / matching. Sur match, le client
 	// reçoit une frame error code=banned avec la durée restante puis la WS
@@ -469,6 +486,24 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max]
+}
+
+// resolveUserID lit le cookie de session user du request et renvoie le
+// UserID si valide. 0 si pas de cookie / auth désactivée / cookie invalide.
+// Best-effort : un échec ne bloque pas l'upgrade — la WS reste anonyme.
+func (h *Handler) resolveUserID(r *http.Request) int64 {
+	if h.d.UserAuth == nil {
+		return 0
+	}
+	c, err := r.Cookie(h.d.UserAuth.CookieName)
+	if err != nil {
+		return 0
+	}
+	uid, err := h.d.UserAuth.Verify(c.Value, h.d.UserAuth.SessionSecret)
+	if err != nil {
+		return 0
+	}
+	return uid
 }
 
 // hashIP hashe l'IP cliente avec SHA-256. Les logs ou la télémétrie ne

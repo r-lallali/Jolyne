@@ -123,7 +123,19 @@ func run() error {
 		log.Warn("postgres skipped — POSTGRES_DSN non renseigné")
 	}
 
-	svc.wsHandler = ws.NewHandler(ws.Deps{
+	// Décode le secret session user en amont pour pouvoir le passer à
+	// la fois au ws.Handler (qui résout le cookie au handshake) et aux
+	// users.Handlers (qui le signent).
+	var userSessionSecret []byte
+	if svc.pg != nil && cfg.UserSessionKey != "" {
+		s, err := base64.StdEncoding.DecodeString(cfg.UserSessionKey)
+		if err != nil || len(s) < 32 {
+			return fmt.Errorf("user session secret: must be base64 ≥32 bytes")
+		}
+		userSessionSecret = s
+	}
+
+	wsDeps := ws.Deps{
 		RDB:      rdb,
 		Matcher:  matcher.New(rdb),
 		Hub:      ws.NewHub(),
@@ -133,7 +145,21 @@ func run() error {
 		Bans:     banSvc,
 		Blocking: blocking.New(rdb),
 		Log:      log,
-	})
+	}
+	if userSessionSecret != nil {
+		wsDeps.UserAuth = &ws.UserAuth{
+			CookieName:    users.SessionCookieName,
+			SessionSecret: userSessionSecret,
+			Verify: func(token string, secret []byte) (int64, error) {
+				s, err := users.VerifySession(token, secret)
+				if err != nil {
+					return 0, err
+				}
+				return s.UserID, nil
+			},
+		}
+	}
+	svc.wsHandler = ws.NewHandler(wsDeps)
 
 	// Back-office admin. Désactivé si POSTGRES_DSN/ADMIN_USERS/ADMIN_SESSION_SECRET
 	// ne sont pas tous renseignés.
@@ -178,14 +204,10 @@ func run() error {
 		log.Info("admin back-office disabled — Postgres / ADMIN_USERS / ADMIN_SESSION_SECRET manquants")
 	}
 
-	// Auth utilisateur (magic link). Désactivée si Postgres absent OU
-	// USER_SESSION_SECRET vide. Mailjet est OPTIONNEL en dev : si non
-	// configuré, le lien est juste loggé pour copier-coller.
-	if svc.pg != nil && cfg.UserSessionKey != "" {
-		userSecret, err := base64.StdEncoding.DecodeString(cfg.UserSessionKey)
-		if err != nil || len(userSecret) < 32 {
-			return fmt.Errorf("user session secret: must be base64 ≥32 bytes")
-		}
+	// Auth utilisateur (email + mot de passe). Désactivée si Postgres absent
+	// OU USER_SESSION_SECRET vide (secret décodé plus haut). Mailjet est
+	// OPTIONNEL en dev : si non configuré, le lien est juste loggé.
+	if userSessionSecret != nil {
 		ml := mailer.New(mailer.Config{
 			Host:     cfg.MailjetSMTPHost,
 			Port:     cfg.MailjetSMTPPort,
@@ -196,7 +218,7 @@ func run() error {
 		svc.users = &users.Handlers{
 			Store:         users.NewStore(svc.pg),
 			Mailer:        ml,
-			SessionSecret: userSecret,
+			SessionSecret: userSessionSecret,
 			CookieDomain:  cfg.UserCookieDomain,
 			CookieSecure:  cfg.IsProd(),
 			PublicURL:     cfg.PublicAppURL,
