@@ -11,11 +11,12 @@ import "encoding/json"
 type ClientType string
 
 const (
-	ClientMsg     ClientType = "msg"
-	ClientNext    ClientType = "next"
-	ClientTyping  ClientType = "typing"
-	ClientReport  ClientType = "report"
-	ClientCorrect ClientType = "correct" // correction d'un message du peer
+	ClientMsg          ClientType = "msg"
+	ClientNext         ClientType = "next"
+	ClientTyping       ClientType = "typing"
+	ClientReport       ClientType = "report"
+	ClientCorrect      ClientType = "correct"       // correction d'un message du peer
+	ClientFriendAccept ClientType = "friend_accept" // réponse au friend_prompt (10 min)
 )
 
 type ClientFrame struct {
@@ -38,14 +39,17 @@ type ClientFrame struct {
 type ServerType string
 
 const (
-	ServerQueued     ServerType = "queued"
-	ServerMatched    ServerType = "matched"
-	ServerMsg        ServerType = "msg"
-	ServerPeerLeft   ServerType = "peer_left"
-	ServerTyping     ServerType = "typing"
-	ServerReported   ServerType = "reported"
-	ServerError      ServerType = "error"
-	ServerCorrection ServerType = "correction" // correction reçue d'un peer
+	ServerQueued       ServerType = "queued"
+	ServerMatched      ServerType = "matched"
+	ServerMsg          ServerType = "msg"
+	ServerPeerLeft     ServerType = "peer_left"
+	ServerTyping       ServerType = "typing"
+	ServerReported     ServerType = "reported"
+	ServerError        ServerType = "error"
+	ServerCorrection   ServerType = "correction"    // correction reçue d'un peer
+	ServerFriendPrompt ServerType = "friend_prompt" // "tu veux ajouter ce peer ?"
+	ServerFriendMade   ServerType = "friend_made"   // les deux ont accepté
+	ServerFriendSkipped ServerType = "friend_skipped" // fenêtre expirée sans match
 )
 
 type ServerFrame struct {
@@ -61,6 +65,12 @@ type ServerFrame struct {
 	TargetID string `json:"target_id,omitempty"`
 	Original string `json:"original,omitempty"`
 	Note     string `json:"note,omitempty"`
+
+	// Frame `friend_made` : ID de la ligne friends côté DB pour ouvrir le
+	// chat persisté côté client. Frame `friend_prompt` : window en
+	// secondes pendant laquelle on attend la réponse mutuelle.
+	FriendID     int64 `json:"friend_id,omitempty"`
+	WindowSec    int   `json:"window_sec,omitempty"`
 }
 
 // Codes d'erreur applicatifs (envoyés dans ServerFrame.Code).

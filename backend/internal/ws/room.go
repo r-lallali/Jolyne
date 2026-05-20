@@ -14,10 +14,11 @@ import (
 type roomKind string
 
 const (
-	roomKindMsg        roomKind = "msg"
-	roomKindLeft       roomKind = "left"
-	roomKindTyping     roomKind = "typing"
-	roomKindCorrection roomKind = "correction"
+	roomKindMsg          roomKind = "msg"
+	roomKindLeft         roomKind = "left"
+	roomKindTyping       roomKind = "typing"
+	roomKindCorrection   roomKind = "correction"
+	roomKindFriendAccept roomKind = "friend_accept" // l'autre côté a accepté le prompt 10-min
 )
 
 type roomEnvelope struct {
@@ -119,6 +120,13 @@ func (r *Room) SendCorrection(ctx context.Context, targetID, original, corrected
 		Body:     corrected,
 		Note:     note,
 	})
+}
+
+// SendFriendAccept signale au peer qu'on vient d'accepter le prompt ami
+// 10-min. Quand les deux côtés ont publié, chacun crée la ligne friends
+// (UPSERT idempotent) et envoie ServerFriendMade à son client.
+func (r *Room) SendFriendAccept(ctx context.Context) error {
+	return r.publish(ctx, roomEnvelope{Kind: roomKindFriendAccept})
 }
 
 func (r *Room) Close() error { return r.pubsub.Close() }

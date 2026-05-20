@@ -13,6 +13,7 @@ type WakeupEvent struct {
 	PeerID          string // utilisé pour éviter de re-matcher avec ce peer après un Next
 	PeerFingerprint string // utilisé pour identifier le peer en cas de signalement
 	PeerIPHash      string // idem
+	PeerUserID      int64  // > 0 si peer authentifié — éligible au prompt ami 10-min
 }
 
 // pending est l'entrée du registre par sessionID en attente.

@@ -17,6 +17,7 @@ import (
 
 	"github.com/ralys/jolyne/backend/internal/bans"
 	"github.com/ralys/jolyne/backend/internal/blocking"
+	"github.com/ralys/jolyne/backend/internal/friends"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/quota"
@@ -44,6 +45,12 @@ const (
 	// Limites de taille des champs d'une correction.
 	correctionTextMax = 2000
 	correctionNoteMax = 500
+
+	// Délai avant d'émettre le friend_prompt aux deux peers, puis fenêtre
+	// pendant laquelle attendre la double acceptation. Si l'un n'accepte
+	// pas dans la fenêtre, friend_skipped est envoyé à l'autre.
+	friendPromptDelay  = 10 * time.Minute
+	friendAcceptWindow = 60 * time.Second
 )
 
 type Deps struct {
@@ -58,7 +65,10 @@ type Deps struct {
 	// Auth user (optionnelle, pour résoudre le cookie au handshake et
 	// remplir Session.UserID si valide). nil = WS toujours anonyme.
 	UserAuth *UserAuth
-	Log      *slog.Logger
+	// Friends (optionnel). Si présent, le prompt ami 10-min est éligible
+	// quand les deux peers sont authentifiés.
+	Friends *friends.Store
+	Log     *slog.Logger
 }
 
 // UserAuth abstrait les bouts du package users dont le WS a besoin
@@ -182,6 +192,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		}
 
 		var peerID, peerNick, peerFingerprint, peerIPHash, roomID string
+		var peerUserID int64
 		switch {
 		case out.Matched:
 			peerID = out.PeerID
@@ -194,12 +205,14 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 			peerNick = peer.Pseudo
 			peerFingerprint = peer.Fingerprint
 			peerIPHash = peer.IPHash
+			peerUserID = peer.UserID
 			if !h.d.Hub.Wakeup(out.PeerID, WakeupEvent{
 				RoomID:          roomID,
 				PeerNick:        sess.Pseudo,
 				PeerID:          sess.ID,
 				PeerFingerprint: sess.Fingerprint,
 				PeerIPHash:      sess.IPHash,
+				PeerUserID:      sess.UserID,
 			}) {
 				continue
 			}
@@ -216,6 +229,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 				peerID = ev.PeerID
 				peerFingerprint = ev.PeerFingerprint
 				peerIPHash = ev.PeerIPHash
+				peerUserID = ev.PeerUserID
 			case <-time.After(queueTimeout):
 				_ = h.d.Matcher.Cancel(ctx, speaks, wants, sess.ID)
 				conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeQueueTimeout})
@@ -247,6 +261,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 			Nick:        peerNick,
 			Fingerprint: peerFingerprint,
 			IPHash:      peerIPHash,
+			UserID:      peerUserID,
 		}, roomID, canNext)
 		if exit == chatDisconnect {
 			return
@@ -275,12 +290,14 @@ const (
 )
 
 // chatPeer regroupe les infos du peer pour cette conversation (utilisées
-// notamment lors d'un signalement).
+// notamment lors d'un signalement). UserID > 0 si le peer est authentifié
+// — sert au prompt ami 10-min (uniquement éligible si les deux peers le sont).
 type chatPeer struct {
 	ID          string
 	Nick        string
 	Fingerprint string
 	IPHash      string
+	UserID      int64
 }
 
 // runChat est la boucle de chat avec un peer. Sort proprement sur "next",
@@ -326,6 +343,21 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 	// fin de conversation côté client.
 	peerGone := false
 
+	// Flow ami 10-min : éligible uniquement si les deux peers sont
+	// authentifiés ET que le service Friends est branché. promptTimer
+	// déclenche le prompt à 10 min ; promptWindow ferme la fenêtre
+	// d'acceptation à T+10min+60s. Acceptances locale + remote tracking.
+	friendEligible := h.d.Friends != nil && sess.UserID > 0 && peer.UserID > 0
+	var promptTimer <-chan time.Time
+	var promptWindow <-chan time.Time
+	if friendEligible {
+		promptTimer = time.After(friendPromptDelay)
+	}
+	friendPromptSent := false
+	myAccept := false
+	peerAccept := false
+	friendDone := false
+
 	peerCh := room.Channel()
 	for {
 		select {
@@ -333,6 +365,29 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			return chatDisconnect
 		case <-conn.Done():
 			return chatDisconnect
+		case <-promptTimer:
+			// Émet le prompt aux deux côtés. Chacun déclenche son propre
+			// timer 10 min — ils tirent quasi simultanément.
+			promptTimer = nil
+			if peerGone {
+				// Le peer est déjà parti — on n'envoie rien.
+				break
+			}
+			conn.Send(ServerFrame{
+				Type:      ServerFriendPrompt,
+				PeerNick:  peer.Nick,
+				WindowSec: int(friendAcceptWindow / time.Second),
+			})
+			friendPromptSent = true
+			promptWindow = time.After(friendAcceptWindow)
+		case <-promptWindow:
+			promptWindow = nil
+			if friendDone {
+				break
+			}
+			// Fenêtre fermée sans double accept : on prévient le client
+			// que le match ami n'a pas eu lieu.
+			conn.Send(ServerFrame{Type: ServerFriendSkipped})
 		case env, ok := <-peerCh:
 			if !ok {
 				return chatDisconnect
@@ -358,6 +413,11 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 					Body:     env.Body,
 					Note:     env.Note,
 				})
+			case roomKindFriendAccept:
+				peerAccept = true
+				if myAccept && !friendDone && friendEligible {
+					friendDone = tryMakeFriends(ctx, h, conn, sess.UserID, peer.UserID)
+				}
 			}
 		case msg, ok := <-conn.Inbound:
 			if !ok {
@@ -462,9 +522,42 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 					return chatPeerLeft
 				}
 				return chatNext
+			case ClientFriendAccept:
+				// Le client accepte le prompt. Refusé si pas éligible OU
+				// pas dans la fenêtre OU peer déjà parti.
+				if !friendEligible || !friendPromptSent || friendDone || peerGone {
+					continue
+				}
+				if myAccept {
+					continue
+				}
+				myAccept = true
+				_ = room.SendFriendAccept(ctx)
+				if peerAccept {
+					friendDone = tryMakeFriends(ctx, h, conn, sess.UserID, peer.UserID)
+				}
 			}
 		}
 	}
+}
+
+// tryMakeFriends : appelé quand les deux côtés ont accepté le prompt 10-min.
+// UPSERT idempotent — les deux peers le déclenchent en parallèle, peu
+// importe l'ordre. On envoie ServerFriendMade au client local avec l'ID
+// du friend pour qu'il puisse ouvrir le chat persisté.
+// Renvoie true si tout s'est bien passé (sert au caller à set friendDone
+// pour ne pas retenter).
+func tryMakeFriends(ctx context.Context, h *Handler, conn *Conn, myUID, peerUID int64) bool {
+	if h.d.Friends == nil {
+		return false
+	}
+	f, err := h.d.Friends.Add(ctx, myUID, peerUID)
+	if err != nil {
+		h.d.Log.Error("friends add", "err", err)
+		return false
+	}
+	conn.Send(ServerFrame{Type: ServerFriendMade, FriendID: f.ID})
+	return true
 }
 
 // ghostMatch ouvre la room le temps d'envoyer un Left au peer puis la

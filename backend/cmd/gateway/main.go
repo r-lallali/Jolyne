@@ -19,6 +19,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/config"
 	"github.com/ralys/jolyne/backend/internal/crypto"
 	"github.com/ralys/jolyne/backend/internal/db"
+	"github.com/ralys/jolyne/backend/internal/friends"
 	"github.com/ralys/jolyne/backend/internal/grammar"
 	"github.com/ralys/jolyne/backend/internal/mailer"
 	"github.com/ralys/jolyne/backend/internal/matcher"
@@ -145,6 +146,9 @@ func run() error {
 		Bans:     banSvc,
 		Blocking: blocking.New(rdb),
 		Log:      log,
+	}
+	if svc.pg != nil {
+		wsDeps.Friends = friends.NewStore(svc.pg)
 	}
 	if userSessionSecret != nil {
 		wsDeps.UserAuth = &ws.UserAuth{
