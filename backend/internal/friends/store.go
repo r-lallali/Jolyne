@@ -60,6 +60,12 @@ func (s *Store) Add(ctx context.Context, u1, u2 int64) (Friend, error) {
 	if u1 == u2 {
 		return Friend{}, fmt.Errorf("friends: same user")
 	}
+	// Défense en profondeur : un peer anonyme (UserID = 0) ne doit JAMAIS
+	// se retrouver dans la table friends — la FK vers users échouerait,
+	// mais on bail avant pour éviter d'écrire un état orphelin.
+	if u1 <= 0 || u2 <= 0 {
+		return Friend{}, fmt.Errorf("friends: peer anonyme non éligible")
+	}
 	a, b := ordered(u1, u2)
 	const q = `
 		INSERT INTO friends (user_a_id, user_b_id, last_message_at)

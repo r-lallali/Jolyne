@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
 import { listFriends, type FriendSummary } from "@/lib/friends";
@@ -27,15 +28,7 @@ export default function ChatsPage() {
   }, [hydrated, user]);
 
   if (!hydrated) return null;
-  if (!user) {
-    return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {t.auth.loginCta}
-        </p>
-      </main>
-    );
-  }
+  if (!user) notFound();
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">

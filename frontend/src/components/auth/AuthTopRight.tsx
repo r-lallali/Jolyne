@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { LoginSheet } from "@/components/auth/LoginSheet";
 import { useT } from "@/lib/i18n";
@@ -11,6 +12,8 @@ import { useUserStore } from "@/stores/userStore";
 // déconnexion. Le menu est en survol/clic, pas une popover pleine.
 export function AuthTopRight() {
   const t = useT();
+  const router = useRouter();
+  const pathname = usePathname();
   const user = useUserStore((s) => s.user);
   const hydrated = useUserStore((s) => s.hydrated);
   const userLogout = useUserStore((s) => s.logout);
@@ -75,6 +78,10 @@ export function AuthTopRight() {
               onClick={async () => {
                 setMenuOpen(false);
                 await userLogout();
+                // Si on était sur une page auth-only (/account, /chats…),
+                // on retombe sur la home. Inutile sinon — la home re-render
+                // sans la sidebar amis et avec le cluster "Se connecter".
+                if (pathname && pathname !== "/") router.push("/");
               }}
               className="block w-full px-3 py-2 text-left text-xs text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
             >

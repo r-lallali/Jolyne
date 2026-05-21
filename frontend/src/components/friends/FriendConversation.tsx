@@ -125,6 +125,7 @@ export function FriendConversation({
   const mainPhoto =
     profile?.photos.find((p) => p.position === 1)?.public_id ??
     profile?.photos[0]?.public_id;
+  const initial = (profile?.display_name ?? "").slice(0, 1).toUpperCase();
 
   return (
     <div className="flex h-full w-full flex-col sm:mx-auto sm:max-w-2xl">
@@ -141,7 +142,7 @@ export function FriendConversation({
           onClick={onOpenProfile}
           disabled={!onOpenProfile}
           aria-label={profile?.display_name || ""}
-          className="ml-2 size-9 shrink-0 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800"
+          className="ml-2 inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-200 text-xs font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
         >
           {mainPhoto && cloud ? (
             <img
@@ -149,7 +150,9 @@ export function FriendConversation({
               alt=""
               className="h-full w-full object-cover"
             />
-          ) : null}
+          ) : (
+            initial || null
+          )}
         </button>
         <p className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900 dark:text-neutral-50">
           {profile?.display_name || "—"}

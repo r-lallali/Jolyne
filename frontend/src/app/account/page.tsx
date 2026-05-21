@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PhotoSlot, replacePhoto } from "@/components/account/PhotoSlot";
 import { PromptSlot } from "@/components/account/PromptSlot";
@@ -83,13 +84,10 @@ export default function AccountPage() {
     return null;
   }
   if (!user) {
-    return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {t.auth.loginCta}
-        </p>
-      </main>
-    );
+    // Page strictement auth-only : on déclenche une vraie 404 pour les
+    // visiteurs non connectés (au lieu d'un message inline qui laissait
+    // exister une page vide). Comportement attendu par le user.
+    notFound();
   }
   if (loading) {
     return (
