@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"strings"
 	"time"
 
@@ -82,14 +83,18 @@ func (s *Store) Get(ctx context.Context, userID int64) (Profile, error) {
 // Upsert : INSERT ou UPDATE selon présence. Trim + truncate sur les
 // champs texte (la validation finale est dans le handler).
 func (s *Store) Upsert(ctx context.Context, p Profile) (Profile, error) {
-	p.DisplayName = truncate(strings.TrimSpace(p.DisplayName), DisplayNameMax)
-	p.Bio = truncate(strings.TrimSpace(p.Bio), BioMax)
+	// Trim + truncate + escape HTML sur tous les champs libres (CLAUDE.md
+	// règle d'or #2 : défense en profondeur côté serveur). Les Prompt{N}
+	// sont des clés i18n d'une liste fermée — on les trim/tronque mais on
+	// n'escape pas (l'UI les remplace par le libellé via lookup).
+	p.DisplayName = sanitizeField(p.DisplayName, DisplayNameMax)
+	p.Bio = sanitizeField(p.Bio, BioMax)
 	p.Prompt1 = truncate(strings.TrimSpace(p.Prompt1), PromptKeyMax)
 	p.Prompt2 = truncate(strings.TrimSpace(p.Prompt2), PromptKeyMax)
 	p.Prompt3 = truncate(strings.TrimSpace(p.Prompt3), PromptKeyMax)
-	p.Answer1 = truncate(strings.TrimSpace(p.Answer1), AnswerMax)
-	p.Answer2 = truncate(strings.TrimSpace(p.Answer2), AnswerMax)
-	p.Answer3 = truncate(strings.TrimSpace(p.Answer3), AnswerMax)
+	p.Answer1 = sanitizeField(p.Answer1, AnswerMax)
+	p.Answer2 = sanitizeField(p.Answer2, AnswerMax)
+	p.Answer3 = sanitizeField(p.Answer3, AnswerMax)
 	// Si le prompt est vide, on vide aussi la réponse — un slot orphelin
 	// (answer sans prompt) ne s'affiche pas, autant le nettoyer.
 	if p.Prompt1 == "" {
@@ -201,4 +206,10 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max]
+}
+
+// sanitizeField : trim, truncate puis escape HTML pour les champs texte
+// libres rendus côté client. Voir Upsert pour la motivation.
+func sanitizeField(s string, max int) string {
+	return html.EscapeString(truncate(strings.TrimSpace(s), max))
 }

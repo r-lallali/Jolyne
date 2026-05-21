@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"strings"
 	"time"
 
@@ -229,6 +230,9 @@ func (s *Store) AppendMessage(ctx context.Context, friendID, senderID int64, bod
 	if len(body) > MessageMaxLen {
 		body = body[:MessageMaxLen]
 	}
+	// Escape HTML AVANT persistance — défense en profondeur côté serveur
+	// (CLAUDE.md règle d'or #2). Le client ré-applique DOMPurify au rendu.
+	body = html.EscapeString(body)
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return Message{}, fmt.Errorf("friends: tx: %w", err)

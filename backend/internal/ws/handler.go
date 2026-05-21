@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"html"
 	"log/slog"
 	"net"
 	"net/http"
@@ -476,10 +477,10 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				// Note + original : pas de filtre obscénités (la note est
 				// éditoriale et peut citer des termes "à éviter" ; l'original
 				// a déjà été filtré au moment où il a été envoyé). Trim +
-				// troncature suffisent — la défense XSS reste assurée par
-				// React + DOMPurify côté client.
-				note := truncate(strings.TrimSpace(msg.Note), correctionNoteMax)
-				original := truncate(strings.TrimSpace(msg.Original), correctionTextMax)
+				// troncature + escape HTML — défense en profondeur côté
+				// serveur (CLAUDE.md règle d'or #2).
+				note := html.EscapeString(truncate(strings.TrimSpace(msg.Note), correctionNoteMax))
+				original := html.EscapeString(truncate(strings.TrimSpace(msg.Original), correctionTextMax))
 				if err := room.SendCorrection(ctx, msg.TargetID, original, corrected, note); err != nil {
 					h.d.Log.Error("room correction publish", "err", err)
 					return chatDisconnect
