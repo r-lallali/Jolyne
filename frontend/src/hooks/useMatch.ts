@@ -140,7 +140,10 @@ export function useMatch() {
           case "peer_profile":
             c.setPeerProfile({
               photoId: f.peer_photo_id ?? "",
-              prompts: f.peer_prompts ?? [],
+              prompts: (f.peer_prompts ?? []).map((p) => ({
+                prompt: p.prompt,
+                answer: sanitizeMessage(p.answer),
+              })),
             });
             break;
           case "error":

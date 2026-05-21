@@ -40,38 +40,37 @@ export function SetupView() {
   const setLangs = store.setLangs;
   const acceptAge = store.acceptAge;
 
-  // Si l'user est connecté + a un display_name dans son profil, on pré-remplit
-  // le pseudo une seule fois (pas s'il a déjà un pseudo persisté en local, ni
-  // après qu'il ait commencé à taper). On marque l'état comme "prefilled" pour
-  // afficher la valeur en italique tant qu'il n'a pas édité.
+  // Si l'user est connecté + a un display_name dans son profil, on propose
+  // celui-ci comme suggestion italique (en place du placeholder). État
+  // strictement local, JAMAIS écrit dans le sessionStore — sinon un reload
+  // ramènerait la valeur en texte plein sans italique. Promotion vers une
+  // vraie pseudo uniquement au moment du Start, si l'user n'a rien tapé.
   const user = useUserStore((s) => s.user);
   const userHydrated = useUserStore((s) => s.hydrated);
-  const [prefilled, setPrefilled] = useState(false);
+  const [suggestion, setSuggestion] = useState("");
   const prefillTried = useRef(false);
   useEffect(() => {
     if (!mounted || !userHydrated || !user) return;
     if (prefillTried.current) return;
-    if (store.pseudo.trim().length > 0) return;
     prefillTried.current = true;
     fetchAccount()
       .then((acc) => {
         const name = acc.profile.display_name.trim();
         if (!name) return;
-        // Re-check qu'on n'a pas commencé à taper entre-temps.
-        if (useSessionStore.getState().pseudo.trim().length > 0) return;
-        setPseudoRaw(name.slice(0, 20));
-        setPrefilled(true);
+        setSuggestion(name.slice(0, 20));
       })
       .catch(() => {});
-  }, [mounted, userHydrated, user, store.pseudo, setPseudoRaw]);
+  }, [mounted, userHydrated, user]);
 
-  const setPseudo = (v: string) => {
-    if (prefilled) setPrefilled(false);
-    setPseudoRaw(v);
-  };
+  const setPseudo = (v: string) => setPseudoRaw(v);
 
-  const pseudoBlocked = pseudo.length >= 3 && containsProfanity(pseudo);
-  const canNext = pseudo.length >= 3 && !pseudoBlocked;
+  // effectivePseudo = ce qu'on utilisera au start (pseudo tapé ou, à défaut,
+  // la suggestion). Les validations (taille, profanity, canStart) s'appuient
+  // dessus pour autoriser le démarrage même si l'user n'a rien retouché.
+  const effectivePseudo = pseudo.length > 0 ? pseudo : suggestion;
+  const pseudoBlocked =
+    effectivePseudo.length >= 3 && containsProfanity(effectivePseudo);
+  const canNext = effectivePseudo.length >= 3 && !pseudoBlocked;
   const canStart = canNext && isPairAllowed(speaks, wants) && ageAccepted;
 
   // Polling toutes les 5s du nombre de peers en attente sur la paire
@@ -194,7 +193,7 @@ export function SetupView() {
                   value={pseudo}
                   onChange={setPseudo}
                   placeholder={t.setup.nickPlaceholder}
-                  italic={prefilled}
+                  suggestion={suggestion}
                 />
                 {pseudoBlocked && (
                   <p className="mt-3 text-center text-xs text-red-600 dark:text-red-400">
@@ -278,7 +277,15 @@ export function SetupView() {
                   </button>
                   <button
                     type="button"
-                    onClick={start}
+                    onClick={() => {
+                      // Promotion finale : si l'user n'a rien tapé, on commit
+                      // la suggestion comme vrai pseudo avant le start (sinon
+                      // useMatch lit sessionStore.pseudo = "" et bail).
+                      if (pseudo.length === 0 && suggestion.length >= 3) {
+                        setPseudoRaw(suggestion);
+                      }
+                      start();
+                    }}
                     disabled={!canStart}
                     className="flex-1 rounded-xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-20 dark:bg-white dark:text-neutral-950"
                   >

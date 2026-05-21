@@ -1,6 +1,11 @@
 // Client WebSocket pour les chats entre amis (/ws/friend/{id}).
 // Reconnexion automatique avec backoff exponentiel borné. Cookie session
 // envoyé automatiquement par le navigateur (Domain=.ralys.ovh en prod).
+//
+// Les `body` reçus du serveur sont HTML-escaped (CLAUDE.md règle d'or #2).
+// On les décode ici pour que l'UI consomme du texte propre.
+
+import { decodeEntities } from "@/lib/sanitize";
 
 export interface FriendWSMessage {
   id: number;
@@ -41,7 +46,7 @@ export function openFriendWS(
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(ev.data) as FriendWSEvent;
-        onEvent(data);
+        onEvent(decodeFrame(data));
       } catch {
         // ignore malformed
       }
@@ -71,4 +76,23 @@ export function openFriendWS(
       ws?.close();
     },
   };
+}
+
+function decodeFrame(e: FriendWSEvent): FriendWSEvent {
+  if (e.type === "history") {
+    return {
+      type: "history",
+      messages: (e.messages ?? []).map((m) => ({
+        ...m,
+        body: decodeEntities(m.body),
+      })),
+    };
+  }
+  if (e.type === "msg") {
+    return {
+      type: "msg",
+      msg: { ...e.msg, body: decodeEntities(e.msg.body) },
+    };
+  }
+  return e;
 }

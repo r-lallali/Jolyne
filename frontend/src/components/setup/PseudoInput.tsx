@@ -10,14 +10,16 @@ interface Props {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
-  // italic = valeur pré-remplie (ex: display_name du profil). Reste en
-  // italique tant que l'user n'a pas édité — visuel "suggestion".
-  italic?: boolean;
+  // suggestion = valeur pré-remplie affichée à la place du placeholder en
+  // italique tant que l'user n'a rien tapé. Non persistée, non écrite dans
+  // le store — c'est juste un visuel. La promotion vers une vraie valeur
+  // se fait côté parent quand l'user clique Start.
+  suggestion?: string;
 }
 
 // Input invisible + spans Framer Motion ~180 ms par lettre.
 // Le serveur applique la même règle de charset (CLAUDE.md règle d'or #3).
-export function PseudoInput({ value, onChange, placeholder, italic }: Props) {
+export function PseudoInput({ value, onChange, placeholder, suggestion }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
 
@@ -49,9 +51,15 @@ export function PseudoInput({ value, onChange, placeholder, italic }: Props) {
       />
       <div className="flex min-h-[2.75rem] items-end justify-center text-4xl font-medium leading-none tracking-tight">
         {value.length === 0 ? (
-          <span className="text-neutral-400 dark:text-neutral-600">
-            {placeholder}
-          </span>
+          suggestion && suggestion.length > 0 ? (
+            <span className="italic text-neutral-500 dark:text-neutral-400">
+              {suggestion}
+            </span>
+          ) : (
+            <span className="text-neutral-400 dark:text-neutral-600">
+              {placeholder}
+            </span>
+          )
         ) : (
           Array.from(value).map((char, i) => (
             <motion.span
@@ -59,11 +67,7 @@ export function PseudoInput({ value, onChange, placeholder, italic }: Props) {
               initial={{ opacity: 0, y: 10, scale: 0.7 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className={
-                italic
-                  ? "italic text-neutral-500 dark:text-neutral-400"
-                  : "text-neutral-900 dark:text-neutral-50"
-              }
+              className="text-neutral-900 dark:text-neutral-50"
             >
               {char}
             </motion.span>

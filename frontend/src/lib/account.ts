@@ -1,5 +1,10 @@
 // Client HTTP pour /api/account/* (profil + photos). Toutes les routes
 // (sauf cloudinary-config) requièrent une session user → credentials:include.
+//
+// Le backend HTML-escape les champs texte (règle d'or #2). On les décode
+// ici pour que les formulaires affichent du texte propre.
+
+import { decodeEntities } from "@/lib/sanitize";
 
 const BASE = process.env.NEXT_PUBLIC_BACKEND_HTTP_URL ?? "";
 
@@ -58,11 +63,26 @@ async function api<T>(
 }
 
 export async function fetchAccount(): Promise<AccountDTO> {
-  return api<AccountDTO>("GET", "/api/account");
+  return decodeAccount(await api<AccountDTO>("GET", "/api/account"));
 }
 
 export async function updateAccount(p: ProfileDTO): Promise<AccountDTO> {
-  return api<AccountDTO>("PUT", "/api/account", p);
+  return decodeAccount(await api<AccountDTO>("PUT", "/api/account", p));
+}
+
+function decodeAccount(acc: AccountDTO): AccountDTO {
+  return {
+    ...acc,
+    profile: {
+      ...acc.profile,
+      display_name: decodeEntities(acc.profile.display_name),
+      bio: decodeEntities(acc.profile.bio),
+      prompts: acc.profile.prompts.map((q) => ({
+        prompt: q.prompt,
+        answer: decodeEntities(q.answer),
+      })) as [PromptDTO, PromptDTO, PromptDTO],
+    },
+  };
 }
 
 export async function signPhotoUpload(): Promise<UploadSig> {

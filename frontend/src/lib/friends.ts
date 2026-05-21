@@ -1,5 +1,12 @@
 // Client HTTP /api/friends/*. credentials:include partout (cookie session
 // user requis pour toutes ces routes).
+//
+// Tous les champs texte servis par le backend sortent HTML-escaped (cf.
+// `html.EscapeString` côté Go — défense en profondeur règle d'or #2). On
+// les décode AU NIVEAU DU CLIENT API pour que les composants d'affichage
+// n'aient pas à connaître ce détail.
+
+import { decodeEntities } from "@/lib/sanitize";
 
 const BASE = process.env.NEXT_PUBLIC_BACKEND_HTTP_URL ?? "";
 
@@ -53,7 +60,10 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
 
 export async function listFriends(): Promise<FriendSummary[]> {
   const d = await api<{ friends: FriendSummary[] }>("GET", "/api/friends");
-  return d.friends ?? [];
+  return (d.friends ?? []).map((f) => ({
+    ...f,
+    peer_name: decodeEntities(f.peer_name),
+  }));
 }
 
 export interface FriendMessagesResponse {
@@ -68,15 +78,32 @@ export async function getFriendMessages(
     "GET",
     `/api/friends/${id}/messages`,
   );
-  return { messages: d.messages ?? [], peer_removed_me: !!d.peer_removed_me };
+  return {
+    messages: (d.messages ?? []).map(decodeFriendMessage),
+    peer_removed_me: !!d.peer_removed_me,
+  };
 }
 
 export async function postFriendMessage(id: number, body: string): Promise<FriendMessage> {
-  return api<FriendMessage>("POST", `/api/friends/${id}/messages`, { body });
+  const m = await api<FriendMessage>("POST", `/api/friends/${id}/messages`, { body });
+  return decodeFriendMessage(m);
 }
 
 export async function getFriendProfile(id: number): Promise<FriendProfile> {
-  return api<FriendProfile>("GET", `/api/friends/${id}/profile`);
+  const p = await api<FriendProfile>("GET", `/api/friends/${id}/profile`);
+  return {
+    ...p,
+    display_name: decodeEntities(p.display_name),
+    bio: decodeEntities(p.bio),
+    prompts: (p.prompts ?? []).map((q) => ({
+      prompt: q.prompt,
+      answer: decodeEntities(q.answer),
+    })),
+  };
+}
+
+function decodeFriendMessage(m: FriendMessage): FriendMessage {
+  return { ...m, body: decodeEntities(m.body) };
 }
 
 export async function removeFriend(id: number): Promise<void> {
