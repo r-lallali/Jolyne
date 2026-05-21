@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FriendConversation } from "@/components/friends/FriendConversation";
 import { FriendProfileModal } from "@/components/friends/FriendProfileModal";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
@@ -25,6 +25,32 @@ export function FriendsMode({
   const [cloud, setCloud] = useState("");
   const [openFriendID, setOpenFriendID] = useState<number | null>(null);
   const [profileFriendID, setProfileFriendID] = useState<number | null>(null);
+
+  // Back navigateur : on push un état leurre quand on ouvre une conv
+  // inline. Au popstate (bouton retour navigateur OU geste swipe iOS), on
+  // referme. Le BackButton du header appelle aussi history.back(), donc
+  // c'est le même chemin — un seul handler pour les deux gestes.
+  const pushedRef = useRef(false);
+  useEffect(() => {
+    if (openFriendID === null) return;
+    window.history.pushState({ jolyne: "friend-inline" }, "", window.location.href);
+    pushedRef.current = true;
+    const onPop = () => {
+      pushedRef.current = false;
+      setOpenFriendID(null);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      // Si on quitte la conv autrement que par popstate (ex: friend retiré
+      // → setOpenFriendID(null) direct), on doit consommer notre entrée
+      // d'historique pour ne pas la laisser derrière nous.
+      if (pushedRef.current) {
+        pushedRef.current = false;
+        window.history.back();
+      }
+    };
+  }, [openFriendID]);
 
   useEffect(() => {
     let stopped = false;
@@ -59,7 +85,7 @@ export function FriendsMode({
       <div className="h-dvh w-full sm:h-[92vh]">
         <FriendConversation
           friendId={openFriendID}
-          onBack={() => setOpenFriendID(null)}
+          onBack={() => window.history.back()}
           onLeft={() => setOpenFriendID(null)}
           onOpenProfile={() => setProfileFriendID(openFriendID)}
         />

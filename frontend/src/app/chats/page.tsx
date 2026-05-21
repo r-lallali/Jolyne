@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BackButton } from "@/components/ui/BackButton";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
 import { listFriends, type FriendSummary } from "@/lib/friends";
 import { useT } from "@/lib/i18n";
@@ -32,12 +33,7 @@ export default function ChatsPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
-      <Link
-        href="/"
-        className="text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-      >
-        ← {t.auth.backToApp}
-      </Link>
+      <BackButton href="/" label={t.auth.backToApp} />
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
         {t.chats.title}
       </h1>

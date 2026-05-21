@@ -1,10 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PhotoSlot, replacePhoto } from "@/components/account/PhotoSlot";
+import { BackButton } from "@/components/ui/BackButton";
 import { PromptSlot } from "@/components/account/PromptSlot";
 import {
   AccountDTO,
@@ -102,12 +102,7 @@ export default function AccountPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
-      <Link
-        href="/"
-        className="text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-      >
-        ← {t.auth.backToApp}
-      </Link>
+      <BackButton href="/" label={t.auth.backToApp} />
 
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
         {t.account.title}

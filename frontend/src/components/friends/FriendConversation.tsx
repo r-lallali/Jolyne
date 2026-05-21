@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { BackButton } from "@/components/ui/BackButton";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
 import {
   FriendMessage,
@@ -129,20 +130,14 @@ export function FriendConversation({
 
   return (
     <div className="flex h-full w-full flex-col sm:mx-auto sm:max-w-2xl">
-      <header className="flex items-center gap-3 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-xs text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-        >
-          ← {t.chats.back}
-        </button>
+      <header className="flex items-center gap-2 border-b border-neutral-200 px-3 py-2 dark:border-neutral-800 sm:px-4 sm:py-3">
+        <BackButton onClick={onBack} label={t.chats.back} />
         <button
           type="button"
           onClick={onOpenProfile}
           disabled={!onOpenProfile}
           aria-label={profile?.display_name || ""}
-          className="ml-2 inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-200 text-xs font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+          className="inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-200 text-xs font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
         >
           {mainPhoto && cloud ? (
             <img

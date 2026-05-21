@@ -138,7 +138,7 @@ export function LoginSheet({ open, onClose }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <motion.form
@@ -148,29 +148,49 @@ export function LoginSheet({ open, onClose }: Props) {
         transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
-        className="w-full max-w-md rounded-t-3xl bg-white p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl dark:bg-neutral-950 sm:rounded-2xl sm:pb-6"
+        className="relative w-full max-w-sm rounded-t-3xl bg-white px-7 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6 shadow-xl dark:bg-neutral-950 sm:rounded-3xl sm:pb-7"
       >
         <SheetHandle />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t.common.close}
+          className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
+        >
+          <CloseIcon />
+        </button>
 
         {sent ? (
-          <div className="py-4 text-center">
-            <p className="text-base font-medium text-neutral-900 dark:text-neutral-50">
+          <div className="py-6 text-center">
+            <div className="mx-auto mb-3 inline-flex size-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <MailIcon />
+            </div>
+            <p className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
               {t.auth.emailSent}
             </p>
-            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+            <p className="mx-auto mt-1.5 max-w-[18rem] text-sm text-neutral-500 dark:text-neutral-400">
               {t.auth.emailSentHint}
             </p>
             <button
               type="button"
               onClick={onClose}
-              className="mt-5 w-full rounded-xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              className="mt-6 w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
             >
               {t.common.close}
             </button>
           </div>
         ) : (
           <>
-            <div className="flex gap-2">
+            <div className="mb-5 mt-2 text-center">
+              <h2 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
+                {title}
+              </h2>
+              <p className="mx-auto mt-1.5 max-w-[20rem] text-sm text-neutral-500 dark:text-neutral-400">
+                {hint}
+              </p>
+            </div>
+
+            <div className="inline-flex w-full gap-1 rounded-full bg-neutral-100 p-1 dark:bg-neutral-900">
               <TabBtn active={tab === "login"} onClick={() => switchTab("login")}>
                 {t.auth.tabLogin}
               </TabBtn>
@@ -182,85 +202,109 @@ export function LoginSheet({ open, onClose }: Props) {
               </TabBtn>
             </div>
 
-            <h2 className="mt-5 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-              {title}
-            </h2>
-            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-              {hint}
-            </p>
-
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t.auth.emailPlaceholder}
-              autoFocus
-              autoComplete="email"
-              inputMode="email"
-              className="mt-4 w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
-            />
-            {tab === "signup" && (
+            <div className="mt-5 space-y-2.5">
               <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value.slice(0, 40))}
-                placeholder={t.auth.displayNamePlaceholder}
-                autoComplete="nickname"
-                maxLength={40}
-                className="mt-2 w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t.auth.emailPlaceholder}
+                autoFocus
+                autoComplete="email"
+                inputMode="email"
+                className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-50/20"
               />
-            )}
-            {tab !== "forgot" && (
-              <PasswordField
-                value={password}
-                onChange={setPassword}
-                placeholder={t.auth.passwordPlaceholder}
-                visible={showPwd}
-                onToggle={() => setShowPwd((v) => !v)}
-                autoComplete={
-                  tab === "signup" ? "new-password" : "current-password"
-                }
-                showLabel={t.auth.showPassword}
-                hideLabel={t.auth.hidePassword}
-              />
-            )}
-            {tab === "signup" && (
-              <PasswordField
-                value={passwordConfirm}
-                onChange={setPasswordConfirm}
-                placeholder={t.auth.passwordConfirmPlaceholder}
-                visible={showPwd}
-                onToggle={() => setShowPwd((v) => !v)}
-                autoComplete="new-password"
-                showLabel={t.auth.showPassword}
-                hideLabel={t.auth.hidePassword}
-              />
-            )}
+              {tab === "signup" && (
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value.slice(0, 40))}
+                  placeholder={t.auth.displayNamePlaceholder}
+                  autoComplete="nickname"
+                  maxLength={40}
+                  className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-50/20"
+                />
+              )}
+              {tab !== "forgot" && (
+                <PasswordField
+                  value={password}
+                  onChange={setPassword}
+                  placeholder={t.auth.passwordPlaceholder}
+                  visible={showPwd}
+                  onToggle={() => setShowPwd((v) => !v)}
+                  autoComplete={
+                    tab === "signup" ? "new-password" : "current-password"
+                  }
+                  showLabel={t.auth.showPassword}
+                  hideLabel={t.auth.hidePassword}
+                />
+              )}
+              {tab === "signup" && (
+                <PasswordField
+                  value={passwordConfirm}
+                  onChange={setPasswordConfirm}
+                  placeholder={t.auth.passwordConfirmPlaceholder}
+                  visible={showPwd}
+                  onToggle={() => setShowPwd((v) => !v)}
+                  autoComplete="new-password"
+                  showLabel={t.auth.showPassword}
+                  hideLabel={t.auth.hidePassword}
+                />
+              )}
+            </div>
+
             {err && (
-              <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-400">
                 {err}
               </p>
             )}
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg px-3 py-2 text-sm text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-              >
-                {t.common.cancel}
-              </button>
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:opacity-30 dark:bg-neutral-50 dark:text-neutral-900"
-              >
-                {cta}
-              </button>
-            </div>
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="mt-6 w-full rounded-xl bg-neutral-900 px-4 py-3.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-neutral-50 dark:text-neutral-900"
+            >
+              {busy ? "…" : cta}
+            </button>
           </>
         )}
       </motion.form>
     </div>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      className="size-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg
+      className="size-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
   );
 }
 
@@ -364,8 +408,8 @@ function TabBtn({
       className={
         "flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors " +
         (active
-          ? "bg-neutral-900 text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
-          : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800")
+          ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50"
+          : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100")
       }
     >
       {children}

@@ -46,7 +46,7 @@ export function FriendProfileModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4"
       onClick={onClose}
     >
       <div
@@ -57,7 +57,7 @@ export function FriendProfileModal({
           type="button"
           onClick={onClose}
           aria-label={t.common.close}
-          className="absolute right-3 top-3 z-10 inline-flex size-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
+          className="absolute right-3 top-3 z-10 inline-flex size-8 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
         >
           ✕
         </button>
