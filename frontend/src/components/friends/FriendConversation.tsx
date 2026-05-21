@@ -59,7 +59,7 @@ export function FriendConversation({
     const handle = openFriendWS(friendId, (ev) => {
       switch (ev.type) {
         case "history":
-          setMsgs(ev.messages);
+          setMsgs(ev.messages ?? []);
           break;
         case "msg":
           setMsgs((prev) =>

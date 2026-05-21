@@ -61,11 +61,15 @@ type friendMsgDTO struct {
 }
 
 type friendServerFrame struct {
-	Type     friendServerType `json:"type"`
-	Code     string           `json:"code,omitempty"`
-	Message  string           `json:"message,omitempty"`
-	Messages []friendMsgDTO   `json:"messages,omitempty"`
-	Msg      *friendMsgDTO    `json:"msg,omitempty"`
+	Type    friendServerType `json:"type"`
+	Code    string           `json:"code,omitempty"`
+	Message string           `json:"message,omitempty"`
+	// Pas d'omitempty : `[]` doit être sérialisé même quand l'historique
+	// est vide, sinon le front reçoit `messages: undefined` au lieu de
+	// `[]` et le `useEffect` deps `[msgs.length]` crash sur un nouveau
+	// chat sans message.
+	Messages []friendMsgDTO `json:"messages"`
+	Msg      *friendMsgDTO  `json:"msg,omitempty"`
 }
 
 const friendChanPrefix = "friend:"
