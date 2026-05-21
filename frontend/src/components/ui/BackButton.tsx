@@ -16,8 +16,10 @@ interface Props {
 }
 
 export function BackButton({ href, onClick, label }: Props) {
+  // `group` permet à la flèche de glisser à gauche au hover (`-translate-x-0.5`)
+  // pendant que le rond se teinte. `active:scale-95` ajoute un tap subtil.
   const cls =
-    "inline-flex size-9 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100";
+    "group inline-flex size-9 items-center justify-center rounded-full text-neutral-500 transition-all duration-150 hover:bg-neutral-100 hover:text-neutral-900 active:scale-95 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100";
   if (href) {
     return (
       <Link href={href} aria-label={label} title={label} className={cls}>
@@ -41,7 +43,7 @@ export function BackButton({ href, onClick, label }: Props) {
 function ArrowLeft() {
   return (
     <svg
-      className="size-4"
+      className="size-4 transition-transform duration-150 group-hover:-translate-x-0.5"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

@@ -17,6 +17,8 @@ export interface FriendSummary {
   peer_photo_id?: string;
   peer_removed_me: boolean;
   unread_count: number;
+  last_message_body: string;
+  last_message_sender_id: number;
   created_at: string;
   last_message_at: string;
 }
@@ -63,6 +65,7 @@ export async function listFriends(): Promise<FriendSummary[]> {
   return (d.friends ?? []).map((f) => ({
     ...f,
     peer_name: decodeEntities(f.peer_name),
+    last_message_body: decodeEntities(f.last_message_body ?? ""),
   }));
 }
 

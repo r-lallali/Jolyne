@@ -31,14 +31,16 @@ func (h *Handlers) log() *slog.Logger {
 }
 
 type friendDTO struct {
-	ID            int64  `json:"id"`
-	PeerID        int64  `json:"peer_id"`
-	PeerName      string `json:"peer_name"`
-	PeerPhotoID   string `json:"peer_photo_id,omitempty"`
-	PeerRemovedMe bool   `json:"peer_removed_me"`
-	UnreadCount   int    `json:"unread_count"`
-	CreatedAt     string `json:"created_at"`
-	LastMessageAt string `json:"last_message_at"`
+	ID                  int64  `json:"id"`
+	PeerID              int64  `json:"peer_id"`
+	PeerName            string `json:"peer_name"`
+	PeerPhotoID         string `json:"peer_photo_id,omitempty"`
+	PeerRemovedMe       bool   `json:"peer_removed_me"`
+	UnreadCount         int    `json:"unread_count"`
+	LastMessageBody     string `json:"last_message_body"`
+	LastMessageSenderID int64  `json:"last_message_sender_id"`
+	CreatedAt           string `json:"created_at"`
+	LastMessageAt       string `json:"last_message_at"`
 }
 
 type messageDTO struct {
@@ -67,14 +69,16 @@ func (h *Handlers) HandleList(w http.ResponseWriter, r *http.Request) {
 	out := make([]friendDTO, 0, len(list))
 	for _, f := range list {
 		out = append(out, friendDTO{
-			ID:            f.ID,
-			PeerID:        f.PeerID,
-			PeerName:      h.peerDisplayName(ctx, f.PeerID),
-			PeerPhotoID:   h.peerPhoto(ctx, f.PeerID),
-			PeerRemovedMe: f.PeerRemovedMe,
-			UnreadCount:   f.UnreadCount,
-			CreatedAt:     f.CreatedAt.UTC().Format(time.RFC3339),
-			LastMessageAt: f.LastMessageAt.UTC().Format(time.RFC3339),
+			ID:                  f.ID,
+			PeerID:              f.PeerID,
+			PeerName:            h.peerDisplayName(ctx, f.PeerID),
+			PeerPhotoID:         h.peerPhoto(ctx, f.PeerID),
+			PeerRemovedMe:       f.PeerRemovedMe,
+			UnreadCount:         f.UnreadCount,
+			LastMessageBody:     f.LastMessageBody,
+			LastMessageSenderID: f.LastMessageSenderID,
+			CreatedAt:           f.CreatedAt.UTC().Format(time.RFC3339),
+			LastMessageAt:       f.LastMessageAt.UTC().Format(time.RFC3339),
 		})
 	}
 	w.Header().Set("Content-Type", "application/json")

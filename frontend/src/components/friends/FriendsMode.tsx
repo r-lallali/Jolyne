@@ -6,6 +6,7 @@ import { FriendProfileModal } from "@/components/friends/FriendProfileModal";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
 import { FriendSummary, listFriends } from "@/lib/friends";
 import { useT } from "@/lib/i18n";
+import { useUserStore } from "@/stores/userStore";
 
 // FriendsMode : vue "Mes conversations" rendue inline dans la home quand
 // l'utilisateur bascule sur l'onglet droit (ModeTabs). Gère son propre
@@ -100,13 +101,14 @@ export function FriendsMode({
     );
   }
 
-  // Vue liste.
+  // Vue liste. `pt-10` (40px) suffit pour passer sous ModeTabs (~24px) —
+  // l'ancien `pt-20` laissait une bande vide trop visible.
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col px-4 pt-20 sm:px-6">
+    <main className="mx-auto flex w-full max-w-2xl flex-col px-4 pt-10 sm:px-6">
       <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
         {t.chats.title}
       </h1>
-      <div className="mt-4">
+      <div className="mt-3">
         {friends === null ? (
           <p className="py-6 text-sm text-neutral-500 dark:text-neutral-400">
             …
@@ -151,15 +153,24 @@ function FriendRow({
   onOpen: () => void;
   onOpenProfile: () => void;
 }) {
+  const me = useUserStore((s) => s.user);
   const hasUnread = friend.unread_count > 0;
   const peerName = friend.peer_name || "—";
+  const isMine = me && friend.last_message_sender_id === me.id;
+  // Preview style Instagram : "Toi: salut" si je suis l'auteur, sinon
+  // le body brut. Si aucun message, on rentre dans le fallback "—".
+  const preview = friend.last_message_body
+    ? isMine
+      ? `Toi : ${friend.last_message_body}`
+      : friend.last_message_body
+    : "";
   return (
-    <li className="flex items-center gap-3 py-3">
+    <li className="group flex items-center gap-3 py-2.5">
       <button
         type="button"
         onClick={onOpenProfile}
         aria-label={`Voir le profil de ${peerName}`}
-        className="shrink-0"
+        className="shrink-0 transition-transform active:scale-95"
       >
         <span className="block size-12 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
           {friend.peer_photo_id && cloud ? (
@@ -180,16 +191,31 @@ function FriendRow({
         onClick={onOpen}
         className="min-w-0 flex-1 py-1 text-left"
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-baseline justify-between gap-2">
           <p
             className={
               "truncate text-sm " +
               (hasUnread
-                ? "font-bold text-neutral-900 dark:text-neutral-50"
-                : "font-medium text-neutral-700 dark:text-neutral-300")
+                ? "font-semibold text-neutral-900 dark:text-neutral-50"
+                : "font-medium text-neutral-800 dark:text-neutral-200")
             }
           >
             {peerName}
+          </p>
+          <span className="shrink-0 text-[11px] text-neutral-400 dark:text-neutral-500">
+            {relativeTime(friend.last_message_at)}
+          </span>
+        </div>
+        <div className="mt-0.5 flex items-center justify-between gap-2">
+          <p
+            className={
+              "truncate text-xs " +
+              (hasUnread
+                ? "font-semibold text-neutral-900 dark:text-neutral-100"
+                : "text-neutral-500 dark:text-neutral-500")
+            }
+          >
+            {preview}
           </p>
           {hasUnread && (
             <span
@@ -198,32 +224,24 @@ function FriendRow({
             />
           )}
         </div>
-        <p
-          className={
-            "mt-0.5 truncate text-xs " +
-            (hasUnread
-              ? "font-semibold text-neutral-600 dark:text-neutral-300"
-              : "text-neutral-500 dark:text-neutral-500")
-          }
-        >
-          {relativeTime(friend.last_message_at)}
-        </p>
       </button>
     </li>
   );
 }
 
+// relativeTime : format type Instagram en français
+// ("à l'instant", "il y a 5 min", "il y a 6 h", "il y a 4 j", "12 mars").
 function relativeTime(iso: string): string {
   const t = new Date(iso).getTime();
   if (!t || isNaN(t)) return "";
   const diff = Date.now() - t;
   const min = Math.floor(diff / 60_000);
   if (min < 1) return "à l'instant";
-  if (min < 60) return `${min} min`;
+  if (min < 60) return `il y a ${min} min`;
   const h = Math.floor(min / 60);
-  if (h < 24) return `${h} h`;
+  if (h < 24) return `il y a ${h} h`;
   const d = Math.floor(h / 24);
-  if (d < 7) return `${d} j`;
+  if (d < 7) return `il y a ${d} j`;
   return new Date(t).toLocaleDateString("fr-FR", {
     day: "numeric",
     month: "short",

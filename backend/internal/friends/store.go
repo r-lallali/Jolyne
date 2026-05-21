@@ -37,6 +37,11 @@ type Friend struct {
 	// caller. Rempli par ListFor(). 0 si toutes les conversations sont
 	// rattrapées.
 	UnreadCount int
+	// Aperçu du dernier message envoyé dans la conv (vide si aucune
+	// activité encore). Sert au rendu type messagerie Instagram dans la
+	// sidebar des conversations.
+	LastMessageBody     string
+	LastMessageSenderID int64
 }
 
 type Message struct {
@@ -106,6 +111,9 @@ func (s *Store) IsFriend(ctx context.Context, u1, u2 int64) (bool, error) {
 // > caller.last_read_at. Si last_read_at est NULL (vieille ligne, jamais
 // lue), tout compte comme non lu.
 func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
+	// `last_msg` : sous-requête LATERAL qui renvoie le dernier message
+	// (body + sender) de chaque conv. NULL si aucune activité — Go scan
+	// dans des pointeurs pour distinguer "rien" vs "string vide".
 	const q = `
 		SELECT f.id, f.user_a_id, f.user_b_id, f.created_at, f.last_message_at,
 		       f.removed_by_a_at, f.removed_by_b_at,
@@ -117,8 +125,17 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		                 CASE WHEN f.user_a_id = $1 THEN f.last_read_at_a ELSE f.last_read_at_b END,
 		                 'epoch'::timestamptz
 		             )
-		       ), 0) AS unread
+		       ), 0) AS unread,
+		       last_msg.body,
+		       last_msg.sender_id
 		FROM friends f
+		LEFT JOIN LATERAL (
+		    SELECT body, sender_id
+		    FROM friend_messages m
+		    WHERE m.friend_id = f.id
+		    ORDER BY sent_at DESC
+		    LIMIT 1
+		) AS last_msg ON true
 		WHERE (f.user_a_id = $1 OR f.user_b_id = $1)
 		  AND (CASE WHEN f.user_a_id = $1 THEN f.removed_by_a_at ELSE f.removed_by_b_at END) IS NULL
 		ORDER BY f.last_message_at DESC`
@@ -131,11 +148,19 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 	for rows.Next() {
 		var f Friend
 		var aRem, bRem *time.Time
+		var lastBody *string
+		var lastSenderID *int64
 		if err := rows.Scan(
 			&f.ID, &f.UserAID, &f.UserBID, &f.CreatedAt, &f.LastMessageAt,
-			&aRem, &bRem, &f.UnreadCount,
+			&aRem, &bRem, &f.UnreadCount, &lastBody, &lastSenderID,
 		); err != nil {
 			return nil, fmt.Errorf("friends: scan: %w", err)
+		}
+		if lastBody != nil {
+			f.LastMessageBody = *lastBody
+		}
+		if lastSenderID != nil {
+			f.LastMessageSenderID = *lastSenderID
 		}
 		if f.UserAID == userID {
 			f.PeerID = f.UserBID
