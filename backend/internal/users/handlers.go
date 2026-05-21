@@ -17,14 +17,26 @@ import (
 
 // Handlers regroupe les endpoints HTTP auth utilisateur (côté public) :
 // signup / login (email+password) / verify-email / forgot+reset / me / logout.
+//
+// Profile (optionnel) : si présent, on stocke le display_name fourni au
+// signup directement dans `user_profiles` — sans ça, l'utilisateur doit
+// repasser par /account pour que ses futurs amis voient son nom.
 type Handlers struct {
 	Store         *Store
+	Profile       ProfileWriter
 	Mailer        *mailer.Mailer
 	SessionSecret []byte
 	CookieDomain  string
 	CookieSecure  bool
 	PublicURL     string // ex: https://jolyne.ralys.ovh — racine front
 	Log           *slog.Logger
+}
+
+// ProfileWriter : sous-ensemble de profile.Store dont users a besoin.
+// Abstraction pour éviter l'import cyclique vers le package profile (qui
+// importe lui-même users via le middleware d'auth).
+type ProfileWriter interface {
+	UpsertDisplayName(ctx context.Context, userID int64, displayName string) error
 }
 
 func (h *Handlers) log() *slog.Logger {
@@ -40,8 +52,9 @@ func (h *Handlers) log() *slog.Logger {
 // le lien — un badge "vérifie ton email" reste affiché tant que pas vérifié).
 func (h *Handlers) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email       string `json:"email"`
+		Password    string `json:"password"`
+		DisplayName string `json:"display_name"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*1024)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -74,6 +87,16 @@ func (h *Handlers) HandleSignup(w http.ResponseWriter, r *http.Request) {
 		h.log().Error("signup create", "err", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
+	}
+
+	// Display name (pseudo visible par les futurs amis) : best-effort, on
+	// ne bloque pas le signup si l'écriture profil échoue — l'utilisateur
+	// pourra le ressaisir depuis /account.
+	displayName := strings.TrimSpace(body.DisplayName)
+	if displayName != "" && h.Profile != nil {
+		if err := h.Profile.UpsertDisplayName(ctx, user.ID, displayName); err != nil {
+			h.log().Warn("signup display_name upsert failed", "err", err)
+		}
 	}
 
 	// Email de vérification, best-effort (un échec d'envoi ne bloque pas
@@ -246,8 +269,18 @@ func (h *Handlers) sendEmailLink(ctx context.Context, user User, purpose TokenPu
 		h.log().Warn("mailer désactivé, link en log", "purpose", purpose, "link", link)
 		return
 	}
-	if err := h.Mailer.SendMagicLink(user.Email, link); err != nil {
-		h.log().Error("send email", "purpose", purpose, "err", err)
+	var sendErr error
+	switch purpose {
+	case PurposeVerifyEmail:
+		sendErr = h.Mailer.SendVerifyEmail(user.Email, link)
+	case PurposePasswordReset:
+		sendErr = h.Mailer.SendPasswordReset(user.Email, link)
+	default:
+		h.log().Warn("send email: purpose inconnu", "purpose", purpose)
+		return
+	}
+	if sendErr != nil {
+		h.log().Error("send email", "purpose", purpose, "err", sendErr)
 	}
 }
 

@@ -33,10 +33,15 @@ async function postAuth<T>(
   return (await res.json()) as T;
 }
 
-export async function signup(email: string, password: string): Promise<AuthUser> {
+export async function signup(
+  email: string,
+  password: string,
+  displayName?: string,
+): Promise<AuthUser> {
   const data = await postAuth<{ user: AuthUser }>("/api/auth/signup", {
     email,
     password,
+    display_name: displayName ?? "",
   });
   return data.user;
 }

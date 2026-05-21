@@ -219,8 +219,18 @@ func run() error {
 			Password: cfg.MailjetSecret,
 			From:     cfg.MailjetFrom,
 		})
+		// Profile store créé avant users.Handlers pour pouvoir l'injecter
+		// (signup → store display_name immédiatement).
+		cld := profile.CloudinaryConfig{
+			CloudName: cfg.CloudinaryCloudName,
+			APIKey:    cfg.CloudinaryAPIKey,
+			APISecret: cfg.CloudinaryAPISecret,
+			Folder:    cfg.CloudinaryFolder,
+		}
+		profileStore := profile.NewStore(svc.pg)
 		svc.users = &users.Handlers{
 			Store:         users.NewStore(svc.pg),
+			Profile:       profileStore,
 			Mailer:        ml,
 			SessionSecret: userSessionSecret,
 			CookieDomain:  cfg.UserCookieDomain,
@@ -233,15 +243,6 @@ func run() error {
 			"cookie_domain", cfg.UserCookieDomain,
 			"public_url", cfg.PublicAppURL)
 
-		// Profil + photos : dépend de la même DB et nécessite que l'auth
-		// soit dispo (les routes /api/account sont gated par RequireAuth).
-		cld := profile.CloudinaryConfig{
-			CloudName: cfg.CloudinaryCloudName,
-			APIKey:    cfg.CloudinaryAPIKey,
-			APISecret: cfg.CloudinaryAPISecret,
-			Folder:    cfg.CloudinaryFolder,
-		}
-		profileStore := profile.NewStore(svc.pg)
 		svc.profile = &profile.Handlers{
 			Store:      profileStore,
 			Cloudinary: cld,

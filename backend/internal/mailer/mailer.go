@@ -37,10 +37,38 @@ func New(cfg Config) *Mailer {
 	return &Mailer{cfg: cfg}
 }
 
-// SendMagicLink envoie un email simple avec le lien de connexion.
-// Texte uniquement — pas de HTML pour minimiser les surfaces (template
-// HTML viendra plus tard si besoin de marque).
-func (m *Mailer) SendMagicLink(to, link string) error {
+// SendVerifyEmail : email de confirmation d'adresse après inscription.
+func (m *Mailer) SendVerifyEmail(to, link string) error {
+	return m.send(
+		to,
+		"Confirme ton adresse Jolyne",
+		"Bienvenue sur Jolyne.\r\n\r\n"+
+			"Confirme ton adresse en cliquant sur le lien ci-dessous "+
+			"(valable 15 minutes) :\r\n\r\n"+
+			link+"\r\n\r\n"+
+			"Si tu n'es pas à l'origine de cette inscription, "+
+			"ignore simplement ce message — aucun compte n'a été activé.\r\n\r\n"+
+			"— L'équipe Jolyne",
+	)
+}
+
+// SendPasswordReset : email de réinitialisation du mot de passe.
+func (m *Mailer) SendPasswordReset(to, link string) error {
+	return m.send(
+		to,
+		"Réinitialisation de ton mot de passe Jolyne",
+		"Une demande de réinitialisation a été reçue pour ton compte Jolyne.\r\n\r\n"+
+			"Choisis un nouveau mot de passe via le lien suivant "+
+			"(valable 15 minutes) :\r\n\r\n"+
+			link+"\r\n\r\n"+
+			"Si tu n'es pas à l'origine de cette demande, ignore ce message. "+
+			"Ton mot de passe actuel reste valide tant que tu ne cliques pas le lien.\r\n\r\n"+
+			"— L'équipe Jolyne",
+	)
+}
+
+// send : enveloppe SMTP commune aux mails transactionnels.
+func (m *Mailer) send(to, subject, body string) error {
 	if m == nil {
 		return ErrDisabled
 	}
@@ -48,13 +76,6 @@ func (m *Mailer) SendMagicLink(to, link string) error {
 	if to == "" {
 		return fmt.Errorf("mailer: destinataire vide")
 	}
-
-	subject := "Connexion à Jolyne"
-	body := "Salut,\r\n\r\n" +
-		"Voici ton lien de connexion (valable 15 minutes) :\r\n\r\n" +
-		link + "\r\n\r\n" +
-		"Si tu n'as pas demandé ce lien, ignore cet email.\r\n\r\n" +
-		"— Jolyne"
 
 	msg := buildMessage(m.cfg.From, to, subject, body)
 	addr := fmt.Sprintf("%s:%d", m.cfg.Host, m.cfg.Port)

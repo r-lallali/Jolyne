@@ -142,6 +142,27 @@ func (s *Store) Upsert(ctx context.Context, p Profile) (Profile, error) {
 	return out, nil
 }
 
+// UpsertDisplayName : raccourci utilisé par le signup pour stocker
+// uniquement le pseudo visible aux amis sans toucher aux autres champs
+// du profil (bio / birthdate / prompts restent vides). Implémente
+// `users.ProfileWriter`.
+func (s *Store) UpsertDisplayName(ctx context.Context, userID int64, displayName string) error {
+	displayName = sanitizeField(displayName, DisplayNameMax)
+	if displayName == "" {
+		return nil
+	}
+	const q = `
+		INSERT INTO user_profiles (user_id, display_name, updated_at)
+		VALUES ($1, $2, now())
+		ON CONFLICT (user_id) DO UPDATE SET
+			display_name = EXCLUDED.display_name,
+			updated_at   = now()`
+	if _, err := s.pool.Exec(ctx, q, userID, displayName); err != nil {
+		return fmt.Errorf("profile: upsert display_name: %w", err)
+	}
+	return nil
+}
+
 // ListPhotos : 1..6 ordonnées par position.
 func (s *Store) ListPhotos(ctx context.Context, userID int64) ([]Photo, error) {
 	rows, err := s.pool.Query(ctx,

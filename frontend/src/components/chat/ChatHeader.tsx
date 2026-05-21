@@ -42,6 +42,7 @@ export function ChatHeader({
 }: Props) {
   const t = useT();
   const hasAvatar = !!(peerPhotoId && cloudName);
+  const initial = peerNick ? peerNick.slice(0, 1).toUpperCase() : "";
   return (
     <header className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
       <div className="flex min-w-0 items-center gap-2.5">
@@ -52,6 +53,13 @@ export function ChatHeader({
               alt=""
               className="h-full w-full object-cover"
             />
+          </span>
+        ) : initial ? (
+          // Pas de photo Cloudinary : on dérive un avatar texte avec la
+          // première lettre du pseudo. Cohérent avec ce qu'on fait dans
+          // FriendsMode pour les amis sans photo.
+          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+            {initial}
           </span>
         ) : (
           <motion.span

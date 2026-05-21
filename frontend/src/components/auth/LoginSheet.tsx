@@ -31,6 +31,9 @@ export function LoginSheet({ open, onClose }: Props) {
   const [tab, setTab] = useState<Tab>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -40,6 +43,9 @@ export function LoginSheet({ open, onClose }: Props) {
       setTab("login");
       setEmail("");
       setPassword("");
+      setPasswordConfirm("");
+      setDisplayName("");
+      setShowPwd(false);
       setSent(false);
       setBusy(false);
       setErr(null);
@@ -62,6 +68,8 @@ export function LoginSheet({ open, onClose }: Props) {
     setSent(false);
     setErr(null);
     setPassword("");
+    setPasswordConfirm("");
+    setShowPwd(false);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -76,6 +84,10 @@ export function LoginSheet({ open, onClose }: Props) {
       setErr(t.auth.passwordTooShort);
       return;
     }
+    if (tab === "signup" && password !== passwordConfirm) {
+      setErr(t.auth.passwordMismatch);
+      return;
+    }
     setBusy(true);
     try {
       if (tab === "login") {
@@ -83,7 +95,7 @@ export function LoginSheet({ open, onClose }: Props) {
         setUser(u);
         onClose();
       } else if (tab === "signup") {
-        const u = await apiSignup(trimmed, password);
+        const u = await apiSignup(trimmed, password, displayName.trim());
         setUser(u);
         onClose();
       } else {
@@ -187,16 +199,41 @@ export function LoginSheet({ open, onClose }: Props) {
               inputMode="email"
               className="mt-4 w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
             />
-            {tab !== "forgot" && (
+            {tab === "signup" && (
               <input
-                type="password"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value.slice(0, 40))}
+                placeholder={t.auth.displayNamePlaceholder}
+                autoComplete="nickname"
+                maxLength={40}
+                className="mt-2 w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
+              />
+            )}
+            {tab !== "forgot" && (
+              <PasswordField
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={setPassword}
                 placeholder={t.auth.passwordPlaceholder}
+                visible={showPwd}
+                onToggle={() => setShowPwd((v) => !v)}
                 autoComplete={
                   tab === "signup" ? "new-password" : "current-password"
                 }
-                className="mt-2 w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
+                showLabel={t.auth.showPassword}
+                hideLabel={t.auth.hidePassword}
+              />
+            )}
+            {tab === "signup" && (
+              <PasswordField
+                value={passwordConfirm}
+                onChange={setPasswordConfirm}
+                placeholder={t.auth.passwordConfirmPlaceholder}
+                visible={showPwd}
+                onToggle={() => setShowPwd((v) => !v)}
+                autoComplete="new-password"
+                showLabel={t.auth.showPassword}
+                hideLabel={t.auth.hidePassword}
               />
             )}
             {err && (
@@ -224,6 +261,90 @@ export function LoginSheet({ open, onClose }: Props) {
         )}
       </motion.form>
     </div>
+  );
+}
+
+// PasswordField : input mot de passe avec œil intégré à droite pour
+// basculer visible/masqué. Le toggle est partagé (cliquer sur l'un montre
+// les deux champs côté signup) — c'est le pattern attendu : si l'user veut
+// voir ce qu'il tape, autant aussi voir ce qu'il confirme.
+function PasswordField({
+  value,
+  onChange,
+  placeholder,
+  visible,
+  onToggle,
+  autoComplete,
+  showLabel,
+  hideLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  visible: boolean;
+  onToggle: () => void;
+  autoComplete: string;
+  showLabel: string;
+  hideLabel: string;
+}) {
+  return (
+    <div className="relative mt-2">
+      <input
+        type={visible ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className="w-full rounded-xl bg-neutral-100 px-4 py-3 pr-11 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={visible ? hideLabel : showLabel}
+        title={visible ? hideLabel : showLabel}
+        className="absolute right-1.5 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+      >
+        {visible ? <EyeOffIcon /> : <EyeIcon />}
+      </button>
+    </div>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      className="size-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg
+      className="size-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6 0-10-7-10-7a17.5 17.5 0 0 1 4.06-4.94" />
+      <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c6 0 10 7 10 7a17.5 17.5 0 0 1-2.16 2.93" />
+      <path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
+      <path d="M2 2l20 20" />
+    </svg>
   );
 }
 

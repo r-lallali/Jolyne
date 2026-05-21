@@ -145,6 +145,11 @@ export interface Messages {
     forgotHint: string;
     emailPlaceholder: string;
     passwordPlaceholder: string;
+    passwordConfirmPlaceholder: string;
+    displayNamePlaceholder: string;
+    passwordMismatch: string;
+    showPassword: string;
+    hidePassword: string;
     submitLogin: string;
     submitSignup: string;
     submitForgot: string;
