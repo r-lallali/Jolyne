@@ -10,11 +10,14 @@ interface Props {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
+  // italic = valeur pré-remplie (ex: display_name du profil). Reste en
+  // italique tant que l'user n'a pas édité — visuel "suggestion".
+  italic?: boolean;
 }
 
 // Input invisible + spans Framer Motion ~180 ms par lettre.
 // Le serveur applique la même règle de charset (CLAUDE.md règle d'or #3).
-export function PseudoInput({ value, onChange, placeholder }: Props) {
+export function PseudoInput({ value, onChange, placeholder, italic }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
 
@@ -56,7 +59,11 @@ export function PseudoInput({ value, onChange, placeholder }: Props) {
               initial={{ opacity: 0, y: 10, scale: 0.7 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className="text-neutral-900 dark:text-neutral-50"
+              className={
+                italic
+                  ? "italic text-neutral-500 dark:text-neutral-400"
+                  : "text-neutral-900 dark:text-neutral-50"
+              }
             >
               {char}
             </motion.span>

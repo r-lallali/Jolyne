@@ -56,16 +56,6 @@ export function AuthTopRight() {
             aria-hidden
           />
           <div className="absolute right-0 top-11 z-50 min-w-[200px] overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-950">
-            <div className="border-b border-neutral-200 px-3 py-2 dark:border-neutral-800">
-              <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
-                {user.email}
-              </p>
-              {!user.email_verified && (
-                <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                  {t.auth.notVerifiedBadge}
-                </p>
-              )}
-            </div>
             <Link
               href="/chats"
               onClick={() => setMenuOpen(false)}

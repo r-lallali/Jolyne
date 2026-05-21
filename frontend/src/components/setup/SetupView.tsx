@@ -9,6 +9,8 @@ import { UILangPicker } from "@/components/setup/UILangPicker";
 import { FlipNumber } from "@/components/ui/FlipNumber";
 import { useMatch } from "@/hooks/useMatch";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useUserStore } from "@/stores/userStore";
+import { fetchAccount } from "@/lib/account";
 import { useT } from "@/lib/i18n";
 import { allowedWantsFor, isPairAllowed, type LangCode } from "@/lib/langs";
 import { containsProfanity } from "@/lib/profanity";
@@ -34,9 +36,39 @@ export function SetupView() {
   const speaks = mounted ? store.speaks : null;
   const wants = mounted ? store.wants : null;
   const ageAccepted = mounted ? store.ageAccepted : false;
-  const setPseudo = store.setPseudo;
+  const setPseudoRaw = store.setPseudo;
   const setLangs = store.setLangs;
   const acceptAge = store.acceptAge;
+
+  // Si l'user est connecté + a un display_name dans son profil, on pré-remplit
+  // le pseudo une seule fois (pas s'il a déjà un pseudo persisté en local, ni
+  // après qu'il ait commencé à taper). On marque l'état comme "prefilled" pour
+  // afficher la valeur en italique tant qu'il n'a pas édité.
+  const user = useUserStore((s) => s.user);
+  const userHydrated = useUserStore((s) => s.hydrated);
+  const [prefilled, setPrefilled] = useState(false);
+  const prefillTried = useRef(false);
+  useEffect(() => {
+    if (!mounted || !userHydrated || !user) return;
+    if (prefillTried.current) return;
+    if (store.pseudo.trim().length > 0) return;
+    prefillTried.current = true;
+    fetchAccount()
+      .then((acc) => {
+        const name = acc.profile.display_name.trim();
+        if (!name) return;
+        // Re-check qu'on n'a pas commencé à taper entre-temps.
+        if (useSessionStore.getState().pseudo.trim().length > 0) return;
+        setPseudoRaw(name.slice(0, 20));
+        setPrefilled(true);
+      })
+      .catch(() => {});
+  }, [mounted, userHydrated, user, store.pseudo, setPseudoRaw]);
+
+  const setPseudo = (v: string) => {
+    if (prefilled) setPrefilled(false);
+    setPseudoRaw(v);
+  };
 
   const pseudoBlocked = pseudo.length >= 3 && containsProfanity(pseudo);
   const canNext = pseudo.length >= 3 && !pseudoBlocked;
@@ -162,6 +194,7 @@ export function SetupView() {
                   value={pseudo}
                   onChange={setPseudo}
                   placeholder={t.setup.nickPlaceholder}
+                  italic={prefilled}
                 />
                 {pseudoBlocked && (
                   <p className="mt-3 text-center text-xs text-red-600 dark:text-red-400">

@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -117,6 +118,14 @@ export default function AccountPage() {
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
         {t.account.title}
       </h1>
+      <div className="mt-1 flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+        <span className="truncate">{user.email}</span>
+        {!user.email_verified && (
+          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
+            {t.auth.notVerifiedBadge}
+          </span>
+        )}
+      </div>
 
       <section className="mt-8">
         <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
@@ -215,19 +224,8 @@ export default function AccountPage() {
           </div>
         </section>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
-          {savingState === "saved" && (
-            <span className="text-xs text-emerald-700 dark:text-emerald-400">
-              {t.account.saved}
-            </span>
-          )}
-          <button
-            type="submit"
-            disabled={savingState === "busy"}
-            className="rounded-xl bg-neutral-900 px-5 py-3 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:opacity-30 dark:bg-neutral-50 dark:text-neutral-900"
-          >
-            {savingState === "busy" ? t.account.saving : t.account.save}
-          </button>
+        <div className="flex items-center justify-end pt-2">
+          <SaveButton state={savingState} />
         </div>
       </form>
     </main>
@@ -447,6 +445,95 @@ function PromptSlot({
       </div>
       {picking && <PromptPicker taken={taken} onPick={choose} />}
     </div>
+  );
+}
+
+// SaveButton : transition fluide idle → busy (spinner + label) → saved
+// (checkmark vert + label) → idle. AnimatePresence avec mode="wait" pour
+// que le swap d'icône / fond / texte arrive en un mouvement cohérent.
+function SaveButton({ state }: { state: "idle" | "busy" | "saved" }) {
+  const t = useT();
+  const isSaved = state === "saved";
+  const isBusy = state === "busy";
+  return (
+    <motion.button
+      type="submit"
+      disabled={isBusy}
+      animate={{
+        backgroundColor: isSaved ? "rgb(16 185 129)" : undefined,
+      }}
+      transition={{ duration: 0.25 }}
+      className="relative flex h-11 min-w-[10rem] items-center justify-center gap-2 overflow-hidden rounded-xl bg-neutral-900 px-5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={state}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          className="inline-flex items-center gap-2"
+        >
+          {isBusy && <Spinner />}
+          {isSaved && <CheckIcon />}
+          <span>
+            {isBusy
+              ? t.account.saving
+              : isSaved
+                ? t.account.saved
+                : t.account.save}
+          </span>
+        </motion.span>
+      </AnimatePresence>
+    </motion.button>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg
+      className="size-4 animate-spin"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeOpacity="0.3"
+      />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <motion.svg
+      className="size-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <motion.path
+        d="M5 12.5l5 5 9-11"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+      />
+    </motion.svg>
   );
 }
 
