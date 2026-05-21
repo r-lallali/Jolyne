@@ -1,14 +1,17 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatView } from "@/components/chat/ChatView";
 import { FarewellView } from "@/components/chat/FarewellView";
 import { SearchingView } from "@/components/chat/SearchingView";
+import { FriendsMode } from "@/components/friends/FriendsMode";
+import { ModeTabs, type Mode } from "@/components/ModeTabs";
 import { SetupView } from "@/components/setup/SetupView";
 import { useMatch } from "@/hooks/useMatch";
 import { useT, type Messages } from "@/lib/i18n";
 import { useChatStore } from "@/stores/chatStore";
+import { useUserStore } from "@/stores/userStore";
 
 export function Conversation() {
   const status = useChatStore((s) => s.status);
@@ -16,6 +19,13 @@ export function Conversation() {
   const errorMessage = useChatStore((s) => s.errorMessage);
   const reset = useChatStore((s) => s.reset);
   const { start } = useMatch();
+  const authedUser = useUserStore((s) => s.user);
+  const hydrated = useUserStore((s) => s.hydrated);
+  // Mode = onglet actif (anon = chat anonyme, friends = conversations
+  // privées). Local au composant, non persisté : un refresh ramène toujours
+  // sur le chat anonyme — c'est la home par défaut.
+  const [mode, setMode] = useState<Mode>("anon");
+  const [friendsUnread, setFriendsUnread] = useState(0);
 
   // Sur tout retour vers "idle" (quit, error→back, bfcache), on remet
   // l'URL à plat. Sinon un hash #config résiduel (laissé par la nav
@@ -70,19 +80,38 @@ export function Conversation() {
   // MotionContext et casse les animations d'entrée internes (ex: slide
   // pseudo→config) au premier mount. On accepte un léger fade-in sur la
   // 1re vue.
+  const showTabs = hydrated && !!authedUser;
+  // En mode "friends", on remplace tout le contenu chat anonyme par la vue
+  // amis. Le ModeTabs reste visible au-dessus pour permettre de revenir.
+  const renderView = mode === "friends" && authedUser ? (
+    <FriendsMode onUnreadChange={setFriendsUnread} />
+  ) : (
+    view
+  );
+  const renderKey = mode === "friends" ? "friends" : key;
+
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={key}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -6 }}
-        transition={{ duration: 0.22, ease: "easeOut" }}
-        className="flex w-full justify-center"
-      >
-        {view}
-      </motion.div>
-    </AnimatePresence>
+    <>
+      {showTabs && (
+        <ModeTabs
+          mode={mode}
+          onChange={setMode}
+          unreadCount={friendsUnread}
+        />
+      )}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={renderKey}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+          className="flex w-full justify-center"
+        >
+          {renderView}
+        </motion.div>
+      </AnimatePresence>
+    </>
   );
 }
 
