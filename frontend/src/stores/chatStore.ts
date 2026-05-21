@@ -70,6 +70,11 @@ interface ChatState {
   // Prompt ami 10-min (uniquement si les deux peers sont authentifiés).
   friendPrompt: FriendPromptState;
   peerProfile: PeerProfile | null;
+  // Timestamp du dernier match (ms). Sert au ring de cooldown anti-zap du
+  // bouton Suivant. On le persiste dans le store plutôt qu'en state local
+  // de ChatView pour qu'un remount (switch d'onglet "mes conversations" →
+  // retour) ne relance pas l'animation à zéro.
+  matchedAt: number | null;
 
   setStatus: (s: ChatStatus) => void;
   matched: (peerNick: string) => void;
@@ -116,6 +121,7 @@ export const useChatStore = create<ChatState>((set) => ({
   endedBy: null,
   friendPrompt: null,
   peerProfile: null,
+  matchedAt: null,
 
   setStatus: (status) => set({ status }),
 
@@ -131,6 +137,7 @@ export const useChatStore = create<ChatState>((set) => ({
       endedBy: null,
       friendPrompt: null,
       peerProfile: null,
+      matchedAt: Date.now(),
     });
   },
 
@@ -213,6 +220,7 @@ export const useChatStore = create<ChatState>((set) => ({
       endedBy: null,
       friendPrompt: null,
       peerProfile: null,
+      matchedAt: null,
     });
   },
 

@@ -191,16 +191,25 @@ function NextButton({
           "cursor-not-allowed text-neutral-400 hover:bg-transparent dark:text-neutral-600",
       )}
     >
-      {showCooldown && (
-        <motion.span
-          key={cooldownStart}
-          aria-hidden
-          initial={{ width: "0%" }}
-          animate={{ width: "100%" }}
-          transition={{ duration: cooldownMs / 1000, ease: "linear" }}
-          className="pointer-events-none absolute inset-y-0 left-0 bg-neutral-200 dark:bg-neutral-700"
-        />
-      )}
+      {showCooldown &&
+        (() => {
+          // Reprend la fill au pourcentage déjà écoulé. Permet un remount
+          // (switch d'onglet "conversations" → retour) sans rejouer toute
+          // l'anim depuis 0 %.
+          const elapsed = Math.max(0, Date.now() - cooldownStart!);
+          const startPct = Math.min(100, (elapsed / cooldownMs) * 100);
+          const remaining = Math.max(0, cooldownMs - elapsed);
+          return (
+            <motion.span
+              key={cooldownStart}
+              aria-hidden
+              initial={{ width: `${startPct}%` }}
+              animate={{ width: "100%" }}
+              transition={{ duration: remaining / 1000, ease: "linear" }}
+              className="pointer-events-none absolute inset-y-0 left-0 bg-neutral-200 dark:bg-neutral-700"
+            />
+          );
+        })()}
       <span className="relative tracking-tight">
         {armed ? confirmLabel : nextLabel}
       </span>

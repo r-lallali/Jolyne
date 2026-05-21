@@ -29,6 +29,7 @@ export function ChatView() {
   const status = useChatStore((s) => s.status);
   const messageCount = useChatStore((s) => s.messages.length);
   const peerProfile = useChatStore((s) => s.peerProfile);
+  const matchedAt = useChatStore((s) => s.matchedAt);
   const [cloudName, setCloudName] = useState("");
   useEffect(() => {
     fetchCloudName().then(setCloudName).catch(() => {});
@@ -43,10 +44,13 @@ export function ChatView() {
   const postChat = status !== "matched";
   const [reportOpen, setReportOpen] = useState(false);
   const [target, setTarget] = useState<ChatMessage | null>(null);
-  const [canNext, setCanNext] = useState(false);
-  // Timestamp du match courant pour piloter le ring countdown dans le
-  // header. Reset à chaque nouveau peer.
-  const [cooldownStart, setCooldownStart] = useState<number | null>(null);
+  // canNext devient true `NEXT_COOLDOWN_MS` après `matchedAt`. On dérive
+  // l'état initial pour qu'un remount (switch d'onglet "mes conversations"
+  // → retour) ne replonge pas le bouton dans le cooldown si la fenêtre est
+  // déjà écoulée.
+  const [canNext, setCanNext] = useState(() =>
+    matchedAt !== null && Date.now() - matchedAt >= NEXT_COOLDOWN_MS,
+  );
   const [toastTick, setToastTick] = useState(0); // chaque incrément = un nouveau toast
   const [showToast, setShowToast] = useState(false);
   const [backGuard, setBackGuard] = useState(false);
@@ -79,23 +83,37 @@ export function ChatView() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  // Cooldown anti-zap ancré sur `matchedAt` (store). À chaque changement
+  // de matchedAt OU au mount, on calcule le temps restant : si déjà
+  // écoulé → canNext immédiatement, sinon timer pour la durée restante.
+  // Ne dépend PAS du cycle de vie du composant : un mode switch qui
+  // remonte ChatView ne relance pas l'animation.
   useEffect(() => {
-    if (!peerNick) {
-      setCooldownStart(null);
+    if (matchedAt === null) {
+      setCanNext(false);
+      return;
+    }
+    const elapsed = Date.now() - matchedAt;
+    if (elapsed >= NEXT_COOLDOWN_MS) {
+      setCanNext(true);
       return;
     }
     setCanNext(false);
-    setCooldownStart(Date.now());
-    const id = setTimeout(() => setCanNext(true), NEXT_COOLDOWN_MS);
+    const id = setTimeout(
+      () => setCanNext(true),
+      NEXT_COOLDOWN_MS - elapsed,
+    );
     return () => clearTimeout(id);
-  }, [peerNick]);
+  }, [matchedAt]);
 
-  // En post_chat, le bouton Next est désactivé pour une autre raison
-  // (conversation finie, pas cooldown anti-zap). On retire le ring pour
-  // qu'il ne se relance pas à tort autour du bouton désactivé.
-  useEffect(() => {
-    if (postChat) setCooldownStart(null);
-  }, [postChat]);
+  // Ring n'apparait que pendant la fenêtre active du cooldown — basé sur
+  // matchedAt + canNext, donc auto-derivé (pas de state séparé).
+  const cooldownActive =
+    !postChat &&
+    matchedAt !== null &&
+    !canNext &&
+    Date.now() - matchedAt < NEXT_COOLDOWN_MS;
+  const cooldownStart = cooldownActive ? matchedAt : null;
 
   useEffect(() => {
     if (toastTick === 0) return;

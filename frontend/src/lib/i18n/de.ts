@@ -167,7 +167,7 @@ export const de: Messages = {
   },
   friendPrompt: {
     title: ({ nick }) => `${nick} als Freund hinzufügen?`,
-    hint: "Ihr habt 10 Minuten gechattet. Wenn beide innerhalb einer Minute akzeptieren, wird euer Gespräch gespeichert.",
+    hint: "Ihr habt 5 Minuten gechattet. Wenn beide innerhalb einer Minute akzeptieren, wird euer Gespräch gespeichert.",
     accept: "Als Freund hinzufügen",
     waiting: "Wartet auf die Antwort der anderen Person…",
     skipped: "Kein Match diesmal.",

@@ -50,7 +50,7 @@ const (
 	// Délai avant d'émettre le friend_prompt aux deux peers, puis fenêtre
 	// pendant laquelle attendre la double acceptation. Si l'un n'accepte
 	// pas dans la fenêtre, friend_skipped est envoyé à l'autre.
-	friendPromptDelay  = 10 * time.Minute
+	friendPromptDelay  = 5 * time.Minute
 	friendAcceptWindow = 60 * time.Second
 )
 

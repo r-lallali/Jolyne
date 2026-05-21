@@ -56,7 +56,7 @@ export function FriendPromptCard() {
             autoFocus
             className="rounded-full bg-emerald-500/15 px-4 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-500/25 dark:text-emerald-400"
           >
-            ❤ {t.friendPrompt.accept}
+            {t.friendPrompt.accept}
           </button>
         </>
       )}
@@ -73,7 +73,7 @@ export function FriendPromptCard() {
       {fp.kind === "made" && (
         <>
           <p className="text-center text-sm font-medium text-emerald-700 dark:text-emerald-400">
-            ❤ {t.friendPrompt.made}
+            {t.friendPrompt.made}
           </p>
           <Link
             href={`/chats/${fp.friendId}`}

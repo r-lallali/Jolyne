@@ -166,7 +166,7 @@ export const en: Messages = {
   },
   friendPrompt: {
     title: ({ nick }) => `Add ${nick} as a friend?`,
-    hint: "You've been chatting for 10 minutes. If you both accept within a minute, your conversation will be saved.",
+    hint: "You've been chatting for 5 minutes. If you both accept within a minute, your conversation will be saved.",
     accept: "Add as friend",
     waiting: "Waiting for the other person to accept…",
     skipped: "No match this time.",

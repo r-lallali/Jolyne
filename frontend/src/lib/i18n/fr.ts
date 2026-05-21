@@ -166,7 +166,7 @@ export const fr: Messages = {
   },
   friendPrompt: {
     title: ({ nick }) => `Ajouter ${nick} en ami ?`,
-    hint: "Vous avez discuté 10 minutes. Si vous acceptez tous les deux dans la minute, votre conversation sera sauvegardée.",
+    hint: "Vous avez discuté 5 minutes. Si vous acceptez tous les deux dans la minute, votre conversation sera sauvegardée.",
     accept: "Ajouter en ami",
     waiting: "On attend la réponse de ton interlocuteur…",
     skipped: "Pas de match cette fois.",
