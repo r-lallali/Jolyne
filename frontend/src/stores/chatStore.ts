@@ -179,14 +179,15 @@ export const useChatStore = create<ChatState>((set) => ({
 
   farewell: () => {
     clearTypingTimer();
+    // On garde peerNick / messages / endedBy : pendant la sortie animée
+    // de ChatView vers FarewellView, la PostChatCard reste affichée et
+    // doit conserver son titre ("X a quitté" / "Conversation terminée").
+    // Le vrai nettoyage des données arrive au reset() après le farewell.
     set({
       status: "ended",
-      peerNick: null,
-      messages: [],
       errorCode: null,
       errorMessage: null,
       peerTyping: false,
-      endedBy: null,
     });
   },
 

@@ -166,80 +166,52 @@ function NextButton({
     }, 3000);
   };
 
-  const showRing = cooldownStart !== null && !canNext;
+  const showCooldown = cooldownStart !== null && !canNext;
 
   return (
-    <span className="relative inline-flex items-center">
-      {showRing && (
-        <CooldownRing key={cooldownStart} durationMs={cooldownMs} />
+    <button
+      type="button"
+      onClick={click}
+      disabled={!canNext}
+      className={cn(
+        "group relative inline-flex h-9 items-center gap-1.5 overflow-hidden rounded-full px-3.5 text-xs font-medium leading-none transition-colors",
+        armed
+          ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-400"
+          : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900",
+        !canNext &&
+          "cursor-not-allowed text-neutral-400 hover:bg-transparent dark:text-neutral-600",
       )}
-      <button
-        type="button"
-        onClick={click}
-        disabled={!canNext}
-        className={cn(
-          "group relative inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium leading-none transition-all",
-          armed
-            ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-400"
-            : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900",
-          !canNext &&
-            "cursor-not-allowed text-neutral-400 hover:bg-transparent dark:text-neutral-600",
-        )}
-      >
-        <span className="tracking-tight">
-          {armed ? confirmLabel : nextLabel}
-        </span>
-        <svg
-          aria-hidden
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={cn(
-            "size-3.5 transition-transform",
-            !armed && canNext && "group-hover:translate-x-0.5",
-          )}
-        >
-          <path d="M5 12h14" />
-          <path d="m12 5 7 7-7 7" />
-        </svg>
-      </button>
-    </span>
-  );
-}
-
-// CooldownRing : outline pill SVG qui se vide en durationMs autour du
-// bouton Next. `pathLength={1}` normalise le contour pour animer 0→1.
-// Stroke fin, currentColor, atténué (opacity-40) pour rester discret.
-function CooldownRing({ durationMs }: { durationMs: number }) {
-  return (
-    <svg
-      aria-hidden
-      className="pointer-events-none absolute inset-0 h-full w-full text-neutral-400 dark:text-neutral-500"
-      preserveAspectRatio="none"
-      viewBox="0 0 100 100"
     >
-      <motion.rect
-        x="1"
-        y="1"
-        width="98"
-        height="98"
-        rx="50"
-        ry="50"
+      {showCooldown && (
+        <motion.span
+          key={cooldownStart}
+          aria-hidden
+          initial={{ width: "0%" }}
+          animate={{ width: "100%" }}
+          transition={{ duration: cooldownMs / 1000, ease: "linear" }}
+          className="pointer-events-none absolute inset-y-0 left-0 bg-neutral-100 dark:bg-neutral-900"
+        />
+      )}
+      <span className="relative tracking-tight">
+        {armed ? confirmLabel : nextLabel}
+      </span>
+      <svg
+        aria-hidden
+        viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.5"
-        vectorEffect="non-scaling-stroke"
-        pathLength={1}
-        strokeDasharray={1}
+        strokeWidth="2.2"
         strokeLinecap="round"
-        initial={{ strokeDashoffset: 0 }}
-        animate={{ strokeDashoffset: 1 }}
-        transition={{ duration: durationMs / 1000, ease: "linear" }}
-      />
-    </svg>
+        strokeLinejoin="round"
+        className={cn(
+          "relative size-3.5 transition-transform",
+          !armed && canNext && "group-hover:translate-x-0.5",
+        )}
+      >
+        <path d="M5 12h14" />
+        <path d="m12 5 7 7-7 7" />
+      </svg>
+    </button>
   );
 }
 

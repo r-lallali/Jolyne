@@ -35,7 +35,12 @@ export function ChatView() {
   }, []);
   const { sendMsg, sendTyping, next, report, correct, stop } = useMatch();
   const t = useT();
-  const postChat = status === "post_chat";
+  // Tout ce qui n'est pas "matched" doit cacher l'input et garder la
+  // PostChatCard : sans ça, quand on clique Quitter en post_chat, status
+  // bascule sur "ended" pendant que l'AnimatePresence anime la sortie de
+  // ChatView — l'input réapparait brièvement et la card disparait, ce qui
+  // donne un flash très visible.
+  const postChat = status !== "matched";
   const [reportOpen, setReportOpen] = useState(false);
   const [target, setTarget] = useState<ChatMessage | null>(null);
   const [canNext, setCanNext] = useState(false);

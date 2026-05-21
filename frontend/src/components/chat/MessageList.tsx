@@ -35,7 +35,9 @@ export function MessageList({
   const peerNick = useChatStore((s) => s.peerNick);
   const peerTyping = useChatStore((s) => s.peerTyping);
   const status = useChatStore((s) => s.status);
-  const postChat = status === "post_chat";
+  // Voir ChatView : on garde la PostChatCard sur tout status ≠ "matched"
+  // pour éviter le flash pendant la sortie d'AnimatePresence vers "ended".
+  const postChat = status !== "matched";
   const friendPrompt = useChatStore((s) => s.friendPrompt);
   const speaks = useSessionStore((s) => s.speaks);
   const wants = useSessionStore((s) => s.wants);
