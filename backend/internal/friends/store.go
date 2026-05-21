@@ -33,6 +33,10 @@ type Friend struct {
 	// renvoie l'ID du peer + si le peer t'a déjà retiré).
 	PeerID        int64
 	PeerRemovedMe bool
+	// UnreadCount : nb de messages du peer postérieurs au last_read_at du
+	// caller. Rempli par ListFor(). 0 si toutes les conversations sont
+	// rattrapées.
+	UnreadCount int
 }
 
 type Message struct {
@@ -88,16 +92,30 @@ func (s *Store) IsFriend(ctx context.Context, u1, u2 int64) (bool, error) {
 }
 
 // ListFor : liste les amis visibles pour le user (i.e. NON soft-deleted
-// côté caller). Trie par dernier message DESC. Renvoie le PeerID dans
-// chaque Friend pour faciliter l'UI.
+// côté caller). Trie par dernier message DESC. Renvoie le PeerID + le
+// nombre de messages non lus pour le caller.
+//
+// Le `unread` est calculé via sous-requête corrélée : pour chaque ligne
+// friends, on compte les messages où sender_id != caller_id et sent_at
+// > caller.last_read_at. Si last_read_at est NULL (vieille ligne, jamais
+// lue), tout compte comme non lu.
 func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 	const q = `
-		SELECT id, user_a_id, user_b_id, created_at, last_message_at,
-		       removed_by_a_at, removed_by_b_at
-		FROM friends
-		WHERE (user_a_id = $1 OR user_b_id = $1)
-		  AND (CASE WHEN user_a_id = $1 THEN removed_by_a_at ELSE removed_by_b_at END) IS NULL
-		ORDER BY last_message_at DESC`
+		SELECT f.id, f.user_a_id, f.user_b_id, f.created_at, f.last_message_at,
+		       f.removed_by_a_at, f.removed_by_b_at,
+		       COALESCE((
+		           SELECT COUNT(*) FROM friend_messages m
+		           WHERE m.friend_id = f.id
+		             AND m.sender_id <> $1
+		             AND m.sent_at > COALESCE(
+		                 CASE WHEN f.user_a_id = $1 THEN f.last_read_at_a ELSE f.last_read_at_b END,
+		                 'epoch'::timestamptz
+		             )
+		       ), 0) AS unread
+		FROM friends f
+		WHERE (f.user_a_id = $1 OR f.user_b_id = $1)
+		  AND (CASE WHEN f.user_a_id = $1 THEN f.removed_by_a_at ELSE f.removed_by_b_at END) IS NULL
+		ORDER BY f.last_message_at DESC`
 	rows, err := s.pool.Query(ctx, q, userID)
 	if err != nil {
 		return nil, fmt.Errorf("friends: list for: %w", err)
@@ -109,7 +127,7 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		var aRem, bRem *time.Time
 		if err := rows.Scan(
 			&f.ID, &f.UserAID, &f.UserBID, &f.CreatedAt, &f.LastMessageAt,
-			&aRem, &bRem,
+			&aRem, &bRem, &f.UnreadCount,
 		); err != nil {
 			return nil, fmt.Errorf("friends: scan: %w", err)
 		}
@@ -123,6 +141,20 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		out = append(out, f)
 	}
 	return out, rows.Err()
+}
+
+// MarkRead : repousse le last_read_at du caller à `now()`. Idempotent.
+// Appelé automatiquement quand l'utilisateur ouvre /ws/friend/{id}.
+func (s *Store) MarkRead(ctx context.Context, friendID, userID int64) error {
+	const q = `
+		UPDATE friends SET
+		    last_read_at_a = CASE WHEN user_a_id = $2 THEN now() ELSE last_read_at_a END,
+		    last_read_at_b = CASE WHEN user_b_id = $2 THEN now() ELSE last_read_at_b END
+		WHERE id = $1 AND (user_a_id = $2 OR user_b_id = $2)`
+	if _, err := s.pool.Exec(ctx, q, friendID, userID); err != nil {
+		return fmt.Errorf("friends: mark read: %w", err)
+	}
+	return nil
 }
 
 // Get : par ID, en vérifiant que `userID` est bien membre. Renvoie le

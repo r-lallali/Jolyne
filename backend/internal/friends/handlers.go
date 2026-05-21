@@ -36,6 +36,7 @@ type friendDTO struct {
 	PeerName      string `json:"peer_name"`
 	PeerPhotoID   string `json:"peer_photo_id,omitempty"`
 	PeerRemovedMe bool   `json:"peer_removed_me"`
+	UnreadCount   int    `json:"unread_count"`
 	CreatedAt     string `json:"created_at"`
 	LastMessageAt string `json:"last_message_at"`
 }
@@ -71,6 +72,7 @@ func (h *Handlers) HandleList(w http.ResponseWriter, r *http.Request) {
 			PeerName:      h.peerDisplayName(ctx, f.PeerID),
 			PeerPhotoID:   h.peerPhoto(ctx, f.PeerID),
 			PeerRemovedMe: f.PeerRemovedMe,
+			UnreadCount:   f.UnreadCount,
 			CreatedAt:     f.CreatedAt.UTC().Format(time.RFC3339),
 			LastMessageAt: f.LastMessageAt.UTC().Format(time.RFC3339),
 		})

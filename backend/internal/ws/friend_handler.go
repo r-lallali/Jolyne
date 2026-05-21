@@ -128,6 +128,17 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 	connID := uuid.NewString()
 	chanName := friendChannel(f.ID)
 
+	// Auto mark-as-read : ouvrir la conv = avoir tout lu. Best-effort —
+	// si la mise à jour échoue, on continue (le user verra juste son
+	// compteur non rafraîchi). Idempotent.
+	go func() {
+		readCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := h.d.Friends.MarkRead(readCtx, f.ID, uid); err != nil && h.d.Log != nil {
+			h.d.Log.Warn("friend mark read failed", "err", err)
+		}
+	}()
+
 	ps := h.d.RDB.Subscribe(ctx, chanName)
 	if _, err := ps.Receive(ctx); err != nil {
 		conn.WriteAndClose(friendErr("internal", "subscribe failed"))
