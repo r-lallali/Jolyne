@@ -189,7 +189,7 @@ function NextButton({
           initial={{ width: "0%" }}
           animate={{ width: "100%" }}
           transition={{ duration: cooldownMs / 1000, ease: "linear" }}
-          className="pointer-events-none absolute inset-y-0 left-0 bg-neutral-100 dark:bg-neutral-900"
+          className="pointer-events-none absolute inset-y-0 left-0 bg-neutral-200 dark:bg-neutral-700"
         />
       )}
       <span className="relative tracking-tight">
