@@ -186,6 +186,10 @@ export const es: Messages = {
     back: "Atrás",
     remove: "Eliminar este amigo",
     removeConfirm: "¿Eliminarlo de tus amigos? (silencioso, no recibirá notificación)",
+    mute: "Silenciar notificaciones",
+    unmute: "Reactivar notificaciones",
+    report: "Reportar",
+    menuLabel: "Más acciones",
   },
   account: {
     title: "Mi perfil",

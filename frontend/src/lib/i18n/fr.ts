@@ -186,6 +186,10 @@ export const fr: Messages = {
     back: "Retour",
     remove: "Retirer cet ami",
     removeConfirm: "Le retirer de tes amis ? (silencieux, il ne sera pas notifié)",
+    mute: "Mettre en sourdine",
+    unmute: "Réactiver les notifications",
+    report: "Signaler",
+    menuLabel: "Plus d'actions",
   },
   account: {
     title: "Mon profil",

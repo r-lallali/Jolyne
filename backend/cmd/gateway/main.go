@@ -260,6 +260,7 @@ func run() error {
 		svc.friends = &friends.Handlers{
 			Store:   wsDeps.Friends,
 			Profile: profileStore,
+			Reports: reportSvc,
 			Log:     log,
 		}
 		log.Info("friends endpoints ready")

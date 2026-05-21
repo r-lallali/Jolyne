@@ -187,6 +187,10 @@ export const de: Messages = {
     back: "Zurück",
     remove: "Freund entfernen",
     removeConfirm: "Aus deinen Freunden entfernen? (still, ohne Benachrichtigung)",
+    mute: "Stummschalten",
+    unmute: "Stummschaltung aufheben",
+    report: "Melden",
+    menuLabel: "Weitere Aktionen",
   },
   account: {
     title: "Mein Profil",

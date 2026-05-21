@@ -1,6 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MessageBubble } from "@/components/chat/MessageBubble";
+import { MessageInput } from "@/components/chat/MessageInput";
+import { ReportModal } from "@/components/chat/ReportModal";
+import {
+  TranslationPopover,
+  type TranslationRequest,
+} from "@/components/chat/TranslationPopover";
+import { FriendActionsMenu } from "@/components/friends/FriendActionsMenu";
 import { BackButton } from "@/components/ui/BackButton";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
 import {
@@ -8,11 +16,16 @@ import {
   FriendProfile,
   getFriendProfile,
   removeFriend,
+  reportFriend,
 } from "@/lib/friends";
 import { openFriendWS, FriendWSHandle } from "@/lib/friend_ws";
 import { useT } from "@/lib/i18n";
-import { isPromptKey } from "@/lib/prompts";
+import { useSessionStore } from "@/stores/sessionStore";
 import { useUserStore } from "@/stores/userStore";
+
+// Clé localStorage pour le mute par ami. Non synchronisé serveur — c'est
+// un settings strictement UI tant qu'on n'a pas de notifs push réelles.
+const muteKey = (id: number) => `jolyne:muted_friend_${id}`;
 
 // FriendConversation : UI complète d'un chat persisté entre amis.
 // Réutilisable : embarquée inline dans FriendsMode (toggle home) ou dans
@@ -40,10 +53,56 @@ export function FriendConversation({
   const [cloud, setCloud] = useState("");
   const [msgs, setMsgs] = useState<FriendMessage[]>([]);
   const [peerRemovedMe, setPeerRemovedMe] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [trans, setTrans] = useState<TranslationRequest | null>(null);
+  const speaks = useSessionStore((s) => s.speaks);
+  const wants = useSessionStore((s) => s.wants);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<FriendWSHandle | null>(null);
+
+  // Tap-to-translate sur les messages du peer : on garde le même contrat
+  // que le chat anonyme (MessageBubble appelle onSelect avec le mot + son
+  // rect viewport). Langues : on reprend la paire setup speaks/wants —
+  // fallback fr/en si l'user arrive direct sur /chats sans avoir matché.
+  const handleSelect = (text: string, rect: DOMRect) => {
+    setTrans({
+      text,
+      x: rect.left + rect.width / 2,
+      y: rect.bottom,
+      source: wants ?? "en",
+      target: speaks ?? "fr",
+    });
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setMuted(localStorage.getItem(muteKey(friendId)) === "1");
+  }, [friendId]);
+
+  const toggleMute = () => {
+    setMuted((prev) => {
+      const next = !prev;
+      try {
+        if (next) localStorage.setItem(muteKey(friendId), "1");
+        else localStorage.removeItem(muteKey(friendId));
+      } catch {
+        // localStorage indisponible (incognito / quota) — état local suffit
+      }
+      return next;
+    });
+    setMenuOpen(false);
+  };
+
+  const submitReport = async (reason: string) => {
+    try {
+      await reportFriend(friendId, reason);
+    } catch {
+      // silent — la confirmation est déjà affichée par la modale
+    }
+  };
 
   useEffect(() => {
     if (!hydrated || !user || !Number.isFinite(friendId)) return;
@@ -88,21 +147,9 @@ export function FriendConversation({
     });
   }, [msgs.length]);
 
-  const send = (e: React.FormEvent) => {
-    e.preventDefault();
-    const body = draft.trim();
-    if (!body || sending || !wsRef.current) return;
-    setSending(true);
-    try {
-      wsRef.current.send(body);
-      setDraft("");
-    } finally {
-      setSending(false);
-    }
-  };
-
   const remove = async () => {
-    if (!confirm(t.chats.removeConfirm)) return;
+    setConfirmRemove(false);
+    setMenuOpen(false);
     try {
       await removeFriend(friendId);
       onLeft?.();
@@ -152,14 +199,47 @@ export function FriendConversation({
         <p className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900 dark:text-neutral-50">
           {profile?.display_name || "—"}
         </p>
-        <button
-          type="button"
-          onClick={remove}
-          title={t.chats.remove}
-          className="rounded-full px-2 py-1 text-xs text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-red-600 dark:text-neutral-600 dark:hover:bg-neutral-900 dark:hover:text-red-400"
-        >
-          ⋯
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            title={t.chats.menuLabel}
+            aria-label={t.chats.menuLabel}
+            className="inline-flex size-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 active:scale-95 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-4"
+              aria-hidden
+            >
+              <circle cx="5" cy="12" r="1" />
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="19" cy="12" r="1" />
+            </svg>
+          </button>
+          {menuOpen && (
+            <FriendActionsMenu
+              muted={muted}
+              onToggleMute={toggleMute}
+              onReport={() => {
+                setMenuOpen(false);
+                setReportOpen(true);
+              }}
+              onRemove={() => {
+                setMenuOpen(false);
+                setConfirmRemove(true);
+              }}
+              onClose={() => setMenuOpen(false)}
+            />
+          )}
+        </div>
       </header>
 
       <div
@@ -167,44 +247,17 @@ export function FriendConversation({
         className="scrollbar-discreet flex-1 overflow-y-auto overscroll-contain"
       >
         <div className="mx-auto w-full max-w-2xl space-y-2 px-4 py-4 sm:px-6">
-          {profile?.bio && (
-            <p className="mb-3 rounded-2xl bg-neutral-100/60 px-4 py-3 text-xs italic text-neutral-600 dark:bg-neutral-900/50 dark:text-neutral-400">
-              {profile.bio}
-            </p>
-          )}
-          {profile?.prompts &&
-            profile.prompts.some((p) => p.prompt && p.answer) && (
-              <div className="mb-4 space-y-2">
-                {profile.prompts
-                  .filter((p) => p.prompt && p.answer)
-                  .map((p, i) => (
-                    <PromptCard
-                      key={i}
-                      promptKey={p.prompt}
-                      answer={p.answer}
-                    />
-                  ))}
-              </div>
-            )}
           {msgs.map((m) => {
-            const mine = user && m.sender_id === user.id;
+            const mine = user ? m.sender_id === user.id : false;
             return (
-              <div
+              <MessageBubble
                 key={m.id}
-                className={`flex w-full ${mine ? "justify-end" : "justify-start"}`}
-              >
-                <p
-                  title={new Date(m.sent_at).toLocaleString("fr-FR")}
-                  className={
-                    "max-w-[78%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[15px] leading-snug " +
-                    (mine
-                      ? "rounded-br-sm bg-neutral-900 text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
-                      : "rounded-bl-sm bg-neutral-200 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100")
-                  }
-                >
-                  {m.body}
-                </p>
-              </div>
+                from={mine ? "me" : "peer"}
+                body={m.body}
+                at={new Date(m.sent_at).getTime() || Date.now()}
+                peerNick={profile?.display_name ?? null}
+                onSelect={handleSelect}
+              />
             );
           })}
           {peerRemovedMe && (
@@ -225,14 +278,7 @@ export function FriendConversation({
                 </button>
                 <button
                   type="button"
-                  onClick={async () => {
-                    if (!confirm(t.friendChat.deleteConfirm)) return;
-                    try {
-                      await removeFriend(friendId);
-                      onLeft?.();
-                      onBack();
-                    } catch {}
-                  }}
+                  onClick={() => setConfirmRemove(true)}
                   className="rounded-full bg-red-600 px-4 py-2 text-xs font-medium text-white hover:bg-red-700"
                 >
                   {t.friendChat.deleteConversation}
@@ -244,62 +290,91 @@ export function FriendConversation({
       </div>
 
       {!peerRemovedMe && (
-        <form
-          onSubmit={send}
-          className="px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
-        >
-          <div className="mx-auto flex w-full max-w-2xl items-center gap-2 rounded-2xl bg-neutral-100 px-4 py-1.5 ring-1 ring-transparent transition-all focus-within:ring-neutral-300 dark:bg-neutral-900 dark:focus-within:ring-neutral-700">
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={t.chats.placeholder}
-              maxLength={2000}
-              className="flex-1 bg-transparent py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-500 focus:outline-none dark:text-neutral-100 dark:placeholder:text-neutral-500"
-            />
-            <button
-              type="submit"
-              disabled={sending || draft.trim().length === 0}
-              aria-label={t.chats.send}
-              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-neutral-100 transition-all hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-25 dark:bg-neutral-100 dark:text-neutral-900"
-            >
-              <svg
-                className="size-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </form>
+        // Réutilise MessageInput du chat anonyme : on hérite gratuitement
+        // du bouton "Vérifier la grammaire" + PII guard + même style.
+        // L'envoi passe par notre WS friend handle.
+        <MessageInput
+          onSend={(body) => {
+            if (!wsRef.current) return;
+            wsRef.current.send(body);
+          }}
+        />
+      )}
+      <ReportModal
+        open={reportOpen}
+        peerNick={profile?.display_name ?? null}
+        onClose={() => setReportOpen(false)}
+        onSubmit={submitReport}
+      />
+      <RemoveConfirmModal
+        open={confirmRemove}
+        onCancel={() => setConfirmRemove(false)}
+        onConfirm={remove}
+      />
+      {trans && (
+        <TranslationPopover request={trans} onClose={() => setTrans(null)} />
       )}
     </div>
   );
 }
 
-function PromptCard({
-  promptKey,
-  answer,
+// RemoveConfirmModal : remplace l'`alert()` natif par une boîte au style
+// du reste du produit. Identique au pattern de la modale Quitter du chat
+// anonyme — bouton rouge à droite pour confirmer, escape ferme.
+function RemoveConfirmModal({
+  open,
+  onCancel,
+  onConfirm,
 }: {
-  promptKey: string;
-  answer: string;
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
 }) {
   const t = useT();
-  const label = isPromptKey(promptKey) ? t.prompts[promptKey] : promptKey;
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onCancel]);
+  if (!open) return null;
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900">
-      <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-        {label}
-      </p>
-      <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-900 dark:text-neutral-100">
-        {answer}
-      </p>
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-t-3xl bg-white p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl dark:bg-neutral-950 sm:rounded-3xl sm:pb-6"
+      >
+        <p className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
+          {t.chats.remove}
+        </p>
+        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          {t.chats.removeConfirm}
+        </p>
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          >
+            {t.common.cancel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            {t.chats.remove}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
+

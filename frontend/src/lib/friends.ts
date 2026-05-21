@@ -112,3 +112,7 @@ function decodeFriendMessage(m: FriendMessage): FriendMessage {
 export async function removeFriend(id: number): Promise<void> {
   await api<void>("DELETE", `/api/friends/${id}`);
 }
+
+export async function reportFriend(id: number, reason: string): Promise<void> {
+  await api<void>("POST", `/api/friends/${id}/report`, { reason });
+}

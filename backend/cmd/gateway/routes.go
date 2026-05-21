@@ -110,8 +110,12 @@ func routes(s services) http.Handler {
 				s.friends.HandlePostMessage(w, r)
 			case strings.HasSuffix(path, "/profile") && r.Method == http.MethodGet:
 				s.friends.HandleGetProfile(w, r)
+			case strings.HasSuffix(path, "/report") && r.Method == http.MethodPost:
+				s.friends.HandleReport(w, r)
 			case r.Method == http.MethodDelete &&
-				!strings.HasSuffix(path, "/messages") && !strings.HasSuffix(path, "/profile"):
+				!strings.HasSuffix(path, "/messages") &&
+				!strings.HasSuffix(path, "/profile") &&
+				!strings.HasSuffix(path, "/report"):
 				s.friends.HandleRemove(w, r)
 			default:
 				http.NotFound(w, r)

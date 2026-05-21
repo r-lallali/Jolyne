@@ -191,6 +191,10 @@ export interface Messages {
     back: string;
     remove: string;
     removeConfirm: string;
+    mute: string;
+    unmute: string;
+    report: string;
+    menuLabel: string;
   };
   account: {
     title: string;

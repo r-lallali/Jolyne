@@ -106,7 +106,13 @@ export function Conversation() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.22, ease: "easeOut" }}
-          className="flex w-full justify-center"
+          // `self-start` casse le centrage vertical du `<main>` parent
+          // uniquement pour le mode amis : la liste doit remonter en haut
+          // de viewport, alors que le chat anonyme reste centré.
+          className={
+            "flex w-full justify-center " +
+            (mode === "friends" ? "self-start" : "")
+          }
         >
           {renderView}
         </motion.div>

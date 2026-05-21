@@ -101,10 +101,12 @@ export function FriendsMode({
     );
   }
 
-  // Vue liste. `pt-10` (40px) suffit pour passer sous ModeTabs (~24px) —
-  // l'ancien `pt-20` laissait une bande vide trop visible.
+  // Vue liste. `self-start` casse le centrage vertical du wrapper home
+  // (`sm:items-center`) — sinon la liste se retrouve au milieu du viewport
+  // sur desktop. `pt-12` couvre les `ModeTabs` (~24 px) avec un léger
+  // air respirable.
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col px-4 pt-10 sm:px-6">
+    <main className="mx-auto flex w-full max-w-2xl flex-col self-start px-4 pt-12 sm:px-6">
       <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
         {t.chats.title}
       </h1>

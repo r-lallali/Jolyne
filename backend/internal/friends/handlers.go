@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ralys/jolyne/backend/internal/profile"
+	"github.com/ralys/jolyne/backend/internal/reports"
 	"github.com/ralys/jolyne/backend/internal/users"
 )
 
@@ -19,7 +21,8 @@ import (
 // users.CurrentUser(ctx).
 type Handlers struct {
 	Store   *Store
-	Profile *profile.Store // pour exposer le profil d'un ami
+	Profile *profile.Store    // pour exposer le profil d'un ami
+	Reports *reports.Service  // nil si Postgres / clé de chiffrement absents
 	Log     *slog.Logger
 }
 
@@ -246,6 +249,84 @@ func (h *Handlers) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 		"prompts":         prompts,
 		"peer_removed_me": f.PeerRemovedMe,
 	})
+}
+
+// HandleReport : POST /api/friends/{id}/report {reason}. Persiste un
+// signalement avec les 20 derniers messages capturés. Les colonnes
+// "session" / "fingerprint" / "ip_hash" sont réutilisées du flux anonyme
+// : on encode l'ID user via `user:{id}` pour rester compatible avec le
+// schéma existant sans migration.
+func (h *Handlers) HandleReport(w http.ResponseWriter, r *http.Request) {
+	user, ok := users.CurrentUser(r.Context())
+	if !ok {
+		http.Error(w, "auth required", http.StatusUnauthorized)
+		return
+	}
+	if h.Reports == nil {
+		http.Error(w, "report disabled", http.StatusServiceUnavailable)
+		return
+	}
+	id, err := parseIDFromPath(r.URL.Path)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*1024)).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	f, err := h.Store.Get(ctx, id, user.ID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	msgs, err := h.Store.ListMessages(ctx, id, 20)
+	if err != nil {
+		h.log().Error("friend report list msgs", "err", err)
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	// On capture les 20 derniers — déjà chronologiquement croissants.
+	captured := make([]reports.CapturedMessage, 0, len(msgs))
+	myName := h.peerDisplayName(ctx, user.ID)
+	peerName := h.peerDisplayName(ctx, f.PeerID)
+	for _, m := range msgs {
+		from := peerName
+		if m.SenderID == user.ID {
+			from = myName
+		}
+		captured = append(captured, reports.CapturedMessage{
+			From: from,
+			Body: m.Body,
+			At:   m.SentAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	reason := body.Reason
+	if len(reason) > 500 {
+		reason = reason[:500]
+	}
+	_, err = h.Reports.Save(ctx, reports.Report{
+		ReporterSession:     fmt.Sprintf("user:%d", user.ID),
+		ReporterFingerprint: fmt.Sprintf("user:%d", user.ID),
+		ReporterIPHash:      "",
+		ReportedSession:     fmt.Sprintf("user:%d", f.PeerID),
+		ReportedFingerprint: fmt.Sprintf("user:%d", f.PeerID),
+		ReportedIPHash:      "",
+		ReportedNick:        peerName,
+		Reason:              reason,
+		Messages:            captured,
+	})
+	if err != nil {
+		h.log().Error("friend report save", "err", err)
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handlers) peerDisplayName(ctx context.Context, userID int64) string {

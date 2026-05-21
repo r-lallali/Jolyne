@@ -186,6 +186,10 @@ export const en: Messages = {
     back: "Back",
     remove: "Remove this friend",
     removeConfirm: "Remove them from your friends? (silent, they won't be notified)",
+    mute: "Mute notifications",
+    unmute: "Unmute notifications",
+    report: "Report",
+    menuLabel: "More actions",
   },
   account: {
     title: "My profile",
