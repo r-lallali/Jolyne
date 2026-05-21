@@ -9,6 +9,7 @@ export interface FriendSummary {
   peer_name: string;
   peer_photo_id?: string;
   peer_removed_me: boolean;
+  unread_count: number;
   created_at: string;
   last_message_at: string;
 }
