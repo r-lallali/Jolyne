@@ -154,6 +154,7 @@ export function ChatView() {
           onReport={() => setReportOpen(true)}
           canReport={messageCount > 0 && !postChat}
           canNext={canNext && !postChat}
+          postChat={postChat}
           cooldownStart={cooldownStart}
           cooldownMs={NEXT_COOLDOWN_MS}
         />

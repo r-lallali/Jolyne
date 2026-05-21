@@ -18,6 +18,10 @@ interface Props {
   onReport: () => void;
   canReport: boolean;
   canNext: boolean;
+  // En post_chat la PostChatCard prend le relai pour les actions (Suivant /
+  // Quitter), on cache donc les boutons du header pour ne pas dupliquer
+  // l'offre et éviter le visuel "tout grisé".
+  postChat: boolean;
   // Timestamp du début du cooldown anti-zap (null hors période).
   cooldownStart: number | null;
   cooldownMs: number;
@@ -32,6 +36,7 @@ export function ChatHeader({
   onReport,
   canReport,
   canNext,
+  postChat,
   cooldownStart,
   cooldownMs,
 }: Props) {
@@ -71,19 +76,23 @@ export function ChatHeader({
         >
           <FlagIcon />
         </button>
-        <NextButton
-          canNext={canNext}
-          cooldownStart={cooldownStart}
-          cooldownMs={cooldownMs}
-          onConfirm={onNext}
-          nextLabel={t.chat.next}
-          confirmLabel={t.chat.confirmQuit}
-        />
-        <QuitButton
-          onConfirm={onStop}
-          quitLabel={t.chat.quit}
-          confirmLabel={t.chat.confirmQuit}
-        />
+        {!postChat && (
+          <>
+            <NextButton
+              canNext={canNext}
+              cooldownStart={cooldownStart}
+              cooldownMs={cooldownMs}
+              onConfirm={onNext}
+              nextLabel={t.chat.next}
+              confirmLabel={t.chat.confirmQuit}
+            />
+            <QuitButton
+              onConfirm={onStop}
+              quitLabel={t.chat.quit}
+              confirmLabel={t.chat.confirmQuit}
+            />
+          </>
+        )}
       </div>
     </header>
   );
