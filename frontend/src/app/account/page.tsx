@@ -128,30 +128,59 @@ export default function AccountPage() {
           {Array.from({ length: MAX_PHOTOS }).map((_, i) => {
             const pos = i + 1;
             const photo = photoByPos.get(pos);
+            const itemKey = photo ? photo.public_id : `empty-${pos}`;
             return (
-              <PhotoSlot
-                key={pos}
-                position={pos}
-                publicId={photo?.public_id}
-                cloudName={cloudName}
-                onUploaded={(publicId) => {
-                  setAccount((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          photos: replacePhoto(prev.photos, pos, publicId),
-                        }
-                      : prev,
-                  );
-                }}
-                onDeleted={() => {
-                  setAccount((prev) =>
-                    prev
-                      ? { ...prev, photos: prev.photos.filter((p) => p.position !== pos) }
-                      : prev,
-                  );
-                }}
-              />
+              <motion.div
+                key={itemKey}
+                layout
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className="aspect-square"
+              >
+                <PhotoSlot
+                  position={pos}
+                  publicId={photo?.public_id}
+                  cloudName={cloudName}
+                  onUploaded={(publicId) => {
+                    setAccount((prev) => {
+                      if (!prev) return prev;
+                      const alreadyHadPhoto = prev.photos.some((p) => p.position === pos);
+                      const isReplacement = pos === 1 && alreadyHadPhoto;
+                      const isVerifiedNow = isReplacement ? false : prev.profile.is_verified;
+                      return {
+                        ...prev,
+                        profile: {
+                          ...prev.profile,
+                          is_verified: isVerifiedNow,
+                        },
+                        photos: replacePhoto(prev.photos, pos, publicId),
+                      };
+                    });
+                  }}
+                  onDeleted={() => {
+                    setAccount((prev) => {
+                      if (!prev) return prev;
+                      const remainingPhotos = prev.photos
+                        .filter((p) => p.position !== pos)
+                        .map((p) => {
+                          if (p.position > pos) {
+                            return { ...p, position: p.position - 1 };
+                          }
+                          return p;
+                        });
+                      const wasVerified = prev.profile.is_verified;
+                      const isVerifiedNow = pos === 1 ? false : wasVerified;
+                      return {
+                        ...prev,
+                        profile: {
+                          ...prev.profile,
+                          is_verified: isVerifiedNow,
+                        },
+                        photos: remainingPhotos,
+                      };
+                    });
+                  }}
+                />
+              </motion.div>
             );
           })}
         </div>
