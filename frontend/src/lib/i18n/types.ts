@@ -227,6 +227,14 @@ export interface Messages {
     pickPrompt: string;
     answerPlaceholder: string;
     clearPrompt: string;
+    unsavedTitle: string;
+    unsavedHint: string;
+    unsavedSave: string;
+    unsavedDiscard: string;
+    verifyTitle: string;
+    verifyHint: string;
+    verifyCapture: string;
+    verifyCancel: string;
   };
   // Libellés des prompts Q&R style Hinge (clés stables côté DB, voir
   // `lib/prompts.ts`). Toute clé ajoutée dans PROMPT_KEYS doit avoir

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { signPhotoUpload, uploadToCloudinary, verifyPhoto } from "@/lib/account";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   isVerified: boolean;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Props) {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [videoReady, setVideoReady] = useState(false);
@@ -243,10 +245,10 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
                 ✕
               </button>
               <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
-                Vérification en direct
+                {t.account.verifyTitle}
               </h3>
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                Centrez votre visage et regardez l&apos;objectif.
+                {t.account.verifyHint}
               </p>
 
               {/* Cercle vidéo pur : la <video> est masquée en cercle,
@@ -284,7 +286,7 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
                   }}
                   className="flex-1 rounded-xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
                 >
-                  Annuler
+                  {t.account.verifyCancel}
                 </button>
                 <button
                   type="button"
@@ -292,7 +294,7 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
                   disabled={!videoReady}
                   className="flex-1 rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-neutral-50 dark:text-neutral-900"
                 >
-                  Prendre le selfie
+                  {t.account.verifyCapture}
                 </button>
               </div>
             </motion.div>
