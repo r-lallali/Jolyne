@@ -6,6 +6,7 @@ import { FriendProfileModal } from "@/components/friends/FriendProfileModal";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
 import { FriendSummary, listFriends, removeFriend, reportFriend } from "@/lib/friends";
 import { useT } from "@/lib/i18n";
+import { useNotificationStore } from "@/stores/notificationStore";
 import { useUserStore } from "@/stores/userStore";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { FriendActionsMenu } from "@/components/friends/FriendActionsMenu";
@@ -19,16 +20,13 @@ import { ReportModal } from "@/components/chat/ReportModal";
 // de l'onglet).
 const POLL_MS = 15_000;
 
-export function FriendsMode({
-  onUnreadChange,
-}: {
-  onUnreadChange?: (n: number) => void;
-}) {
+export function FriendsMode() {
   const t = useT();
   const [friends, setFriends] = useState<FriendSummary[] | null>(null);
   const [cloud, setCloud] = useState("");
   const [openFriendID, setOpenFriendID] = useState<number | null>(null);
   const [profileFriendID, setProfileFriendID] = useState<number | null>(null);
+  const hydrateUnread = useNotificationStore((s) => s.hydrateUnread);
 
   // Back navigateur : on push un état leurre quand on ouvre une conv
   // inline. Au popstate (bouton retour navigateur OU geste swipe iOS), on
@@ -56,18 +54,36 @@ export function FriendsMode({
     };
   }, [openFriendID]);
 
+  const preloadedRef = useRef<Set<string>>(new Set());
   const refresh = useCallback(async () => {
     try {
       const list = await listFriends();
       setFriends(list);
-      if (onUnreadChange) {
-        const total = list.reduce((acc, f) => acc + (f.unread_count ?? 0), 0);
-        onUnreadChange(total);
+      // Sync l'unread store avec ce que le serveur dit (refresh polling
+      // sert de filet : si le WS inbox a manqué un event, le poll corrige).
+      const unread: Record<number, number> = {};
+      for (const f of list) {
+        if (f.unread_count > 0) unread[f.id] = f.unread_count;
       }
+      hydrateUnread(unread);
     } catch {
       // silent
     }
-  }, [onUnreadChange]);
+  }, [hydrateUnread]);
+
+  // Préchauffe le cache navigateur pour les photos de profil des amis dès
+  // que la liste arrive : on évite le flash gris à l'ouverture d'une conv.
+  useEffect(() => {
+    if (!friends || !cloud) return;
+    for (const f of friends) {
+      if (!f.peer_photo_id) continue;
+      const key = `${cloud}|${f.peer_photo_id}`;
+      if (preloadedRef.current.has(key)) continue;
+      preloadedRef.current.add(key);
+      const img = new Image();
+      img.src = cloudinaryUrl(cloud, f.peer_photo_id, { w: 96, h: 96 });
+    }
+  }, [friends, cloud]);
 
   useEffect(() => {
     let stopped = false;

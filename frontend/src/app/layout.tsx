@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { AuthBootstrap } from "@/components/auth/AuthBootstrap";
 import { AuthTopRight } from "@/components/auth/AuthTopRight";
 import { ChatWordmark } from "@/components/ChatWordmark";
+import { InboxProvider } from "@/components/notifications/InboxProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
@@ -49,6 +50,7 @@ export default function RootLayout({
     <html lang="fr" className={inter.variable}>
       <body className="font-sans antialiased">
         <AuthBootstrap />
+        <InboxProvider />
         <ChatWordmark />
         <div className="fixed right-3 top-3 z-50 flex items-center gap-2 sm:right-4 sm:top-4">
           <AuthTopRight />

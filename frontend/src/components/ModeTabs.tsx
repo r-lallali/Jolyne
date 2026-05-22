@@ -1,6 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  selectTotalUnread,
+  useNotificationStore,
+} from "@/stores/notificationStore";
 
 // ModeTabs : 2 barres horizontales côte à côte en haut de la home, façon
 // indicateurs de stories Instagram. Le bar actif est noir / blanc opaque,
@@ -14,10 +18,11 @@ export type Mode = "anon" | "friends";
 interface Props {
   mode: Mode;
   onChange: (m: Mode) => void;
-  unreadCount?: number;
 }
 
-export function ModeTabs({ mode, onChange, unreadCount = 0 }: Props) {
+export function ModeTabs({ mode, onChange }: Props) {
+  // Source de vérité live — l'InboxProvider alimente ce store via le WS.
+  const unreadCount = useNotificationStore(selectTotalUnread);
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-30 flex justify-center pt-3 sm:pt-4">
       <div className="pointer-events-auto flex items-center gap-2">
@@ -32,12 +37,21 @@ export function ModeTabs({ mode, onChange, unreadCount = 0 }: Props) {
             onClick={() => onChange("friends")}
             label="Mes conversations"
           />
-          {unreadCount > 0 && (
-            <span
-              aria-label={`${unreadCount} message(s) non lu(s)`}
-              className="pointer-events-none absolute -right-1 -top-1 inline-flex h-2 w-2 rounded-full bg-emerald-500"
-            />
-          )}
+          <AnimatePresence>
+            {unreadCount > 0 && (
+              <motion.span
+                key="badge"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                aria-label={`${unreadCount} message(s) non lu(s)`}
+                className="pointer-events-none absolute -right-2 -top-2 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold leading-none text-white shadow-sm ring-2 ring-white dark:ring-neutral-950"
+              >
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </span>
       </div>
     </div>

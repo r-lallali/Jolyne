@@ -278,6 +278,12 @@ func run() error {
 				UserAuth: wsDeps.UserAuth,
 				Log:      log,
 			})
+			svc.wsInboxHandler = ws.NewInboxHandler(ws.InboxDeps{
+				RDB:      rdb,
+				Friends:  wsDeps.Friends,
+				UserAuth: wsDeps.UserAuth,
+				Log:      log,
+			})
 			log.Info("friend ws handler ready")
 		}
 	} else {

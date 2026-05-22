@@ -25,7 +25,6 @@ export function Conversation() {
   // privées). Local au composant, non persisté : un refresh ramène toujours
   // sur le chat anonyme — c'est la home par défaut.
   const [mode, setMode] = useState<Mode>("anon");
-  const [friendsUnread, setFriendsUnread] = useState(0);
 
   // Sur tout retour vers "idle" (quit, error→back, bfcache), on remet
   // l'URL à plat. Sinon un hash #config résiduel (laissé par la nav
@@ -84,7 +83,7 @@ export function Conversation() {
   // En mode "friends", on remplace tout le contenu chat anonyme par la vue
   // amis. Le ModeTabs reste visible au-dessus pour permettre de revenir.
   const renderView = mode === "friends" && authedUser ? (
-    <FriendsMode onUnreadChange={setFriendsUnread} />
+    <FriendsMode />
   ) : (
     view
   );
@@ -93,11 +92,7 @@ export function Conversation() {
   return (
     <>
       {showTabs && (
-        <ModeTabs
-          mode={mode}
-          onChange={setMode}
-          unreadCount={friendsUnread}
-        />
+        <ModeTabs mode={mode} onChange={setMode} />
       )}
       <AnimatePresence mode="wait">
         <motion.div

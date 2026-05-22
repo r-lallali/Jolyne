@@ -26,6 +26,7 @@ type services struct {
 	pg              *pgxpool.Pool // nil si POSTGRES_DSN non renseigné
 	wsHandler       *ws.Handler
 	wsFriendHandler *ws.FriendHandler // nil si auth user / friends désactivés
+	wsInboxHandler  *ws.InboxHandler  // nil si auth user / friends désactivés
 	admin           *admin.Handlers   // nil si back-office désactivé
 	translate       *translate.Handler
 	grammar         *grammar.Handler
@@ -41,6 +42,9 @@ func routes(s services) http.Handler {
 	mux.Handle("GET /ws/match", s.wsHandler)
 	if s.wsFriendHandler != nil {
 		mux.Handle("GET /ws/friend/", s.wsFriendHandler)
+	}
+	if s.wsInboxHandler != nil {
+		mux.Handle("GET /ws/inbox", s.wsInboxHandler)
 	}
 	mux.Handle("/api/queue-size", publicCORS(s.publicCORS)(http.HandlerFunc(queueSize(s.rdb))))
 
