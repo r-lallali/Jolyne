@@ -39,9 +39,11 @@ type Friend struct {
 	UnreadCount int
 	// Aperçu du dernier message envoyé dans la conv (vide si aucune
 	// activité encore). Sert au rendu type messagerie Instagram dans la
-	// sidebar des conversations.
+	// sidebar des conversations. LastMessageDeleted = true quand le
+	// dernier message a été soft-deleted (le body remonté est alors "").
 	LastMessageBody     string
 	LastMessageSenderID int64
+	LastMessageDeleted  bool
 }
 
 // EditWindow : durée pendant laquelle l'auteur d'un message peut le
@@ -123,7 +125,9 @@ func (s *Store) IsFriend(ctx context.Context, u1, u2 int64) (bool, error) {
 func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 	// `last_msg` : sous-requête LATERAL qui renvoie le dernier message
 	// (body + sender) de chaque conv. NULL si aucune activité — Go scan
-	// dans des pointeurs pour distinguer "rien" vs "string vide".
+	// dans des pointeurs pour distinguer "rien" vs "string vide". On
+	// vide `body` côté SQL si deleted_at est posé (le front affiche alors
+	// "Ce message a été supprimé").
 	const q = `
 		SELECT f.id, f.user_a_id, f.user_b_id, f.created_at, f.last_message_at,
 		       f.removed_by_a_at, f.removed_by_b_at,
@@ -131,16 +135,20 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		           SELECT COUNT(*) FROM friend_messages m
 		           WHERE m.friend_id = f.id
 		             AND m.sender_id <> $1
+		             AND m.deleted_at IS NULL
 		             AND m.sent_at > COALESCE(
 		                 CASE WHEN f.user_a_id = $1 THEN f.last_read_at_a ELSE f.last_read_at_b END,
 		                 'epoch'::timestamptz
 		             )
 		       ), 0) AS unread,
 		       last_msg.body,
-		       last_msg.sender_id
+		       last_msg.sender_id,
+		       last_msg.deleted
 		FROM friends f
 		LEFT JOIN LATERAL (
-		    SELECT body, sender_id
+		    SELECT CASE WHEN deleted_at IS NULL THEN body ELSE '' END AS body,
+		           sender_id,
+		           deleted_at IS NOT NULL AS deleted
 		    FROM friend_messages m
 		    WHERE m.friend_id = f.id
 		    ORDER BY sent_at DESC
@@ -160,9 +168,11 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		var aRem, bRem *time.Time
 		var lastBody *string
 		var lastSenderID *int64
+		var lastDeleted *bool
 		if err := rows.Scan(
 			&f.ID, &f.UserAID, &f.UserBID, &f.CreatedAt, &f.LastMessageAt,
-			&aRem, &bRem, &f.UnreadCount, &lastBody, &lastSenderID,
+			&aRem, &bRem, &f.UnreadCount,
+			&lastBody, &lastSenderID, &lastDeleted,
 		); err != nil {
 			return nil, fmt.Errorf("friends: scan: %w", err)
 		}
@@ -171,6 +181,9 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		}
 		if lastSenderID != nil {
 			f.LastMessageSenderID = *lastSenderID
+		}
+		if lastDeleted != nil {
+			f.LastMessageDeleted = *lastDeleted
 		}
 		if f.UserAID == userID {
 			f.PeerID = f.UserBID

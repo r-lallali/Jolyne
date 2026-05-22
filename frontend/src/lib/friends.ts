@@ -19,6 +19,7 @@ export interface FriendSummary {
   unread_count: number;
   last_message_body: string;
   last_message_sender_id: number;
+  last_message_deleted: boolean;
   created_at: string;
   last_message_at: string;
 }
@@ -28,6 +29,8 @@ export interface FriendMessage {
   sender_id: number;
   body: string;
   sent_at: string;
+  edited_at?: string;
+  deleted_at?: string;
 }
 
 export interface FriendProfile {

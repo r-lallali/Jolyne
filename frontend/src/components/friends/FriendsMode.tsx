@@ -155,17 +155,22 @@ function FriendRow({
   onOpen: () => void;
   onOpenProfile: () => void;
 }) {
+  const t = useT();
   const me = useUserStore((s) => s.user);
   const hasUnread = friend.unread_count > 0;
   const peerName = friend.peer_name || "—";
   const isMine = me && friend.last_message_sender_id === me.id;
-  // Preview style Instagram : "Toi: salut" si je suis l'auteur, sinon
-  // le body brut. Si aucun message, on rentre dans le fallback "—".
-  const preview = friend.last_message_body
-    ? isMine
+  // Preview style Instagram : "Toi : salut" si je suis l'auteur, sinon
+  // le body brut. Message supprimé → on affiche le placeholder en italique
+  // (le body remonté du backend est déjà vidé dans ce cas).
+  let preview = "";
+  if (friend.last_message_deleted) {
+    preview = t.chats.deletedPlaceholder;
+  } else if (friend.last_message_body) {
+    preview = isMine
       ? `Toi : ${friend.last_message_body}`
-      : friend.last_message_body
-    : "";
+      : friend.last_message_body;
+  }
   return (
     <li className="group flex items-center gap-3 py-2.5">
       <button
@@ -212,9 +217,11 @@ function FriendRow({
           <p
             className={
               "truncate text-xs " +
-              (hasUnread
-                ? "font-semibold text-neutral-900 dark:text-neutral-100"
-                : "text-neutral-500 dark:text-neutral-500")
+              (friend.last_message_deleted
+                ? "italic text-neutral-400 dark:text-neutral-500"
+                : hasUnread
+                  ? "font-semibold text-neutral-900 dark:text-neutral-100"
+                  : "text-neutral-500 dark:text-neutral-500")
             }
           >
             {preview}

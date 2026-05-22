@@ -126,9 +126,15 @@ export function FriendConversation({
           if (ev.read_at) setPeerReadAt(ev.read_at);
           break;
         case "msg":
-          setMsgs((prev) =>
-            prev.some((m) => m.id === ev.msg.id) ? prev : [...prev, ev.msg],
-          );
+          setMsgs((prev) => {
+            const idx = prev.findIndex((m) => m.id === ev.msg.id);
+            if (idx < 0) return [...prev, ev.msg];
+            // Remplace par l'état le plus récent (édition / suppression
+            // arrivent comme un même frame avec les flags renseignés).
+            const next = prev.slice();
+            next[idx] = ev.msg;
+            return next;
+          });
           break;
         case "peer_removed":
           setPeerRemovedMe(true);
@@ -262,8 +268,16 @@ export function FriendConversation({
                 from={mine ? "me" : "peer"}
                 body={m.body}
                 at={new Date(m.sent_at).getTime() || Date.now()}
+                editedAt={m.edited_at ? new Date(m.edited_at).getTime() : undefined}
+                deletedAt={m.deleted_at ? new Date(m.deleted_at).getTime() : undefined}
                 peerNick={profile?.display_name ?? null}
                 onSelect={handleSelect}
+                onEditMessage={
+                  mine ? (next) => wsRef.current?.edit(m.id, next) : undefined
+                }
+                onDeleteMessage={
+                  mine ? () => wsRef.current?.delete(m.id) : undefined
+                }
               />
             );
           })}

@@ -190,6 +190,13 @@ export const fr: Messages = {
     unmute: "Réactiver les notifications",
     report: "Signaler",
     menuLabel: "Plus d'actions",
+    editMessage: "Modifier",
+    deleteMessage: "Supprimer",
+    deleteMessageConfirm: "Supprimer ce message ?",
+    editedSuffix: "Modifié",
+    deletedPlaceholder: "Ce message a été supprimé",
+    saveEdit: "Enregistrer",
+    cancelEdit: "Annuler",
   },
   account: {
     title: "Mon profil",

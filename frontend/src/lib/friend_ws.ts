@@ -12,6 +12,8 @@ export interface FriendWSMessage {
   sender_id: number;
   body: string;
   sent_at: string;
+  edited_at?: string;
+  deleted_at?: string;
 }
 
 export type FriendWSEvent =
@@ -23,6 +25,14 @@ export type FriendWSEvent =
 
 export interface FriendWSHandle {
   send(body: string): void;
+  // Modifie un message existant (auteur + dans la fenêtre 5 min côté
+  // serveur). Best-effort : si le serveur refuse, un frame `error`
+  // remonte sans rollback côté front (on attend le replace via le frame
+  // `msg` qui suit le succès).
+  edit(id: number, body: string): void;
+  // Soft-delete : le serveur remplace le body par "" et fixe deleted_at.
+  // Le client rend "Ce message a été supprimé" sur base du flag.
+  delete(id: number): void;
   close(): void;
 }
 
@@ -66,10 +76,21 @@ export function openFriendWS(
 
   connect();
 
+  const sendRaw = (payload: Record<string, unknown>) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify(payload));
+  };
   return {
-    send(body: string) {
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      ws.send(JSON.stringify({ type: "msg", body }));
+    send(body) {
+      sendRaw({ type: "msg", body });
+    },
+    edit(id, body) {
+      // L'ID est un int64 côté serveur — on l'envoie en string pour
+      // matcher le schéma ClientFrame.ID (réutilisé du chat anonyme).
+      sendRaw({ type: "edit_msg", id: String(id), body });
+    },
+    delete(id) {
+      sendRaw({ type: "delete_msg", id: String(id) });
     },
     close() {
       closed = true;
@@ -92,7 +113,7 @@ function decodeFrame(e: FriendWSEvent): FriendWSEvent {
   if (e.type === "msg") {
     return {
       type: "msg",
-      msg: { ...e.msg, body: decodeEntities(e.msg.body) },
+      msg: { ...e.msg, body: decodeEntities(e.msg.body ?? "") },
     };
   }
   return e;

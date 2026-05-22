@@ -42,6 +42,7 @@ type friendDTO struct {
 	UnreadCount         int    `json:"unread_count"`
 	LastMessageBody     string `json:"last_message_body"`
 	LastMessageSenderID int64  `json:"last_message_sender_id"`
+	LastMessageDeleted  bool   `json:"last_message_deleted"`
 	CreatedAt           string `json:"created_at"`
 	LastMessageAt       string `json:"last_message_at"`
 }
@@ -80,6 +81,7 @@ func (h *Handlers) HandleList(w http.ResponseWriter, r *http.Request) {
 			UnreadCount:         f.UnreadCount,
 			LastMessageBody:     f.LastMessageBody,
 			LastMessageSenderID: f.LastMessageSenderID,
+			LastMessageDeleted:  f.LastMessageDeleted,
 			CreatedAt:           f.CreatedAt.UTC().Format(time.RFC3339),
 			LastMessageAt:       f.LastMessageAt.UTC().Format(time.RFC3339),
 		})

@@ -191,6 +191,13 @@ export const de: Messages = {
     unmute: "Stummschaltung aufheben",
     report: "Melden",
     menuLabel: "Weitere Aktionen",
+    editMessage: "Bearbeiten",
+    deleteMessage: "Löschen",
+    deleteMessageConfirm: "Diese Nachricht löschen?",
+    editedSuffix: "Bearbeitet",
+    deletedPlaceholder: "Diese Nachricht wurde gelöscht",
+    saveEdit: "Speichern",
+    cancelEdit: "Abbrechen",
   },
   account: {
     title: "Mein Profil",

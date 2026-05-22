@@ -24,6 +24,14 @@ interface Props {
   // Si présent, affiche une petite flèche à côté des bulles peer qui
   // traduit la phrase entière. Réutilise le même handler que `onSelect`
   // côté parent — c'est `onSelect` qui ancre la TranslationPopover.
+  //
+  // Édition / suppression (chat ami uniquement, sur mes propres bulles) :
+  // editedAt / deletedAt = timestamps reçus du serveur ; onEditMessage =
+  // sauvegarde du nouveau body ; onDeleteMessage = soft-delete.
+  editedAt?: number;
+  deletedAt?: number;
+  onEditMessage?: (body: string) => void;
+  onDeleteMessage?: () => void;
 }
 
 // Bulles asymétriques :
@@ -34,6 +42,11 @@ interface Props {
 // message original — même alignement que la bulle parente.
 // Fenêtre pendant laquelle le correcteur peut éditer sa correction.
 const EDIT_WINDOW_MS = 30_000;
+// Fenêtre pendant laquelle on peut MODIFIER un message ami (5 min,
+// alignée sur la constante serveur `friends.EditWindow`). Au-delà,
+// l'icône "Modifier" disparaît côté UI ; le serveur rejette de toute
+// façon une tentative tardive.
+const FRIEND_EDIT_WINDOW_MS = 5 * 60 * 1000;
 
 export function MessageBubble({
   from,
@@ -44,10 +57,37 @@ export function MessageBubble({
   onSelect,
   onCorrect,
   onEditCorrection,
+  editedAt,
+  deletedAt,
+  onEditMessage,
+  onDeleteMessage,
 }: Props) {
   const mine = from === "me";
   const ref = useRef<HTMLParagraphElement>(null);
   const t = useT();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(body);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Ferme le menu au clic extérieur.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest?.("[data-bubble-menu]")) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [menuOpen]);
+
+  const isDeleted = !!deletedAt;
+  const isEdited = !isDeleted && !!editedAt;
+  const canEditNow =
+    mine && !isDeleted && !!onEditMessage && Date.now() - at < FRIEND_EDIT_WINDOW_MS;
+  const canDeleteNow = mine && !isDeleted && !!onDeleteMessage;
+  const hasMenu = canEditNow || canDeleteNow;
 
   // Click/tap simple sur une bulle peer : on identifie le mot sous le
   // pointeur via caretRangeFromPoint, on étend aux frontières de mot, et
@@ -85,19 +125,102 @@ export function MessageBubble({
           mine ? "flex-row-reverse" : "flex-row",
         )}
       >
-        <p
-          ref={ref}
-          title={new Date(at).toLocaleTimeString()}
-          onClick={handleClick}
-          className={cn(
-            "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[15px] leading-snug",
-            mine
-              ? "rounded-br-sm bg-neutral-900 text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
-              : "rounded-bl-sm cursor-text bg-neutral-200 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100",
-          )}
-        >
-          {body}
-        </p>
+        {editing ? (
+          <BubbleEditor
+            initial={body}
+            draft={draft}
+            setDraft={setDraft}
+            onSave={() => {
+              const next = draft.trim();
+              if (next && next !== body) onEditMessage?.(next);
+              setEditing(false);
+            }}
+            onCancel={() => {
+              setDraft(body);
+              setEditing(false);
+            }}
+          />
+        ) : (
+          <p
+            ref={ref}
+            title={new Date(at).toLocaleTimeString()}
+            onClick={isDeleted ? undefined : handleClick}
+            className={cn(
+              "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[15px] leading-snug",
+              isDeleted
+                ? mine
+                  ? "rounded-br-sm bg-neutral-200 italic text-neutral-500 dark:bg-neutral-900 dark:text-neutral-500"
+                  : "rounded-bl-sm bg-neutral-100 italic text-neutral-500 dark:bg-neutral-900 dark:text-neutral-500"
+                : mine
+                  ? "rounded-br-sm bg-neutral-900 text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
+                  : "rounded-bl-sm cursor-text bg-neutral-200 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100",
+            )}
+          >
+            {isDeleted ? t.chats.deletedPlaceholder : body}
+            {isEdited && (
+              <span
+                className={cn(
+                  "ml-2 inline-block align-baseline text-[10px] italic",
+                  mine
+                    ? "text-neutral-400 dark:text-neutral-500"
+                    : "text-neutral-500 dark:text-neutral-500",
+                )}
+              >
+                · {t.chats.editedSuffix}
+              </span>
+            )}
+          </p>
+        )}
+        {hasMenu && !editing && (
+          <div data-bubble-menu className="relative">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label={t.chats.menuLabel}
+              title={t.chats.menuLabel}
+              className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-neutral-500 opacity-0 transition-all hover:bg-neutral-100 hover:text-neutral-900 active:scale-90 group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+            >
+              <DotsIcon />
+            </button>
+            {menuOpen && (
+              <div
+                role="menu"
+                className={cn(
+                  "absolute z-30 mt-1 w-44 overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-950",
+                  mine ? "right-0" : "left-0",
+                )}
+              >
+                {canEditNow && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setDraft(body);
+                      setEditing(true);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                  >
+                    {t.chats.editMessage}
+                  </button>
+                )}
+                {canDeleteNow && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setConfirmDelete(true);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                  >
+                    {t.chats.deleteMessage}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {!mine && onSelect && (
           // Flèche "tout traduire" : déclenche le même handler onSelect
           // que le tap-mot, mais en passant le body entier. Visible sur
@@ -149,6 +272,157 @@ export function MessageBubble({
           onEdit={onEditCorrection}
         />
       )}
+      {confirmDelete && (
+        <DeleteMessageModal
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            setConfirmDelete(false);
+            onDeleteMessage?.();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// BubbleEditor : remplace la bulle texte par un éditeur inline. Limite
+// 2000 chars (alignée sur MessageMaxLen serveur). Enter = save, Esc =
+// cancel. Le visuel garde l'aplat sombre / aplat clair de la bulle owner
+// pour ne pas casser l'orientation.
+function BubbleEditor({
+  initial,
+  draft,
+  setDraft,
+  onSave,
+  onCancel,
+}: {
+  initial: string;
+  draft: string;
+  setDraft: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const t = useT();
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+    // place le curseur en fin de texte
+    if (inputRef.current) {
+      const end = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(end, end);
+    }
+  }, []);
+  const trimmed = draft.trim();
+  const canSave = trimmed.length > 0 && trimmed !== initial;
+  return (
+    <div className="flex max-w-[78%] flex-col gap-1.5">
+      <textarea
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value.slice(0, 2000))}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            if (canSave) onSave();
+          } else if (e.key === "Escape") {
+            onCancel();
+          }
+        }}
+        rows={Math.min(6, Math.max(1, draft.split("\n").length))}
+        className="resize-none rounded-2xl rounded-br-sm bg-neutral-900 px-3.5 py-2 text-[15px] leading-snug text-neutral-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-neutral-50 dark:text-neutral-900"
+      />
+      <div className="flex justify-end gap-1.5 text-[11px]">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-full bg-neutral-100 px-3 py-1 font-medium text-neutral-600 transition-colors hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+        >
+          {t.chats.cancelEdit}
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={!canSave}
+          className="rounded-full bg-emerald-500/15 px-3 py-1 font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-30 dark:text-emerald-400"
+        >
+          {t.chats.saveEdit}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// DotsIcon : trois points horizontaux pour le bouton menu d'une bulle.
+function DotsIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3.5"
+      aria-hidden
+    >
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+    </svg>
+  );
+}
+
+// DeleteMessageModal : confirmation centrée, alignée sur le style des
+// autres confirms du produit (RemoveConfirmModal côté friends).
+function DeleteMessageModal({
+  onCancel,
+  onConfirm,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const t = useT();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-t-3xl bg-white p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl dark:bg-neutral-950 sm:rounded-3xl sm:pb-6"
+      >
+        <p className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
+          {t.chats.deleteMessage}
+        </p>
+        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          {t.chats.deleteMessageConfirm}
+        </p>
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          >
+            {t.common.cancel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            {t.chats.deleteMessage}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -195,6 +195,14 @@ export interface Messages {
     unmute: string;
     report: string;
     menuLabel: string;
+    // Édition / suppression d'un message dans une conv amie.
+    editMessage: string;
+    deleteMessage: string;
+    deleteMessageConfirm: string;
+    editedSuffix: string; // "Modifié"
+    deletedPlaceholder: string; // "Ce message a été supprimé"
+    saveEdit: string;
+    cancelEdit: string;
   };
   account: {
     title: string;
