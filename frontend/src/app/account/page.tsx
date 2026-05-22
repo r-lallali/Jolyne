@@ -1,8 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { notFound } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { notFound, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PhotoSlot, replacePhoto } from "@/components/account/PhotoSlot";
 import { usePhotoDrag } from "@/hooks/usePhotoDrag";
 import { BackButton } from "@/components/ui/BackButton";
@@ -40,6 +40,8 @@ export default function AccountPage() {
     { prompt: "", answer: "" },
     { prompt: "", answer: "" },
   ]);
+  const router = useRouter();
+  const [unsavedOpen, setUnsavedOpen] = useState(false);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -65,22 +67,80 @@ export default function AccountPage() {
       .finally(() => setLoading(false));
   }, [hydrated, user]);
 
+  // Dirty détection : on compare le state du formulaire au snapshot
+  // serveur. Les photos ne sont pas concernées — elles s'enregistrent
+  // immédiatement via leurs propres endpoints (upload / delete / reorder).
+  const isDirty = useMemo(() => {
+    if (!account) return false;
+    if (displayName !== account.profile.display_name) return true;
+    if (bio !== account.profile.bio) return true;
+    if ((birthdate || null) !== (account.profile.birthdate ?? null)) return true;
+    const serverPrompts = account.profile.prompts ?? [];
+    for (let i = 0; i < 3; i++) {
+      const cur = prompts[i] ?? { prompt: "", answer: "" };
+      const srv = serverPrompts[i] ?? { prompt: "", answer: "" };
+      if (cur.prompt !== srv.prompt || cur.answer !== srv.answer) return true;
+    }
+    return false;
+  }, [account, displayName, bio, birthdate, prompts]);
+
+  // Garde-fou navigateur : refresh / fermeture d'onglet avec modifs en
+  // attente → prompt natif. Pas idéal en UX mais aucune façon d'afficher
+  // notre propre modal de manière fiable sur `beforeunload`.
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isDirty]);
+
+  const persist = async () => {
+    const updated = await updateAccount({
+      display_name: displayName,
+      bio,
+      birthdate: birthdate || null,
+      prompts,
+    });
+    setAccount(updated);
+  };
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingState("busy");
     try {
-      const updated = await updateAccount({
-        display_name: displayName,
-        bio,
-        birthdate: birthdate || null,
-        prompts,
-      });
-      setAccount(updated);
+      await persist();
       setSavingState("saved");
       setTimeout(() => setSavingState("idle"), 1500);
     } catch {
       setSavingState("idle");
     }
+  };
+
+  const handleBack = () => {
+    if (isDirty) {
+      setUnsavedOpen(true);
+      return;
+    }
+    router.push("/");
+  };
+
+  const saveAndLeave = async () => {
+    try {
+      await persist();
+    } catch {
+      // si l'enregistrement échoue, on garde la modal ouverte côté caller
+      // — ici on tente simplement de naviguer après une tentative.
+    }
+    setUnsavedOpen(false);
+    router.push("/");
+  };
+
+  const discardAndLeave = () => {
+    setUnsavedOpen(false);
+    router.push("/");
   };
 
   const photoDrag = usePhotoDrag({
@@ -140,7 +200,7 @@ export default function AccountPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
-      <BackButton href="/" label={t.auth.backToApp} />
+      <BackButton onClick={handleBack} label={t.auth.backToApp} />
 
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
         {t.account.title}
@@ -303,7 +363,74 @@ export default function AccountPage() {
           <SaveButton state={savingState} />
         </div>
       </form>
+      <UnsavedChangesModal
+        open={unsavedOpen}
+        onCancel={() => setUnsavedOpen(false)}
+        onSave={saveAndLeave}
+        onDiscard={discardAndLeave}
+      />
     </main>
+  );
+}
+
+// UnsavedChangesModal : popup quand l'user tente de revenir en arrière
+// avec des modifs non enregistrées. Garde le style des autres modales du
+// produit (Remove / BulkDelete) — escape ferme, clic backdrop ferme.
+function UnsavedChangesModal({
+  open,
+  onCancel,
+  onSave,
+  onDiscard,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onSave: () => void;
+  onDiscard: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onCancel]);
+  if (!open) return null;
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-t-3xl bg-white p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl dark:bg-neutral-950 sm:rounded-3xl sm:pb-6"
+      >
+        <p className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
+          Modifications non enregistrées
+        </p>
+        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          Vos changements seront perdus si vous quittez maintenant.
+        </p>
+        <div className="mt-5 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onSave}
+            className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
+          >
+            Enregistrer les changements
+          </button>
+          <button
+            type="button"
+            onClick={onDiscard}
+            className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          >
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
