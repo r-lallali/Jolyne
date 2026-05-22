@@ -279,6 +279,24 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 						DeletedAt: env.DeletedAt,
 					},
 				})
+
+				// Si on reçoit un nouveau message du peer en direct et qu'on est connecté,
+				// cela signifie qu'on a la conversation ouverte. On le marque automatiquement
+				// comme lu en base et on notifie le peer via pub/sub pour le "Vu" en temps réel.
+				if env.Kind == friendKindMsg && env.SenderID != uid {
+					go func() {
+						readCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+						defer cancel()
+						if err := h.d.Friends.MarkRead(readCtx, f.ID, uid); err == nil {
+							h.publish(readCtx, chanName, friendEnvelope{
+								Kind:      friendKindRead,
+								FromConn:  connID,
+								ReadByUID: uid,
+								ReadAt:    time.Now().UTC().Format(time.RFC3339),
+							})
+						}
+					}()
+				}
 			case friendKindRemoved:
 				conn.Send(friendServerFrame{Type: friendServerPeerRemoved})
 			case friendKindRead:

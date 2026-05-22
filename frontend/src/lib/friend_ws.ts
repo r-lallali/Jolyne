@@ -108,6 +108,7 @@ function decodeFrame(e: FriendWSEvent): FriendWSEvent {
         ...m,
         body: decodeEntities(m.body),
       })),
+      read_at: e.read_at,
     };
   }
   if (e.type === "msg") {
