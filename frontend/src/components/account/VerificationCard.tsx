@@ -13,6 +13,7 @@ interface Props {
 export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -20,20 +21,52 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  // Close camera and stop track stream
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
+  // Garde streamRef sync avec l'état pour pouvoir libérer les tracks sans
+  // dépendre d'une closure stale (cleanup d'unmount notamment).
+  useEffect(() => {
+    streamRef.current = stream;
   }, [stream]);
 
+  const stopCamera = useCallback(() => {
+    const s = streamRef.current;
+    if (s) {
+      s.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      setStream(null);
+      setVideoReady(false);
+    }
+  }, []);
+
+  // Cleanup au démontage uniquement — pas de dépendance sur stream pour
+  // éviter de couper le flux à chaque re-render.
   useEffect(() => {
     return () => {
-      stopCamera();
+      const s = streamRef.current;
+      if (s) s.getTracks().forEach((t) => t.stop());
     };
-  }, [stopCamera]);
+  }, []);
+
+  // Attache le MediaStream à l'élément <video> une fois que le modal est
+  // monté ET que le stream existe. Évite la race condition du setTimeout :
+  // sur mobile lent, videoRef.current pouvait être null à 100ms.
+  useEffect(() => {
+    if (!isOpen || !stream) return;
+    const video = videoRef.current;
+    if (!video) return;
+    video.srcObject = stream;
+    // iOS Safari : `autoplay` ne suffit pas, il faut un .play() explicite
+    // après srcObject. On gère le rejet silencieusement (user a déjà
+    // autorisé la caméra via le prompt natif → play() ne devrait pas être
+    // bloqué, mais certains navigateurs lèvent une exception bénigne).
+    const onPlaying = () => setVideoReady(true);
+    video.addEventListener("playing", onPlaying);
+    video.play().catch(() => {});
+    return () => {
+      video.removeEventListener("playing", onPlaying);
+    };
+  }, [isOpen, stream]);
 
   const startCamera = async () => {
     setError(null);
@@ -47,18 +80,19 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
     }
 
     try {
+      // Contraintes souples : si la résolution exacte n'est pas dispo
+      // (webcams basiques, front cam contraintes), `ideal` laisse le
+      // navigateur retomber sur la meilleure approx au lieu d'échouer.
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 640, height: 480 },
+        video: {
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
         audio: false,
       });
       setStream(mediaStream);
       setIsOpen(true);
-      // Wait for ref update and play video
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-        }
-      }, 100);
     } catch {
       setError("Impossible d'accéder à votre caméra. Veuillez autoriser l'accès pour continuer.");
     }
@@ -180,7 +214,7 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 pt-[max(env(safe-area-inset-top)+1rem,1rem)] backdrop-blur-sm sm:pt-10"
           >
             <motion.div
               initial={{ scale: 0.95, y: 15 }}
@@ -202,6 +236,13 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
                   muted
                   className="h-full w-full object-cover scale-x-[-1]"
                 />
+                {/* Loader visible tant que le flux n'a pas commencé à
+                    rendre des frames — évite l'écran noir sur mobile. */}
+                {!videoReady && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-neutral-900">
+                    <Spinner className="size-6 animate-spin text-indigo-400" />
+                  </div>
+                )}
                 {/* Circular face guide overlay */}
                 <div className="absolute inset-0 pointer-events-none border-[12px] border-neutral-950/70 flex items-center justify-center">
                   <div className="w-[180px] h-[180px] rounded-full border-2 border-dashed border-indigo-500/80 shadow-[0_0_0_9999px_rgba(10,10,10,0.6)] animate-pulse" />
@@ -220,7 +261,8 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
                 </button>
                 <button
                   onClick={captureAndVerify}
-                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-neutral-50 shadow-md shadow-indigo-600/20 hover:bg-indigo-500 transition-colors"
+                  disabled={!videoReady}
+                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-neutral-50 shadow-md shadow-indigo-600/20 transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Prendre le selfie
                 </button>
