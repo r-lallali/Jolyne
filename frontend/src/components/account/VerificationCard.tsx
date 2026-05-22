@@ -214,55 +214,80 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 pt-[max(env(safe-area-inset-top)+1rem,1rem)] backdrop-blur-sm sm:pt-10"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-950/70 p-4 pt-[max(env(safe-area-inset-top)+1rem,1rem)] backdrop-blur-md sm:items-center sm:pt-4"
+            onClick={() => {
+              stopCamera();
+              setIsOpen(false);
+            }}
           >
             <motion.div
-              initial={{ scale: 0.95, y: 15 }}
+              initial={{ scale: 0.96, y: 8 }}
               animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md overflow-hidden rounded-3xl bg-neutral-950 p-6 text-center shadow-2xl border border-neutral-800"
+              exit={{ scale: 0.96, y: 8 }}
+              transition={{ type: "spring", stiffness: 320, damping: 28 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl dark:bg-neutral-950 dark:ring-1 dark:ring-neutral-800"
             >
-              <h3 className="text-lg font-bold text-neutral-50">Vérification en Direct</h3>
-              <p className="text-xs text-neutral-400 mt-1">
-                {"Centrez votre visage dans le cercle et regardez l'objectif."}
+              <button
+                type="button"
+                onClick={() => {
+                  stopCamera();
+                  setIsOpen(false);
+                }}
+                aria-label="Fermer"
+                className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-900 dark:hover:text-neutral-50"
+              >
+                ✕
+              </button>
+              <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
+                Vérification en direct
+              </h3>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Centrez votre visage et regardez l&apos;objectif.
               </p>
 
-              {/* Video Container with circular mask overlay */}
-              <div className="relative mx-auto my-6 overflow-hidden rounded-2xl bg-neutral-900 aspect-square max-w-[280px]">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="h-full w-full object-cover scale-x-[-1]"
+              {/* Cercle vidéo pur : la <video> est masquée en cercle,
+                  encadrée par un ring soft qui pulse pendant l'attente. */}
+              <div className="relative mx-auto mt-6 aspect-square w-56 sm:w-64">
+                <div
+                  className={`absolute inset-0 rounded-full transition-all duration-500 ${
+                    videoReady
+                      ? "ring-2 ring-emerald-500/60 ring-offset-4 ring-offset-white dark:ring-offset-neutral-950"
+                      : "ring-2 ring-neutral-300 ring-offset-4 ring-offset-white animate-pulse dark:ring-neutral-700 dark:ring-offset-neutral-950"
+                  }`}
                 />
-                {/* Loader visible tant que le flux n'a pas commencé à
-                    rendre des frames — évite l'écran noir sur mobile. */}
-                {!videoReady && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-neutral-900">
-                    <Spinner className="size-6 animate-spin text-indigo-400" />
-                  </div>
-                )}
-                {/* Circular face guide overlay */}
-                <div className="absolute inset-0 pointer-events-none border-[12px] border-neutral-950/70 flex items-center justify-center">
-                  <div className="w-[180px] h-[180px] rounded-full border-2 border-dashed border-indigo-500/80 shadow-[0_0_0_9999px_rgba(10,10,10,0.6)] animate-pulse" />
+                <div className="absolute inset-1 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-900">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="h-full w-full object-cover scale-x-[-1]"
+                  />
+                  {!videoReady && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-neutral-100 dark:bg-neutral-900">
+                      <Spinner className="size-6 animate-spin text-neutral-400" />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center justify-center gap-3">
+              <div className="mt-6 flex items-center justify-center gap-2">
                 <button
+                  type="button"
                   onClick={() => {
                     stopCamera();
                     setIsOpen(false);
                   }}
-                  className="rounded-xl bg-neutral-800 px-4 py-2.5 text-xs font-semibold text-neutral-300 hover:bg-neutral-700 transition-colors"
+                  className="flex-1 rounded-xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
                 >
                   Annuler
                 </button>
                 <button
+                  type="button"
                   onClick={captureAndVerify}
                   disabled={!videoReady}
-                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-neutral-50 shadow-md shadow-indigo-600/20 transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-neutral-50 dark:text-neutral-900"
                 >
                   Prendre le selfie
                 </button>
