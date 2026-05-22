@@ -97,6 +97,30 @@ export default function AccountPage() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
+  // Intercept du back navigateur (swipe iOS, hardware back Android, bouton
+  // précédent du browser). On push une entrée d'historique leurre tant
+  // qu'on est dirty — au popstate (= geste back déclenché), on consomme
+  // l'entrée et on ouvre la modal au lieu de quitter la page.
+  useEffect(() => {
+    if (!isDirty) return;
+    window.history.pushState({ jolyne: "account-dirty" }, "", window.location.href);
+    const onPop = () => {
+      // On a déjà consommé notre entrée leurre — on reste sur /account et on
+      // re-push l'entrée pour intercepter le prochain back aussi.
+      setUnsavedOpen(true);
+      window.history.pushState({ jolyne: "account-dirty" }, "", window.location.href);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      // Consomme l'entrée leurre au unmount si elle est toujours là —
+      // évite de la laisser dans l'historique si l'user save et navigate.
+      if (window.history.state?.jolyne === "account-dirty") {
+        window.history.back();
+      }
+    };
+  }, [isDirty]);
+
   const persist = async () => {
     const updated = await updateAccount({
       display_name: displayName,
@@ -387,6 +411,7 @@ function UnsavedChangesModal({
   onSave: () => void;
   onDiscard: () => void;
 }) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -408,10 +433,10 @@ function UnsavedChangesModal({
         className="w-full max-w-sm rounded-t-3xl bg-white p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl dark:bg-neutral-950 sm:rounded-3xl sm:pb-6"
       >
         <p className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
-          Modifications non enregistrées
+          {t.account.unsavedTitle}
         </p>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          Vos changements seront perdus si vous quittez maintenant.
+          {t.account.unsavedHint}
         </p>
         <div className="mt-5 flex flex-col gap-2">
           <button
@@ -419,14 +444,14 @@ function UnsavedChangesModal({
             onClick={onSave}
             className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
           >
-            Enregistrer les changements
+            {t.account.unsavedSave}
           </button>
           <button
             type="button"
             onClick={onDiscard}
             className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
-            Annuler
+            {t.account.unsavedDiscard}
           </button>
         </div>
       </div>
