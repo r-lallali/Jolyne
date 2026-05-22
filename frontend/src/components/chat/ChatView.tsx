@@ -162,7 +162,7 @@ export function ChatView() {
 
   return (
     <>
-      <div className="flex h-dvh w-full flex-col sm:h-[92vh] sm:max-w-3xl">
+      <div className="flex h-dvh w-full flex-col pt-[calc(env(safe-area-inset-top)+2.5rem)] sm:h-[92vh] sm:max-w-3xl sm:pt-0">
         <ChatHeader
           peerNick={peerNick}
           peerPhotoId={peerProfile?.photoId}
