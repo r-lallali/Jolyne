@@ -215,6 +215,21 @@ func (s *Store) SetPhoto(ctx context.Context, userID int64, position int, public
 	// 2. Effectuer l'upsert manuellement (la contrainte UNIQUE (user_id,
 	// position) est DEFERRABLE pour permettre les swaps dans ReorderPhotos,
 	// or ON CONFLICT ne supporte pas les contraintes deferrable comme arbiter).
+	// Pour un INSERT sur position vide, on clamp la position demandée à
+	// count+1 — évite les trous (ex: user upload à la slot 4 avec 1 seule
+	// photo → position devient 2 au lieu de 4).
+	if oldPublicID == "" {
+		var count int
+		if err := tx.QueryRow(ctx,
+			`SELECT count(*) FROM user_photos WHERE user_id = $1`, userID,
+		).Scan(&count); err != nil {
+			return Photo{}, "", fmt.Errorf("profile: set count: %w", err)
+		}
+		if position > count+1 {
+			position = count + 1
+		}
+	}
+
 	var p Photo
 	if oldPublicID != "" {
 		err = tx.QueryRow(ctx,
