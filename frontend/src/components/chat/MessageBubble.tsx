@@ -32,6 +32,13 @@ interface Props {
   deletedAt?: number;
   onEditMessage?: (body: string) => void;
   onDeleteMessage?: () => void;
+  // Mode sélection (chat ami) : si actif, le tap toggle la sélection au
+  // lieu d'ouvrir une action. `selected` reflète l'état courant. Long-
+  // press déclenche `onEnterSelection` côté parent.
+  selectionMode?: boolean;
+  selected?: boolean;
+  onEnterSelection?: () => void;
+  onToggleSelected?: () => void;
 }
 
 // Bulles asymétriques :
@@ -61,6 +68,10 @@ export function MessageBubble({
   deletedAt,
   onEditMessage,
   onDeleteMessage,
+  selectionMode = false,
+  selected = false,
+  onEnterSelection,
+  onToggleSelected,
 }: Props) {
   const mine = from === "me";
   const ref = useRef<HTMLParagraphElement>(null);
@@ -89,11 +100,39 @@ export function MessageBubble({
   const canDeleteNow = mine && !isDeleted && !!onDeleteMessage;
   const hasMenu = canEditNow || canDeleteNow;
 
+  // Long-press sur mes bulles : entre en mode sélection (multi-suppression).
+  // Implémenté en JS pur — pas de geste lib pour rester léger.
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
+  const beginLongPress = () => {
+    if (!mine || !onEnterSelection || selectionMode || isDeleted) return;
+    longPressFired.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressFired.current = true;
+      onEnterSelection();
+    }, 500);
+  };
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
   // Click/tap simple sur une bulle peer : on identifie le mot sous le
   // pointeur via caretRangeFromPoint, on étend aux frontières de mot, et
   // on ouvre le tooltip de traduction. Si l'utilisateur a fait une vraie
   // sélection multi-mots (drag desktop), on la respecte à la place.
+  // En mode sélection : tap = toggle sur mes bulles uniquement.
   const handleClick = (e: React.MouseEvent<HTMLParagraphElement>) => {
+    if (longPressFired.current) {
+      longPressFired.current = false;
+      return;
+    }
+    if (selectionMode) {
+      if (mine && !isDeleted) onToggleSelected?.();
+      return;
+    }
     if (mine || !onSelect) return;
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed) {
@@ -114,8 +153,27 @@ export function MessageBubble({
   // correction n'a déjà été appliquée (HelloTalk autorise une seule édition).
   const canCorrect = !mine && !correction && !!onCorrect;
 
+  // Pastille « hh:mm » affichée à côté de chaque bulle. Sur desktop elle
+  // est toujours visible. Sur mobile elle est légèrement décalée vers la
+  // droite et invisible par défaut — la classe `peer-times-revealed` sur
+  // un ancêtre (toggle via swipe gauche, voir MessageList) la fait
+  // glisser à sa place finale.
+  const timeLabel = new Date(at).toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
   return (
-    <div className={cn("flex w-full flex-col gap-1", mine ? "items-end" : "items-start")}>
+    <div
+      className={cn(
+        "flex w-full flex-col gap-1",
+        mine ? "items-end" : "items-start",
+      )}
+      onPointerDown={beginLongPress}
+      onPointerUp={cancelLongPress}
+      onPointerCancel={cancelLongPress}
+      onPointerLeave={cancelLongPress}
+    >
       <motion.div
         initial={{ opacity: 0, y: 6, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -123,6 +181,9 @@ export function MessageBubble({
         className={cn(
           "group flex max-w-[78%] items-end gap-1.5",
           mine ? "flex-row-reverse" : "flex-row",
+          // Halo discret quand la bulle est sélectionnée pour suppression
+          // groupée. Garde l'animation entry de la bulle.
+          selected && mine && "rounded-2xl ring-2 ring-red-500/40",
         )}
       >
         {editing ? (
@@ -263,6 +324,16 @@ export function MessageBubble({
             </svg>
           </button>
         )}
+        <span
+          aria-hidden
+          data-time-pill
+          // Mobile : caché par défaut (opacité 0). Un ancêtre avec
+          // `data-times-revealed="on"` (toggle par swipe gauche dans la
+          // liste) la rend visible. Desktop : toujours visible.
+          className="shrink-0 select-none whitespace-nowrap text-[10px] tabular-nums leading-none text-neutral-400 opacity-0 transition-opacity duration-200 group-data-[times-revealed=on]/list:opacity-100 dark:text-neutral-500 sm:opacity-100"
+        >
+          {timeLabel}
+        </span>
       </motion.div>
       {correction && (
         <CorrectionBubble
