@@ -24,7 +24,8 @@ services:
       # Postgres (Phase 2+). Renseigne dans Dokploy → Environment Variables.
       # Le DSN doit pointer vers le service Postgres interne (dokploy-network).
       POSTGRES_DSN: ${POSTGRES_DSN:-}
-      POSTGRES_AUTO_MIGRATE: ${POSTGRES_AUTO_MIGRATE:-false}
+      POSTGRES_AUTO_MIGRATE: ${POSTGRES_AUTO_MIGRATE:-true}
+      FACE_MATCHER_URL: http://face-matcher:5001
       # Clé AES-256 base64 (32 octets) pour chiffrer les messages capturés
       # lors d'un signalement. Génération : openssl rand -base64 32.
       REPORT_ENCRYPTION_KEY: ${REPORT_ENCRYPTION_KEY:-}
@@ -63,6 +64,8 @@ services:
       libretranslate:
         condition: service_started
       languagetool:
+        condition: service_started
+      face-matcher:
         condition: service_started
     networks:
       - dokploy-network
@@ -137,6 +140,16 @@ services:
     environment:
       Java_Xms: "256m"
       Java_Xmx: "1g"
+    networks:
+      - dokploy-network
+
+  face-matcher:
+    build:
+      context: ./infra/face-matcher
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 5001
     networks:
       - dokploy-network
 

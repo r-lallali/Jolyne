@@ -88,21 +88,23 @@ func (v *Verifier) VerifyProfile(ctx context.Context, userID int64, livePhotoPub
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		// Log the error and delete the live photo asynchronously before returning
+		v.log.Warn("verify: face matcher is unreachable or timed out", "err", err)
 		v.deleteLivePhotoAsync(livePhotoPublicID)
-		return false, 0, "", fmt.Errorf("verify: face matcher call: %w", err)
+		return false, 0, "Le service de comparaison faciale est temporairement indisponible. Veuillez réessayer ultérieurement.", nil
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		v.log.Warn("verify: face matcher returned non-OK status", "status", resp.StatusCode)
 		v.deleteLivePhotoAsync(livePhotoPublicID)
-		return false, 0, "", fmt.Errorf("verify: face matcher returned status %d", resp.StatusCode)
+		return false, 0, "Le service de comparaison faciale est temporairement indisponible. Veuillez réessayer ultérieurement.", nil
 	}
 
 	var matcherResp faceMatcherResponse
 	if err := json.NewDecoder(resp.Body).Decode(&matcherResp); err != nil {
+		v.log.Error("verify: failed to decode face matcher response", "err", err)
 		v.deleteLivePhotoAsync(livePhotoPublicID)
-		return false, 0, "", fmt.Errorf("verify: decode face matcher response: %w", err)
+		return false, 0, "Le service de comparaison faciale est temporairement indisponible. Veuillez réessayer ultérieurement.", nil
 	}
 
 	// 4. Always delete the temporary live photo asynchronously
