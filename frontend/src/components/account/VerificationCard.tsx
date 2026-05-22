@@ -38,6 +38,14 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
   const startCamera = async () => {
     setError(null);
     setSuccess(false);
+
+    if (typeof window === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError(
+        "La caméra n'est pas accessible. Assurez-vous d'utiliser une connexion sécurisée HTTPS (https://) et non HTTP (http://)."
+      );
+      return;
+    }
+
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: 640, height: 480 },
