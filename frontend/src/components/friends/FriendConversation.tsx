@@ -53,6 +53,9 @@ export function FriendConversation({
   const [cloud, setCloud] = useState("");
   const [msgs, setMsgs] = useState<FriendMessage[]>([]);
   const [peerRemovedMe, setPeerRemovedMe] = useState(false);
+  // Timestamp (ISO) auquel le peer a marqué la conv comme lue. On affiche
+  // "Vu" sous mes propres messages dont sent_at <= peerReadAt.
+  const [peerReadAt, setPeerReadAt] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -120,6 +123,7 @@ export function FriendConversation({
       switch (ev.type) {
         case "history":
           setMsgs(ev.messages ?? []);
+          if (ev.read_at) setPeerReadAt(ev.read_at);
           break;
         case "msg":
           setMsgs((prev) =>
@@ -128,6 +132,9 @@ export function FriendConversation({
           break;
         case "peer_removed":
           setPeerRemovedMe(true);
+          break;
+        case "read":
+          setPeerReadAt(ev.read_at);
           break;
         case "error":
           break;
@@ -260,6 +267,11 @@ export function FriendConversation({
               />
             );
           })}
+          <SeenIndicator
+            msgs={msgs}
+            meId={user?.id ?? 0}
+            peerReadAt={peerReadAt}
+          />
           {peerRemovedMe && (
             <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-center dark:border-neutral-800 dark:bg-neutral-900/60">
               <p className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
@@ -315,6 +327,61 @@ export function FriendConversation({
         <TranslationPopover request={trans} onClose={() => setTrans(null)} />
       )}
     </div>
+  );
+}
+
+// SeenIndicator : petit marqueur "Vu" affiché sous mon dernier message
+// quand le peer a déjà lu jusque-là. Style WhatsApp / Instagram —
+// double-tick + label, aligné à droite, neutre tant que pas lu.
+function SeenIndicator({
+  msgs,
+  meId,
+  peerReadAt,
+}: {
+  msgs: FriendMessage[];
+  meId: number;
+  peerReadAt: string | null;
+}) {
+  // Cherche le dernier message dont je suis l'auteur — c'est sous celui-ci
+  // qu'on peut éventuellement afficher "Vu".
+  let lastMine: FriendMessage | null = null;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i];
+    if (m && m.sender_id === meId) {
+      lastMine = m;
+      break;
+    }
+  }
+  if (!lastMine || !peerReadAt) return null;
+  const readTs = new Date(peerReadAt).getTime();
+  const sentTs = new Date(lastMine.sent_at).getTime();
+  if (!readTs || readTs < sentTs) return null;
+  return (
+    <div className="flex justify-end pr-1 pt-0.5">
+      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-neutral-500 dark:text-neutral-400">
+        <DoubleCheckIcon />
+        Vu
+      </span>
+    </div>
+  );
+}
+
+function DoubleCheckIcon() {
+  // Style WhatsApp : 2 cochets superposés, légèrement décalés.
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3 text-emerald-500 dark:text-emerald-400"
+      aria-hidden
+    >
+      <path d="M2 12.5l4 4 6-8" />
+      <path d="M10 16.5l1.5 1.5 9-11" />
+    </svg>
   );
 }
 

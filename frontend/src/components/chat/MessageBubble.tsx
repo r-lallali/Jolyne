@@ -21,6 +21,9 @@ interface Props {
   // Demande l'édition d'une correction qu'on a déjà envoyée (uniquement si
   // dans la fenêtre d'édition — la décision se fait dans le parent).
   onEditCorrection?: () => void;
+  // Si présent, affiche une petite flèche à côté des bulles peer qui
+  // traduit la phrase entière. Réutilise le même handler que `onSelect`
+  // côté parent — c'est `onSelect` qui ancre la TranslationPopover.
 }
 
 // Bulles asymétriques :
@@ -95,6 +98,25 @@ export function MessageBubble({
         >
           {body}
         </p>
+        {!mine && onSelect && (
+          // Flèche "tout traduire" : déclenche le même handler onSelect
+          // que le tap-mot, mais en passant le body entier. Visible sur
+          // tactile (pas de hover) — discrète sur desktop.
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const rect = ref.current?.getBoundingClientRect();
+              if (!rect) return;
+              onSelect(body, rect);
+            }}
+            aria-label={t.translate.label}
+            title={t.translate.label}
+            className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-all hover:bg-neutral-100 hover:text-neutral-900 active:scale-90 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+          >
+            <TranslateArrow />
+          </button>
+        )}
         {canCorrect && (
           <button
             type="button"
@@ -128,6 +150,29 @@ export function MessageBubble({
         />
       )}
     </div>
+  );
+}
+
+// TranslateArrow : petite icône globe + flèche pour le bouton
+// "traduire toute la phrase". Discret, taillé pour 24x24 carré.
+function TranslateArrow() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3.5"
+      aria-hidden
+    >
+      <path d="M5 8h7" />
+      <path d="M9 4v1" />
+      <path d="M5 12c0 2 2 4 5 4" />
+      <path d="M13 19l3-7 3 7" />
+      <path d="M14 17h4" />
+    </svg>
   );
 }
 

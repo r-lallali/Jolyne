@@ -174,6 +174,25 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 	return out, rows.Err()
 }
 
+// PeerLastReadAt : timestamp auquel le PEER (= l'autre membre que userID)
+// a marqué la conv comme lue. Renvoie nil si jamais lu, ou si l'utilisateur
+// n'est pas membre / la conv n'existe pas.
+func (s *Store) PeerLastReadAt(ctx context.Context, friendID, userID int64) (*time.Time, error) {
+	const q = `
+		SELECT CASE WHEN user_a_id = $2 THEN last_read_at_b ELSE last_read_at_a END
+		FROM friends
+		WHERE id = $1 AND (user_a_id = $2 OR user_b_id = $2)`
+	var t *time.Time
+	err := s.pool.QueryRow(ctx, q, friendID, userID).Scan(&t)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("friends: peer last read: %w", err)
+	}
+	return t, nil
+}
+
 // MarkRead : repousse le last_read_at du caller à `now()`. Idempotent.
 // Appelé automatiquement quand l'utilisateur ouvre /ws/friend/{id}.
 func (s *Store) MarkRead(ctx context.Context, friendID, userID int64) error {

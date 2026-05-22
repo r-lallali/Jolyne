@@ -15,9 +15,10 @@ export interface FriendWSMessage {
 }
 
 export type FriendWSEvent =
-  | { type: "history"; messages: FriendWSMessage[] }
+  | { type: "history"; messages: FriendWSMessage[]; read_at?: string }
   | { type: "msg"; msg: FriendWSMessage }
   | { type: "peer_removed" }
+  | { type: "read"; read_at: string }
   | { type: "error"; code: string; message?: string };
 
 export interface FriendWSHandle {
