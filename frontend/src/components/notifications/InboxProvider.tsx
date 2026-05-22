@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { fetchCloudName } from "@/lib/account";
-import { listFriends, type FriendSummary } from "@/lib/friends";
+import { getFriendProfile, listFriends, type FriendSummary } from "@/lib/friends";
 import { openInboxWS } from "@/lib/inbox_ws";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useUserStore } from "@/stores/userStore";
@@ -82,15 +82,41 @@ export function InboxProvider() {
             typeof window !== "undefined" &&
             localStorage.getItem(muteKey(ev.friend_id)) === "1";
           if (!muted) {
-            const f = friendsRef.current.get(ev.friend_id);
-            pushToast({
-              friendId: ev.friend_id,
-              senderId: ev.sender_id,
-              peerName: f?.peer_name ?? "—",
-              peerPhotoId: f?.peer_photo_id,
-              preview: ev.preview,
-              sentAt: ev.sent_at,
-            });
+            // Va chercher le profil frais — la photo principale peut avoir
+            // changé depuis le snapshot pris au boot. Fallback sur le
+            // cache liste si l'appel échoue (offline, 404, etc.).
+            const cached = friendsRef.current.get(ev.friend_id);
+            getFriendProfile(ev.friend_id)
+              .then((p) => {
+                const main =
+                  p.photos.find((ph) => ph.position === 1)?.public_id ??
+                  p.photos[0]?.public_id;
+                if (cached) {
+                  friendsRef.current.set(ev.friend_id, {
+                    ...cached,
+                    peer_name: p.display_name || cached.peer_name,
+                    peer_photo_id: main ?? cached.peer_photo_id,
+                  });
+                }
+                pushToast({
+                  friendId: ev.friend_id,
+                  senderId: ev.sender_id,
+                  peerName: p.display_name || cached?.peer_name || "—",
+                  peerPhotoId: main ?? cached?.peer_photo_id,
+                  preview: ev.preview,
+                  sentAt: ev.sent_at,
+                });
+              })
+              .catch(() => {
+                pushToast({
+                  friendId: ev.friend_id,
+                  senderId: ev.sender_id,
+                  peerName: cached?.peer_name ?? "—",
+                  peerPhotoId: cached?.peer_photo_id,
+                  preview: ev.preview,
+                  sentAt: ev.sent_at,
+                });
+              });
           }
         }
       } else if (ev.type === "read") {
