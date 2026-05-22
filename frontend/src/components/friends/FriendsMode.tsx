@@ -18,7 +18,10 @@ import { ReportModal } from "@/components/chat/ReportModal";
 //
 // `onUnreadChange` remonte le compteur global au parent (badge sur la bar
 // de l'onglet).
-const POLL_MS = 15_000;
+// Polling de secours : l'inbox WS pousse les events en temps réel, ce poll
+// sert uniquement de filet en cas de désync (WS coupé / msg manqué). 60s
+// suffit largement pour cet usage et soulage DB + batterie mobile.
+const POLL_MS = 60_000;
 
 export function FriendsMode() {
   const t = useT();
