@@ -533,20 +533,17 @@ function SeenIndicator({
   meId: number;
   peerReadAt: string | null;
 }) {
-  // Cherche le dernier message dont je suis l'auteur — c'est sous celui-ci
-  // qu'on peut éventuellement afficher "Vu".
-  let lastMine: FriendMessage | null = null;
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    const m = msgs[i];
-    if (m && m.sender_id === meId) {
-      lastMine = m;
-      break;
-    }
-  }
-  if (!lastMine || !peerReadAt) return null;
+  if (msgs.length === 0) return null;
+  const lastMsg = msgs[msgs.length - 1];
+  
+  // Si le dernier message du chat n'a pas été envoyé par moi, on n'affiche pas "Vu"
+  if (!lastMsg || lastMsg.sender_id !== meId) return null;
+
+  if (!peerReadAt) return null;
   const readTs = new Date(peerReadAt).getTime();
-  const sentTs = new Date(lastMine.sent_at).getTime();
+  const sentTs = new Date(lastMsg.sent_at).getTime();
   if (!readTs || readTs < sentTs) return null;
+
   return (
     <div className="flex justify-end pr-1 pt-0.5">
       <span className="inline-flex items-center gap-1 text-[10px] font-medium text-neutral-500 dark:text-neutral-400">
