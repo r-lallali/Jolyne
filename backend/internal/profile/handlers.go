@@ -15,6 +15,7 @@ import (
 type Handlers struct {
 	Store      *Store
 	Cloudinary CloudinaryConfig
+	Verifier   *Verifier
 	Log        *slog.Logger
 }
 
@@ -35,6 +36,7 @@ type profileDTO struct {
 	Bio         string       `json:"bio"`
 	Birthdate   *string      `json:"birthdate,omitempty"` // ISO yyyy-mm-dd
 	Prompts     [3]promptDTO `json:"prompts"`
+	IsVerified  bool         `json:"is_verified"`
 }
 
 type photoDTO struct {
@@ -209,6 +211,7 @@ func profileToDTO(p Profile) profileDTO {
 	out := profileDTO{
 		DisplayName: p.DisplayName,
 		Bio:         p.Bio,
+		IsVerified:  p.IsVerified,
 		Prompts: [3]promptDTO{
 			{Prompt: p.Prompt1, Answer: p.Answer1},
 			{Prompt: p.Prompt2, Answer: p.Answer2},
@@ -235,4 +238,57 @@ func (h *Handlers) HandleCloudConfig(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"cloud_name": h.Cloudinary.CloudName,
 	})
+}
+
+type verifyRequest struct {
+	LivePhotoID string `json:"live_photo_id"`
+}
+
+type verifyResponse struct {
+	Verified   bool    `json:"verified"`
+	Confidence float32 `json:"confidence"`
+	Error      string  `json:"error,omitempty"`
+}
+
+// HandleVerify : POST /api/account/verify → compares live selfie with profile image.
+func (h *Handlers) HandleVerify(w http.ResponseWriter, r *http.Request) {
+	user, ok := users.CurrentUser(r.Context())
+	if !ok {
+		http.Error(w, "auth required", http.StatusUnauthorized)
+		return
+	}
+	if h.Verifier == nil {
+		http.Error(w, "photo verification unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	var body verifyRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*1024)).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	body.LivePhotoID = strings.TrimSpace(body.LivePhotoID)
+	if body.LivePhotoID == "" {
+		http.Error(w, "live_photo_id required", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second) // Face matching can take time
+	defer cancel()
+
+	verified, confidence, errMsg, err := h.Verifier.VerifyProfile(ctx, user.ID, body.LivePhotoID)
+	if err != nil {
+		h.log().Error("account photo verification failed", "user_id", user.ID, "err", err)
+		http.Error(w, "internal face comparison error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	resp := verifyResponse{
+		Verified:   verified,
+		Confidence: confidence,
+		Error:      errMsg,
+	}
+	_ = json.NewEncoder(w).Encode(resp)
 }

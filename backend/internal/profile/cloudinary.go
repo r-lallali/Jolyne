@@ -1,9 +1,12 @@
 package profile
 
 import (
+	"context"
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -68,4 +71,44 @@ func (c CloudinaryConfig) Sign() UploadParams {
 // IsConfigured : utilisable que si toutes les credentials sont posées.
 func (c CloudinaryConfig) IsConfigured() bool {
 	return c.CloudName != "" && c.APIKey != "" && c.APISecret != ""
+}
+
+// Destroy deletes an image from Cloudinary using a signed API request.
+func (c CloudinaryConfig) Destroy(ctx context.Context, publicID string) error {
+	if !c.IsConfigured() {
+		return fmt.Errorf("cloudinary: not configured")
+	}
+	ts := time.Now().Unix()
+
+	// Parameters must be sorted alphabetically for signature:
+	// public_id=xxx&timestamp=123
+	payloadStr := fmt.Sprintf("public_id=%s&timestamp=%d%s", publicID, ts, c.APISecret)
+	sum := sha1.Sum([]byte(payloadStr))
+	signature := hex.EncodeToString(sum[:])
+
+	endpoint := fmt.Sprintf("https://api.cloudinary.com/v1_1/%s/image/destroy", c.CloudName)
+
+	values := url.Values{}
+	values.Set("public_id", publicID)
+	values.Set("api_key", c.APIKey)
+	values.Set("timestamp", fmt.Sprintf("%d", ts))
+	values.Set("signature", signature)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, strings.NewReader(values.Encode()))
+	if err != nil {
+		return fmt.Errorf("cloudinary: new request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("cloudinary: post: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("cloudinary: delete status %d", resp.StatusCode)
+	}
+
+	return nil
 }

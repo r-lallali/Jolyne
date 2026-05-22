@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { PhotoSlot, replacePhoto } from "@/components/account/PhotoSlot";
 import { BackButton } from "@/components/ui/BackButton";
 import { PromptSlot } from "@/components/account/PromptSlot";
+import { VerificationCard } from "@/components/account/VerificationCard";
 import {
   AccountDTO,
   PromptDTO,
@@ -155,6 +156,26 @@ export default function AccountPage() {
           })}
         </div>
       </section>
+
+      <div className="mt-8">
+        <VerificationCard
+          isVerified={account?.profile.is_verified ?? false}
+          hasProfilePhoto={photoByPos.has(1)}
+          onVerified={() => {
+            setAccount((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    profile: {
+                      ...prev.profile,
+                      is_verified: true,
+                    },
+                  }
+                : prev,
+            );
+          }}
+        />
+      </div>
 
       <form onSubmit={save} className="mt-10 space-y-4">
         <Field label={t.account.displayName}>

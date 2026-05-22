@@ -243,9 +243,11 @@ func run() error {
 			"cookie_domain", cfg.UserCookieDomain,
 			"public_url", cfg.PublicAppURL)
 
+		profileVerifier := profile.NewVerifier(profileStore, cld, log)
 		svc.profile = &profile.Handlers{
 			Store:      profileStore,
 			Cloudinary: cld,
+			Verifier:   profileVerifier,
 			Log:        log,
 		}
 		// On branche le store profil au handler WS pour pouvoir pousser

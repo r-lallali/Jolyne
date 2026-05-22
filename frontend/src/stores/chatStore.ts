@@ -55,6 +55,7 @@ export type FriendPromptState =
 export interface PeerProfile {
   photoId: string;
   prompts: { prompt: string; answer: string }[];
+  verified?: boolean;
 }
 
 interface ChatState {

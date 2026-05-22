@@ -32,6 +32,7 @@ services:
       REDIS_DB: 0
       LIBRETRANSLATE_URL: http://libretranslate:5000
       LANGUAGETOOL_URL: http://languagetool:8010
+      FACE_MATCHER_URL: http://face-matcher:5001
       PUBLIC_CORS_ORIGIN: https://${JOLYNE_DOMAIN}
     depends_on:
       redis:
@@ -41,6 +42,8 @@ services:
       libretranslate:
         condition: service_started
       languagetool:
+        condition: service_started
+      face-matcher:
         condition: service_started
 
   frontend:
@@ -87,6 +90,13 @@ services:
     environment:
       Java_Xms: "256m"
       Java_Xmx: "1g"
+
+  face-matcher:
+    build:
+      context: ../infra/face-matcher
+    restart: unless-stopped
+    environment:
+      PORT: 5001
 
 volumes:
   caddy_data:

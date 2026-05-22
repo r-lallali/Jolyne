@@ -22,6 +22,7 @@ export interface FriendSummary {
   last_message_deleted: boolean;
   created_at: string;
   last_message_at: string;
+  peer_verified?: boolean;
 }
 
 export interface FriendMessage {
@@ -41,6 +42,7 @@ export interface FriendProfile {
   photos: { position: number; public_id: string }[];
   prompts: { prompt: string; answer: string }[];
   peer_removed_me: boolean;
+  peer_verified?: boolean;
 }
 
 export class FriendsError extends Error {

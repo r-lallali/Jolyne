@@ -10,6 +10,7 @@ import {
 } from "@/components/chat/TranslationPopover";
 import { FriendActionsMenu } from "@/components/friends/FriendActionsMenu";
 import { BackButton } from "@/components/ui/BackButton";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
 import {
   FriendMessage,
@@ -227,9 +228,16 @@ export function FriendConversation({
             initial || null
           )}
         </button>
-        <p className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900 dark:text-neutral-50">
-          {profile?.display_name || "—"}
-        </p>
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-50">
+            {profile?.display_name || "—"}
+          </p>
+          {profile?.peer_verified && (
+            <span className="shrink-0 text-emerald-500 dark:text-emerald-400" title="Profil Vérifié">
+              <VerifiedBadge className="size-4" />
+            </span>
+          )}
+        </div>
         <div className="relative">
           <button
             type="button"

@@ -23,6 +23,7 @@ export type ServerFrame =
       type: "peer_profile";
       peer_photo_id?: string;
       peer_prompts?: { prompt: string; answer: string }[];
+      peer_verified?: boolean;
     }
   | { type: "error"; code: string; message?: string };
 

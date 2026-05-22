@@ -7,6 +7,7 @@ import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
 import { FriendSummary, listFriends } from "@/lib/friends";
 import { useT } from "@/lib/i18n";
 import { useUserStore } from "@/stores/userStore";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 
 // FriendsMode : vue "Mes conversations" rendue inline dans la home quand
 // l'utilisateur bascule sur l'onglet droit (ModeTabs). Gère son propre
@@ -199,16 +200,23 @@ function FriendRow({
         className="min-w-0 flex-1 py-1 text-left"
       >
         <div className="flex items-baseline justify-between gap-2">
-          <p
-            className={
-              "truncate text-sm " +
-              (hasUnread
-                ? "font-semibold text-neutral-900 dark:text-neutral-50"
-                : "font-medium text-neutral-800 dark:text-neutral-200")
-            }
-          >
-            {peerName}
-          </p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p
+              className={
+                "truncate text-sm " +
+                (hasUnread
+                  ? "font-semibold text-neutral-900 dark:text-neutral-50"
+                  : "font-medium text-neutral-800 dark:text-neutral-200")
+              }
+            >
+              {peerName}
+            </p>
+            {friend.peer_verified && (
+              <span className="shrink-0 text-emerald-500 dark:text-emerald-400" title="Profil Vérifié">
+                <VerifiedBadge className="size-3.5" />
+              </span>
+            )}
+          </div>
           <span className="shrink-0 text-[11px] text-neutral-400 dark:text-neutral-500">
             {relativeTime(friend.last_message_at)}
           </span>

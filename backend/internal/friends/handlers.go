@@ -38,6 +38,7 @@ type friendDTO struct {
 	PeerID              int64  `json:"peer_id"`
 	PeerName            string `json:"peer_name"`
 	PeerPhotoID         string `json:"peer_photo_id,omitempty"`
+	PeerVerified        bool   `json:"peer_verified"`
 	PeerRemovedMe       bool   `json:"peer_removed_me"`
 	UnreadCount         int    `json:"unread_count"`
 	LastMessageBody     string `json:"last_message_body"`
@@ -77,6 +78,7 @@ func (h *Handlers) HandleList(w http.ResponseWriter, r *http.Request) {
 			PeerID:              f.PeerID,
 			PeerName:            h.peerDisplayName(ctx, f.PeerID),
 			PeerPhotoID:         h.peerPhoto(ctx, f.PeerID),
+			PeerVerified:        h.peerVerified(ctx, f.PeerID),
 			PeerRemovedMe:       f.PeerRemovedMe,
 			UnreadCount:         f.UnreadCount,
 			LastMessageBody:     f.LastMessageBody,
@@ -250,6 +252,7 @@ func (h *Handlers) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 		"photos":          outPhotos,
 		"prompts":         prompts,
 		"peer_removed_me": f.PeerRemovedMe,
+		"peer_verified":   p.IsVerified,
 	})
 }
 
@@ -356,6 +359,17 @@ func (h *Handlers) peerPhoto(ctx context.Context, userID int64) string {
 		}
 	}
 	return photos[0].PublicID
+}
+
+func (h *Handlers) peerVerified(ctx context.Context, userID int64) bool {
+	if h.Profile == nil {
+		return false
+	}
+	p, err := h.Profile.Get(ctx, userID)
+	if err != nil {
+		return false
+	}
+	return p.IsVerified
 }
 
 func formatDate(t *time.Time) *string {

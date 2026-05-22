@@ -81,6 +81,8 @@ func routes(s services) http.Handler {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			}
 		}))))
+		mux.Handle("/api/account/verify",
+			cors(auth(methodOnly("POST", http.HandlerFunc(s.profile.HandleVerify)))))
 		mux.Handle("/api/account/photos/sign",
 			cors(auth(methodOnly("POST", http.HandlerFunc(s.profile.HandleSignPhotoUpload)))))
 		mux.Handle("/api/account/photos",

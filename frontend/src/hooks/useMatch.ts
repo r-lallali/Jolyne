@@ -144,6 +144,7 @@ export function useMatch() {
                 prompt: p.prompt,
                 answer: sanitizeMessage(p.answer),
               })),
+              verified: f.peer_verified,
             });
             break;
           case "error":

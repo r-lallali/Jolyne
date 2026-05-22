@@ -175,6 +175,7 @@ export function ChatView() {
           postChat={postChat}
           cooldownStart={cooldownStart}
           cooldownMs={NEXT_COOLDOWN_MS}
+          peerVerified={peerProfile?.verified}
         />
         {peerProfile &&
           peerProfile.prompts.some((p) => p.prompt && p.answer) && (

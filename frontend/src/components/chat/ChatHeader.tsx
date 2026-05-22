@@ -6,6 +6,7 @@ import { cloudinaryUrl } from "@/lib/account";
 import { buzz } from "@/lib/haptics";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 
 interface Props {
   peerNick: string | null;
@@ -25,6 +26,7 @@ interface Props {
   // Timestamp du début du cooldown anti-zap (null hors période).
   cooldownStart: number | null;
   cooldownMs: number;
+  peerVerified?: boolean;
 }
 
 export function ChatHeader({
@@ -39,6 +41,7 @@ export function ChatHeader({
   postChat,
   cooldownStart,
   cooldownMs,
+  peerVerified,
 }: Props) {
   const t = useT();
   const hasAvatar = !!(peerPhotoId && cloudName);
@@ -69,9 +72,16 @@ export function ChatHeader({
             className="inline-block size-2 rounded-full bg-emerald-500"
           />
         )}
-        <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
-          {peerNick ?? "—"}
-        </p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
+            {peerNick ?? "—"}
+          </p>
+          {peerVerified && (
+            <span className="shrink-0 text-emerald-500 dark:text-emerald-400" title="Profil Vérifié">
+              <VerifiedBadge />
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-1 pr-12 sm:pr-0">
         <button

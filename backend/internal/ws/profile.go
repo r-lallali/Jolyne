@@ -32,8 +32,9 @@ func (h *Handler) sendPeerProfile(ctx context.Context, conn *Conn, peerUID int64
 		{Prompt: p.Prompt3, Answer: p.Answer3},
 	}
 	conn.Send(ServerFrame{
-		Type:        ServerPeerProfile,
-		PeerPhotoID: photoID,
-		PeerPrompts: prompts,
+		Type:         ServerPeerProfile,
+		PeerPhotoID:  photoID,
+		PeerPrompts:  prompts,
+		PeerVerified: p.IsVerified,
 	})
 }

@@ -32,6 +32,7 @@ type Profile struct {
 	Prompt2, Answer2 string
 	Prompt3, Answer3 string
 	UpdatedAt        time.Time
+	IsVerified       bool
 }
 
 type Photo struct {
@@ -63,13 +64,13 @@ func (s *Store) Get(ctx context.Context, userID int64) (Profile, error) {
 	const q = `
 		SELECT user_id, display_name, bio, birthdate,
 		       prompt_1, answer_1, prompt_2, answer_2, prompt_3, answer_3,
-		       updated_at
+		       updated_at, is_verified
 		FROM user_profiles WHERE user_id = $1`
 	var p Profile
 	err := s.pool.QueryRow(ctx, q, userID).Scan(
 		&p.UserID, &p.DisplayName, &p.Bio, &p.Birthdate,
 		&p.Prompt1, &p.Answer1, &p.Prompt2, &p.Answer2, &p.Prompt3, &p.Answer3,
-		&p.UpdatedAt,
+		&p.UpdatedAt, &p.IsVerified,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -126,7 +127,7 @@ func (s *Store) Upsert(ctx context.Context, p Profile) (Profile, error) {
 			updated_at   = now()
 		RETURNING user_id, display_name, bio, birthdate,
 		          prompt_1, answer_1, prompt_2, answer_2, prompt_3, answer_3,
-		          updated_at`
+		          updated_at, is_verified`
 	var out Profile
 	err := s.pool.QueryRow(ctx, q,
 		p.UserID, p.DisplayName, p.Bio, p.Birthdate,
@@ -134,7 +135,7 @@ func (s *Store) Upsert(ctx context.Context, p Profile) (Profile, error) {
 	).Scan(
 		&out.UserID, &out.DisplayName, &out.Bio, &out.Birthdate,
 		&out.Prompt1, &out.Answer1, &out.Prompt2, &out.Answer2, &out.Prompt3, &out.Answer3,
-		&out.UpdatedAt,
+		&out.UpdatedAt, &out.IsVerified,
 	)
 	if err != nil {
 		return Profile{}, fmt.Errorf("profile: upsert: %w", err)
@@ -218,6 +219,19 @@ func (s *Store) DeletePhoto(ctx context.Context, userID int64, position int) err
 	)
 	if err != nil {
 		return fmt.Errorf("profile: delete photo: %w", err)
+	}
+	return nil
+}
+
+// MarkProfileVerified updates the verification status of a user profile.
+func (s *Store) MarkProfileVerified(ctx context.Context, userID int64, verified bool) error {
+	const q = `
+		UPDATE user_profiles
+		SET is_verified = $2, updated_at = now()
+		WHERE user_id = $1`
+	_, err := s.pool.Exec(ctx, q, userID, verified)
+	if err != nil {
+		return fmt.Errorf("profile: mark verified: %w", err)
 	}
 	return nil
 }

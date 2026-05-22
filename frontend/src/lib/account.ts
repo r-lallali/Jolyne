@@ -18,6 +18,7 @@ export interface ProfileDTO {
   bio: string;
   birthdate?: string | null; // ISO yyyy-mm-dd
   prompts: [PromptDTO, PromptDTO, PromptDTO];
+  is_verified?: boolean;
 }
 
 export interface PhotoDTO {
@@ -150,4 +151,16 @@ export function cloudinaryUrl(
     opts?.h ? `h_${opts.h}` : "h_512",
   ].join(",");
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}`;
+}
+
+export interface VerifyResult {
+  verified: boolean;
+  confidence: number;
+  error?: string;
+}
+
+export async function verifyPhoto(livePhotoId: string): Promise<VerifyResult> {
+  return api<VerifyResult>("POST", "/api/account/verify", {
+    live_photo_id: livePhotoId,
+  });
 }

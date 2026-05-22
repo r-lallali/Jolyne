@@ -83,8 +83,9 @@ type ServerFrame struct {
 
 	// Frame `peer_profile` : photo principale Cloudinary (public_id) +
 	// 3 slots Q&R. Affichés en sidebar pendant le chat anonyme.
-	PeerPhotoID string         `json:"peer_photo_id,omitempty"`
-	PeerPrompts []ServerPrompt `json:"peer_prompts,omitempty"`
+	PeerPhotoID  string         `json:"peer_photo_id,omitempty"`
+	PeerPrompts  []ServerPrompt `json:"peer_prompts,omitempty"`
+	PeerVerified bool           `json:"peer_verified,omitempty"`
 }
 
 // Codes d'erreur applicatifs (envoyés dans ServerFrame.Code).
