@@ -21,6 +21,7 @@ export type FriendWSEvent =
   | { type: "msg"; msg: FriendWSMessage }
   | { type: "peer_removed" }
   | { type: "read"; read_at: string }
+  | { type: "typing" }
   | { type: "error"; code: string; message?: string };
 
 export interface FriendWSHandle {
@@ -33,6 +34,7 @@ export interface FriendWSHandle {
   // Soft-delete : le serveur remplace le body par "" et fixe deleted_at.
   // Le client rend "Ce message a été supprimé" sur base du flag.
   delete(id: number): void;
+  sendTyping(): void;
   close(): void;
 }
 
@@ -91,6 +93,9 @@ export function openFriendWS(
     },
     delete(id) {
       sendRaw({ type: "delete_msg", id: String(id) });
+    },
+    sendTyping() {
+      sendRaw({ type: "typing" });
     },
     close() {
       closed = true;

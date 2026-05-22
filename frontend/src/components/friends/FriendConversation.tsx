@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { MessageInput } from "@/components/chat/MessageInput";
 import { ReportModal } from "@/components/chat/ReportModal";
@@ -84,6 +85,20 @@ export function FriendConversation({
   const wants = useSessionStore((s) => s.wants);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<FriendWSHandle | null>(null);
+  const [peerTyping, setPeerTyping] = useState(false);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingSent = useRef(0);
+
+  const receivePeerTyping = () => {
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+    }
+    setPeerTyping(true);
+    typingTimerRef.current = setTimeout(() => {
+      setPeerTyping(false);
+      typingTimerRef.current = null;
+    }, 3500);
+  };
 
   // Tap-to-translate sur les messages du peer : on garde le même contrat
   // que le chat anonyme (MessageBubble appelle onSelect avec le mot + son
@@ -145,6 +160,13 @@ export function FriendConversation({
           if (ev.read_at) setPeerReadAt(ev.read_at);
           break;
         case "msg":
+          if (ev.msg.sender_id !== user.id) {
+            setPeerTyping(false);
+            if (typingTimerRef.current) {
+              clearTimeout(typingTimerRef.current);
+              typingTimerRef.current = null;
+            }
+          }
           setMsgs((prev) => {
             const idx = prev.findIndex((m) => m.id === ev.msg.id);
             if (idx < 0) return [...prev, ev.msg];
@@ -161,6 +183,9 @@ export function FriendConversation({
         case "read":
           setPeerReadAt(ev.read_at);
           break;
+        case "typing":
+          receivePeerTyping();
+          break;
         case "error":
           break;
       }
@@ -169,6 +194,10 @@ export function FriendConversation({
     return () => {
       handle.close();
       wsRef.current = null;
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+        typingTimerRef.current = null;
+      }
     };
   }, [hydrated, user, friendId]);
 
@@ -177,7 +206,7 @@ export function FriendConversation({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [msgs.length]);
+  }, [msgs.length, peerTyping]);
 
   const remove = async () => {
     setConfirmRemove(false);
@@ -335,6 +364,40 @@ export function FriendConversation({
               />
             );
           })}
+
+          <AnimatePresence>
+            {peerTyping && (
+              <motion.div
+                initial={{ opacity: 0, y: 4, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -2 }}
+                transition={{ duration: 0.18 }}
+                className="flex w-full justify-start mt-1"
+              >
+                <div className="flex items-center gap-2 rounded-2xl rounded-bl-sm bg-neutral-200 px-3.5 py-2.5 dark:bg-neutral-800">
+                  <span className="sr-only">
+                    {profile?.display_name ?? "L'autre personne"} est en train d&apos;écrire...
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    {[0, 1, 2].map((i) => (
+                      <motion.span
+                        key={i}
+                        className="size-1.5 rounded-full bg-neutral-500 dark:bg-neutral-400"
+                        animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
+                        transition={{
+                          duration: 1.1,
+                          repeat: Infinity,
+                          delay: i * 0.15,
+                          ease: "easeInOut",
+                        }}
+                      />
+                    ))}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <SeenIndicator
             msgs={msgs}
             meId={user?.id ?? 0}
@@ -377,6 +440,12 @@ export function FriendConversation({
           onSend={(body) => {
             if (!wsRef.current) return;
             wsRef.current.send(body);
+          }}
+          onTyping={() => {
+            const now = Date.now();
+            if (now - lastTypingSent.current < 2000) return;
+            lastTypingSent.current = now;
+            wsRef.current?.sendTyping();
           }}
         />
       )}

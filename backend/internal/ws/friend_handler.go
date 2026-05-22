@@ -48,6 +48,7 @@ const (
 	friendServerMsg         friendServerType = "msg"
 	friendServerPeerRemoved friendServerType = "peer_removed"
 	friendServerRead        friendServerType = "read"
+	friendServerTyping      friendServerType = "typing"
 	friendServerError       friendServerType = "error"
 )
 
@@ -129,6 +130,7 @@ const (
 	friendKindRead    = "read"   // peer a marqué la conv comme lue
 	friendKindEdit    = "edit"   // un message a été modifié — payload = état complet
 	friendKindDelete  = "delete" // un message a été supprimé (soft)
+	friendKindTyping  = "typing" // peer est en train d'écrire
 )
 
 func friendChannel(friendID int64) string {
@@ -309,6 +311,14 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 					Type:   friendServerRead,
 					ReadAt: env.ReadAt,
 				})
+			case friendKindTyping:
+				// Si l'event d'écriture vient de nous-même (tab ouvert ailleurs), on l'ignore
+				if env.SenderID == uid {
+					continue
+				}
+				conn.Send(friendServerFrame{
+					Type: friendServerTyping,
+				})
 			}
 		case raw, ok := <-conn.Inbound:
 			if !ok {
@@ -323,6 +333,8 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 				h.handleEdit(ctx, conn, connID, chanName, uid, raw.ID, raw.Body)
 			case ClientFriendDeleteMsg:
 				h.handleDelete(ctx, conn, connID, chanName, uid, raw.ID)
+			case ClientTyping:
+				h.handleTyping(ctx, connID, chanName, uid)
 			}
 		}
 	}
@@ -449,6 +461,14 @@ func parseFriendIDFromPath(path string) (int64, error) {
 		rest = rest[:i]
 	}
 	return strconv.ParseInt(rest, 10, 64)
+}
+
+func (h *FriendHandler) handleTyping(ctx context.Context, connID, chanName string, uid int64) {
+	h.publish(ctx, chanName, friendEnvelope{
+		Kind:     friendKindTyping,
+		FromConn: connID,
+		SenderID: uid,
+	})
 }
 
 func friendErr(code, msg string) friendServerFrame {
