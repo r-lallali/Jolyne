@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { signPhotoUpload, uploadToCloudinary, verifyPhoto } from "@/lib/account";
 
 interface Props {
@@ -208,13 +209,15 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
         </div>
       </div>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-950/70 p-4 pt-[max(env(safe-area-inset-top)+1rem,1rem)] backdrop-blur-md sm:items-center sm:pt-4"
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {isOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-neutral-950/70 p-4 pt-[max(env(safe-area-inset-top)+1rem,1rem)] backdrop-blur-md sm:items-center sm:pt-4"
             onClick={() => {
               stopCamera();
               setIsOpen(false);
@@ -295,7 +298,9 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+          document.body,
+        )}
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
