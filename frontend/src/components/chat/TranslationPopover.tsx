@@ -20,20 +20,17 @@ interface Props {
 }
 
 type State =
-  | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "ok"; translated: string }
   | { kind: "err"; message: string };
 
-// Petit tooltip flottant ancré à la sélection. Cycle :
-//   1) "Traduire" (clic explicite — pas d'appel involontaire).
-//   2) Loader.
-//   3) Résultat + bouton fermer.
+// Petit tooltip flottant premium ancré à la sélection.
+// Traduit AUTOMATIQUEMENT le texte au chargement ou changement de requête.
 export function TranslationPopover({ request, onClose }: Props) {
-  const [state, setState] = useState<State>({ kind: "idle" });
+  const [state, setState] = useState<State>({ kind: "loading" });
   const t = useT();
 
-  // Fermeture sur clic ou Escape.
+  // Fermeture sur clic extérieur ou Escape.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -45,37 +42,57 @@ export function TranslationPopover({ request, onClose }: Props) {
     };
     window.addEventListener("keydown", onKey);
     // setTimeout pour ne pas attraper le mouseup qui a ouvert le popover.
-    const t = setTimeout(
+    const timer = setTimeout(
       () => window.addEventListener("mousedown", onDown),
       0,
     );
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onDown);
-      clearTimeout(t);
+      clearTimeout(timer);
     };
   }, [onClose]);
 
-  const onTranslate = async () => {
+  // Lance automatiquement la traduction quand le texte ou les langues changent.
+  useEffect(() => {
+    let active = true;
     setState({ kind: "loading" });
-    try {
-      const translated = await translateText(
-        request.text,
-        request.source,
-        request.target,
-      );
-      setState({ kind: "ok", translated });
-    } catch (e) {
-      const msg =
-        e instanceof TranslateError
-          ? t.translate.unavailable
-          : t.translate.genericError;
-      setState({ kind: "err", message: msg });
-    }
-  };
 
-  // On clamp à droite pour ne pas déborder. La hauteur est faible donc
-  // pas de gestion verticale fine pour l'instant.
+    const performTranslation = async () => {
+      try {
+        const translated = await translateText(
+          request.text,
+          request.source,
+          request.target,
+        );
+        if (active) {
+          setState({ kind: "ok", translated });
+        }
+      } catch (e) {
+        if (active) {
+          const msg =
+            e instanceof TranslateError
+              ? t.translate.unavailable
+              : t.translate.genericError;
+          setState({ kind: "err", message: msg });
+        }
+      }
+    };
+
+    performTranslation();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    request.text,
+    request.source,
+    request.target,
+    t.translate.unavailable,
+    t.translate.genericError,
+  ]);
+
+  // On clamp à droite pour ne pas déborder.
   const left = Math.min(Math.max(request.x, 80), window.innerWidth - 240);
 
   return (
@@ -91,38 +108,96 @@ export function TranslationPopover({ request, onClose }: Props) {
         transform: "translateX(-50%)",
         zIndex: 50,
       }}
-      className="min-w-[160px] max-w-[300px] rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm shadow-lg dark:border-neutral-800 dark:bg-neutral-950"
+      className="min-w-[180px] max-w-[320px] rounded-2xl border border-neutral-200 bg-white/95 p-3.5 text-xs shadow-xl backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/95"
     >
-      {state.kind === "idle" && (
-        <button
-          type="button"
-          onClick={onTranslate}
-          className="flex w-full items-center justify-between gap-3 text-left text-neutral-700 dark:text-neutral-300"
-        >
-          <span className="truncate font-medium">{request.text}</span>
-          <span className="shrink-0 text-xs text-neutral-500 dark:text-neutral-400">
-            {t.translate.label}
+      <div className="flex flex-col gap-2">
+        {/* En-tête : texte original */}
+        <div className="flex items-start justify-between gap-2 border-b border-neutral-100 pb-1.5 dark:border-neutral-800">
+          <span className="line-clamp-2 font-medium text-neutral-500 dark:text-neutral-400">
+            « {request.text} »
           </span>
-        </button>
-      )}
-      {state.kind === "loading" && (
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          {t.translate.loading}
-        </p>
-      )}
-      {state.kind === "ok" && (
-        <div>
-          <p className="text-[11px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-            {request.source} → {request.target}
-          </p>
-          <p className="mt-1 text-neutral-900 dark:text-neutral-50">
-            {state.translated}
-          </p>
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+            {request.source}
+          </span>
         </div>
-      )}
-      {state.kind === "err" && (
-        <p className="text-xs text-red-600 dark:text-red-400">{state.message}</p>
-      )}
+
+        {/* Corps : Loader, Résultat ou Erreur */}
+        {state.kind === "loading" && (
+          <div className="flex items-center gap-2 py-1 text-neutral-500 dark:text-neutral-400">
+            {/* Spinner animé élégant */}
+            <svg
+              className="size-3.5 animate-spin text-emerald-500"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            <span className="animate-pulse">{t.translate.loading}</span>
+          </div>
+        )}
+
+        {state.kind === "ok" && (
+          <div className="py-0.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              <span>{request.target}</span>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                className="size-2.5"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
+                />
+              </svg>
+              <span className="text-[9px] font-normal normal-case text-neutral-400 dark:text-neutral-500">
+                {t.translate.label}
+              </span>
+            </div>
+            <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-neutral-900 dark:text-neutral-50">
+              {state.translated}
+            </p>
+          </div>
+        )}
+
+        {state.kind === "err" && (
+          <div className="flex items-center gap-1.5 py-1 text-red-600 dark:text-red-400">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              className="size-3.5 shrink-0"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+              />
+            </svg>
+            <p className="font-medium">{state.message}</p>
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }
+
