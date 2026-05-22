@@ -237,7 +237,7 @@ export function FriendConversation({
   const initial = (profile?.display_name ?? "").slice(0, 1).toUpperCase();
 
   return (
-    <div className="flex h-full w-full flex-col pt-[max(env(safe-area-inset-top),1rem)] sm:mx-auto sm:max-w-2xl sm:pt-0">
+    <div className="flex h-full w-full flex-col pt-[calc(env(safe-area-inset-top)+2.5rem)] sm:mx-auto sm:max-w-2xl sm:pt-0">
       <header className="flex items-center gap-2 border-b border-neutral-200 px-3 py-2 dark:border-neutral-800 sm:px-4 sm:py-3">
         <BackButton onClick={onBack} label={t.chats.back} />
         <button
