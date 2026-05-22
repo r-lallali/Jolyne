@@ -89,14 +89,10 @@ export function usePhotoDrag({
       if (target.closest("button") || target.closest("input")) return;
 
       e.preventDefault();
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
       startPos.current = { x: e.clientX, y: e.clientY };
       pendingDragIndex.current = index;
       draggingRef.current = false;
-
-      const pointerId = e.pointerId;
-      const currentTarget = e.currentTarget as HTMLElement;
 
       const onMove = (ev: PointerEvent) => {
         if (!draggingRef.current) {
@@ -110,6 +106,7 @@ export function usePhotoDrag({
           measureSlots();
           setState({ dragIndex: pendingDragIndex.current, overIndex: -1 });
         }
+        ev.preventDefault();
         const over = hitTest(ev.clientX, ev.clientY);
         setState((prev) => {
           if (prev.overIndex === over) return prev;
@@ -118,14 +115,9 @@ export function usePhotoDrag({
       };
 
       const onUp = (ev: PointerEvent) => {
-        currentTarget.removeEventListener("pointermove", onMove);
-        currentTarget.removeEventListener("pointerup", onUp);
-        currentTarget.removeEventListener("pointercancel", onUp);
-        try {
-          currentTarget.releasePointerCapture(pointerId);
-        } catch {
-          // already released
-        }
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
 
         if (draggingRef.current) {
           const over = hitTest(ev.clientX, ev.clientY);
@@ -143,9 +135,9 @@ export function usePhotoDrag({
         setState({ dragIndex: -1, overIndex: -1 });
       };
 
-      currentTarget.addEventListener("pointermove", onMove);
-      currentTarget.addEventListener("pointerup", onUp);
-      currentTarget.addEventListener("pointercancel", onUp);
+      window.addEventListener("pointermove", onMove, { passive: false });
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
     },
     [hitTest, itemCount, measureSlots, onReorder],
   );

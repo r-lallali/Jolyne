@@ -66,7 +66,7 @@ export function PhotoSlot({
 
   return (
     <div
-      className={`relative aspect-square overflow-hidden rounded-2xl transition-all duration-150 ${
+      className={`relative aspect-square touch-none overflow-hidden rounded-2xl transition-all duration-150 ${
         isDragging
           ? "scale-95 opacity-50 ring-2 ring-neutral-400 dark:ring-neutral-600"
           : isOver
@@ -79,7 +79,7 @@ export function PhotoSlot({
           src={cloudinaryUrl(cloudName, publicId, { w: 480, h: 480 })}
           alt=""
           draggable={false}
-          className="h-full w-full object-cover select-none [-webkit-user-drag:none]"
+          className="pointer-events-none h-full w-full touch-none select-none object-cover [-webkit-user-drag:none]"
         />
       ) : (
         <button
