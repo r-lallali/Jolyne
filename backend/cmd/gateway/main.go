@@ -266,6 +266,7 @@ func run() error {
 			Store:   wsDeps.Friends,
 			Profile: profileStore,
 			Reports: reportSvc,
+			RDB:     rdb,
 			Log:     log,
 		}
 		log.Info("friends endpoints ready")

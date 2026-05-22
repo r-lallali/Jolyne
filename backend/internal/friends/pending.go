@@ -84,8 +84,11 @@ func ResolvePendingFriendships(ctx context.Context, rdb *redis.Client, store *St
 				_, err = store.Add(ctx, userID, peerUID)
 				if err != nil && logger != nil {
 					logger.Warn("resolve pending friendships: Add friends failed", "err", err, "uid", userID, "peer", peerUID)
-				} else if logger != nil {
-					logger.Info("resolve pending friendships: mutual friends created successfully!", "uid", userID, "peer", peerUID)
+				} else if err == nil {
+					PublishFriendsChanged(ctx, rdb, userID, peerUID)
+					if logger != nil {
+						logger.Info("resolve pending friendships: mutual friends created successfully!", "uid", userID, "peer", peerUID)
+					}
 				}
 			}
 			// Clean up this member since it is resolved

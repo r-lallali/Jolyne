@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/reports"
 	"github.com/ralys/jolyne/backend/internal/users"
@@ -23,6 +25,7 @@ type Handlers struct {
 	Store   *Store
 	Profile *profile.Store    // pour exposer le profil d'un ami
 	Reports *reports.Service  // nil si Postgres / clé de chiffrement absents
+	RDB     *redis.Client     // nil = pas de pub/sub inbox (dev sans Redis)
 	Log     *slog.Logger
 }
 
@@ -106,6 +109,15 @@ func (h *Handlers) HandleRemove(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
+	// Récupère le peer_id AVANT le remove pour pouvoir notifier les deux
+	// users via leur inbox channel respectif (le store ne retourne pas le
+	// Friend après remove — Get suffit pour le peer_id).
+	getCtx, getCancel := context.WithTimeout(r.Context(), 1*time.Second)
+	peerID := int64(0)
+	if f, err := h.Store.Get(getCtx, id, user.ID); err == nil {
+		peerID = f.PeerID
+	}
+	getCancel()
 	if err := h.Store.Remove(ctx, id, user.ID); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			http.NotFound(w, r)
@@ -115,6 +127,7 @@ func (h *Handlers) HandleRemove(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}
+	PublishFriendsChanged(r.Context(), h.RDB, user.ID, peerID)
 	w.WriteHeader(http.StatusNoContent)
 }
 

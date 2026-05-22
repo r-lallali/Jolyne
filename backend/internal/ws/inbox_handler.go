@@ -41,9 +41,10 @@ type inboxFrame struct {
 }
 
 const (
-	inboxTypeMsg     = "msg"
-	inboxTypeRead    = "read"
-	inboxTypeRemoved = "removed"
+	inboxTypeMsg            = "msg"
+	inboxTypeRead           = "read"
+	inboxTypeRemoved        = "removed"
+	inboxTypeFriendsChanged = "friends_changed"
 )
 
 // previewLen : on tronque le body pour la notification toast. Volontairement
@@ -78,15 +79,14 @@ func (h *InboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	go conn.Run(r.Context())
 
-	channels := make([]string, 0, len(frs))
+	// Channel meta du user — reçoit les events friends_changed (ajout /
+	// retrait d'ami) pour signaler au front qu'il faut reconnecter le WS
+	// (et donc re-snapshot la liste de friend channels côté backend).
+	userMetaChan := friends.UserInboxChannel(uid)
+	channels := make([]string, 0, len(frs)+1)
+	channels = append(channels, userMetaChan)
 	for _, f := range frs {
 		channels = append(channels, friendChannel(f.ID))
-	}
-	// Aucun ami : on garde la connexion ouverte (heartbeat only) — le client
-	// peut quand même afficher la bulle à 0.
-	if len(channels) == 0 {
-		<-conn.Done()
-		return
 	}
 
 	ps := h.d.RDB.Subscribe(r.Context(), channels...)
@@ -113,6 +113,15 @@ func (h *InboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				once.Do(func() { chanCancel() })
 				return
+			}
+			// Meta channel : payload texte simple ("friends_changed").
+			// Le front réagit en réouvrant le WS, ce qui re-snapshot la
+			// liste de canaux à souscrire.
+			if raw.Channel == userMetaChan {
+				if raw.Payload == friends.UserInboxKindFriendsChanged {
+					conn.Send(inboxFrame{Type: inboxTypeFriendsChanged})
+				}
+				continue
 			}
 			var env friendEnvelope
 			if err := json.Unmarshal([]byte(raw.Payload), &env); err != nil {

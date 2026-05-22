@@ -69,7 +69,7 @@ export function InboxProvider() {
     };
     loadFriends();
 
-    const handle = openInboxWS((ev) => {
+    const handle: { reconnect: () => void; close: () => void } = openInboxWS((ev) => {
       if (ev.type === "msg") {
         // Heuristique "conv ouverte" : on regarde l'URL. Si l'utilisateur
         // est sur /chats/{id} qui matche le friend_id, on ne notifie pas.
@@ -124,6 +124,12 @@ export function InboxProvider() {
       } else if (ev.type === "removed") {
         clearUnread(ev.friend_id);
         friendsRef.current.delete(ev.friend_id);
+      } else if (ev.type === "friends_changed") {
+        // Un ami a été ajouté/retiré côté serveur : re-fetch la liste pour
+        // mettre à jour le cache, et reconnect le WS afin que le backend
+        // re-souscrive aux bons channels (ce qui inclut le nouveau friend).
+        loadFriends();
+        handle.reconnect();
       }
     });
 

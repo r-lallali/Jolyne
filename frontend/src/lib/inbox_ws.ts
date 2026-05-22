@@ -12,7 +12,8 @@ import { decodeEntities } from "@/lib/sanitize";
 export type InboxEvent =
   | { type: "msg"; friend_id: number; sender_id: number; preview: string; sent_at: string }
   | { type: "read"; friend_id: number }
-  | { type: "removed"; friend_id: number };
+  | { type: "removed"; friend_id: number }
+  | { type: "friends_changed" };
 
 export interface InboxHandle {
   reconnect(): void;
