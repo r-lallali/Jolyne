@@ -341,6 +341,14 @@ func (s *Store) ReorderPhotos(ctx context.Context, userID int64, ordering []int)
 	}
 	defer tx.Rollback(ctx)
 
+	// Défère la contrainte UNIQUE (user_id, position) jusqu'au COMMIT pour
+	// permettre des positions transitoirement dupliquées pendant le swap.
+	if _, err = tx.Exec(ctx,
+		`SET CONSTRAINTS user_photos_user_id_position_key DEFERRED`,
+	); err != nil {
+		return nil, fmt.Errorf("profile: reorder defer constraint: %w", err)
+	}
+
 	// Vérifier que le nombre de photos correspond.
 	var count int
 	err = tx.QueryRow(ctx,
