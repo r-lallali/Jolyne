@@ -78,7 +78,8 @@ export function PhotoSlot({
         <img
           src={cloudinaryUrl(cloudName, publicId, { w: 480, h: 480 })}
           alt=""
-          className="h-full w-full object-cover"
+          draggable={false}
+          className="h-full w-full object-cover select-none [-webkit-user-drag:none]"
         />
       ) : (
         <button
