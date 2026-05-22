@@ -49,7 +49,7 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=()",
+    value: "camera=(self), microphone=(), geolocation=()",
   },
   // HSTS uniquement en prod (sinon le navigateur épingle localhost en HTTPS)
   ...(isDev
