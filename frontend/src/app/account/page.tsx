@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { notFound } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PhotoSlot, replacePhoto } from "@/components/account/PhotoSlot";
 import { usePhotoDrag } from "@/hooks/usePhotoDrag";
 import { BackButton } from "@/components/ui/BackButton";
@@ -256,13 +256,11 @@ export default function AccountPage() {
           />
         </Field>
         <Field label={t.account.bio}>
-          <textarea
+          <AutoGrowTextarea
             value={bio}
-            onChange={(e) => setBio(e.target.value)}
+            onChange={setBio}
             placeholder={t.account.bioPlaceholder}
             maxLength={280}
-            rows={3}
-            className="w-full resize-none rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
           />
         </Field>
         <Field label={t.account.birthdate}>
@@ -323,6 +321,39 @@ function Field({
       </span>
       <div className="mt-1.5">{children}</div>
     </label>
+  );
+}
+
+// AutoGrowTextarea : textarea qui ajuste sa hauteur sur le contenu, pour
+// que la bio soit toujours entièrement visible sans scroll interne.
+function AutoGrowTextarea({
+  value,
+  onChange,
+  placeholder,
+  maxLength,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      maxLength={maxLength}
+      rows={3}
+      className="w-full resize-none overflow-hidden rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
+    />
   );
 }
 
