@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PhotoSlot, replacePhoto } from "@/components/account/PhotoSlot";
+import { usePhotoDrag } from "@/hooks/usePhotoDrag";
 import { BackButton } from "@/components/ui/BackButton";
 import { PromptSlot } from "@/components/account/PromptSlot";
 import { VerificationCard } from "@/components/account/VerificationCard";
@@ -12,6 +13,7 @@ import {
   PromptDTO,
   fetchAccount,
   fetchCloudName,
+  reorderPhotos,
   updateAccount,
 } from "@/lib/account";
 import { useT } from "@/lib/i18n";
@@ -81,6 +83,41 @@ export default function AccountPage() {
     }
   };
 
+  const photoDrag = usePhotoDrag({
+    itemCount: MAX_PHOTOS,
+    onReorder: async (fromIndex, toIndex) => {
+      if (!account) return;
+      const photos = account.photos;
+      if (photos.length === 0) return;
+      // Build current positions array in display order
+      const currentPositions = Array.from({ length: MAX_PHOTOS }, (_, i) => {
+        const photo = photos.find((p) => p.position === i + 1);
+        return photo ? photo.position : null;
+      });
+      // Only work with occupied slots
+      const occupied = currentPositions.filter((p): p is number => p !== null);
+      // fromIndex and toIndex are 0-based grid indices; map to occupied array
+      const fromPos = fromIndex + 1;
+      const toPos = toIndex + 1;
+      const fromOccIdx = occupied.indexOf(fromPos);
+      const toOccIdx = occupied.indexOf(toPos);
+      if (fromOccIdx === -1) return; // can't drag an empty slot
+      // If dropping on empty, ignore
+      if (toOccIdx === -1) return;
+      // Reorder: remove fromOccIdx, insert at toOccIdx
+      const reordered = occupied.slice();
+      const moved = reordered.splice(fromOccIdx, 1)[0];
+      if (moved === undefined) return;
+      reordered.splice(toOccIdx, 0, moved);
+      try {
+        const updated = await reorderPhotos(reordered);
+        setAccount(updated);
+      } catch {
+        // silent — the grid stays in its original order
+      }
+    },
+  });
+
   if (!hydrated) {
     return null;
   }
@@ -124,7 +161,7 @@ export default function AccountPage() {
         <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-500">
           {t.account.photosHint}
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div ref={photoDrag.gridRef} className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {Array.from({ length: MAX_PHOTOS }).map((_, i) => {
             const pos = i + 1;
             const photo = photoByPos.get(pos);
@@ -134,9 +171,12 @@ export default function AccountPage() {
                 key={itemKey}
                 layout
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="aspect-square"
+                className="aspect-square cursor-grab active:cursor-grabbing"
+                {...photoDrag.bindSlot(i)}
               >
                 <PhotoSlot
+                  isDragging={photoDrag.dragIndex === i}
+                  isOver={photoDrag.overIndex === i && photoDrag.dragIndex !== i}
                   position={pos}
                   publicId={photo?.public_id}
                   cloudName={cloudName}

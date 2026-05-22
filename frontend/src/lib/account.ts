@@ -104,6 +104,14 @@ export async function deletePhoto(position: number): Promise<void> {
   await api<void>("DELETE", `/api/account/photos/${position}`);
 }
 
+export async function reorderPhotos(
+  positions: number[],
+): Promise<AccountDTO> {
+  return decodeAccount(
+    await api<AccountDTO>("PUT", "/api/account/photos/reorder", { positions }),
+  );
+}
+
 let cloudNameCache: string | null = null;
 export async function fetchCloudName(): Promise<string> {
   if (cloudNameCache) return cloudNameCache;

@@ -329,8 +329,8 @@ export function MessageBubble({
           data-time-pill
           // Mobile : caché par défaut (opacité 0). Un ancêtre avec
           // `data-times-revealed="on"` (toggle par swipe gauche dans la
-          // liste) la rend visible. Desktop : toujours visible.
-          className="shrink-0 select-none whitespace-nowrap text-[10px] tabular-nums leading-none text-neutral-400 opacity-0 transition-opacity duration-200 group-data-[times-revealed=on]/list:opacity-100 dark:text-neutral-500 sm:opacity-100"
+          // liste) la rend visible. Desktop : visible au hover uniquement.
+          className="shrink-0 select-none whitespace-nowrap text-[10px] tabular-nums leading-none text-neutral-400 opacity-0 transition-opacity duration-200 group-data-[times-revealed=on]/list:opacity-100 dark:text-neutral-500 sm:group-hover:opacity-100"
         >
           {timeLabel}
         </span>

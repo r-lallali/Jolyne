@@ -224,6 +224,42 @@ func (h *Handlers) HandleDeletePhoto(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// HandleReorderPhotos : PUT /api/account/photos/reorder — réorganise
+// les photos du user. Body : {"positions": [3, 1, 2]}.
+func (h *Handlers) HandleReorderPhotos(w http.ResponseWriter, r *http.Request) {
+	user, ok := users.CurrentUser(r.Context())
+	if !ok {
+		http.Error(w, "auth required", http.StatusUnauthorized)
+		return
+	}
+	var body struct {
+		Positions []int `json:"positions"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*1024)).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if len(body.Positions) == 0 || len(body.Positions) > MaxPhotos {
+		http.Error(w, "invalid positions", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+	photos, err := h.Store.ReorderPhotos(ctx, user.ID, body.Positions)
+	if err != nil {
+		h.log().Error("account reorder photos", "err", err)
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	p, err := h.Store.Get(ctx, user.ID)
+	if err != nil {
+		h.log().Error("account get profile after reorder", "err", err)
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	writeAccount(w, p, photos)
+}
+
 func writeAccount(w http.ResponseWriter, p Profile, photos []Photo) {
 	w.Header().Set("Content-Type", "application/json")
 	out := accountDTO{

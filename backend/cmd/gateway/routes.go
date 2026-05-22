@@ -85,6 +85,8 @@ func routes(s services) http.Handler {
 			cors(auth(methodOnly("POST", http.HandlerFunc(s.profile.HandleVerify)))))
 		mux.Handle("/api/account/photos/sign",
 			cors(auth(methodOnly("POST", http.HandlerFunc(s.profile.HandleSignPhotoUpload)))))
+		mux.Handle("/api/account/photos/reorder",
+			cors(auth(methodOnly("PUT", http.HandlerFunc(s.profile.HandleReorderPhotos)))))
 		mux.Handle("/api/account/photos",
 			cors(auth(methodOnly("POST", http.HandlerFunc(s.profile.HandleSetPhoto)))))
 		// DELETE /api/account/photos/{position}

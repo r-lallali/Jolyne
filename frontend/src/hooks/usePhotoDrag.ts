@@ -1,0 +1,167 @@
+"use client";
+
+import { useCallback, useRef, useState } from "react";
+
+// usePhotoDrag : gère le drag-and-drop des photos de profil via pointer
+// events (souris + tactile unifiés). Chaque slot de la grille reçoit
+// les props retournées par `bindSlot(index)`. Le hook détecte quel slot
+// est survolé en calculant la position du pointeur par rapport aux
+// bounding rects enregistrées.
+
+interface DragState {
+  /** Index du slot actuellement dragué (0-based), -1 si rien */
+  dragIndex: number;
+  /** Index du slot survolé pendant le drag, -1 si rien */
+  overIndex: number;
+}
+
+export interface PhotoDragResult {
+  dragIndex: number;
+  overIndex: number;
+  bindSlot: (index: number) => {
+    onPointerDown: (e: React.PointerEvent) => void;
+    style?: React.CSSProperties;
+  };
+  /** Ref callback à attacher au container de la grille */
+  gridRef: React.RefCallback<HTMLDivElement>;
+}
+
+export function usePhotoDrag({
+  itemCount,
+  onReorder,
+}: {
+  /** Nombre total de slots (occupés ou vides) */
+  itemCount: number;
+  /** Appelé quand un drop valide est effectué : (fromIndex, toIndex) 0-based */
+  onReorder: (fromIndex: number, toIndex: number) => void;
+}): PhotoDragResult {
+  const [state, setState] = useState<DragState>({
+    dragIndex: -1,
+    overIndex: -1,
+  });
+
+  const gridEl = useRef<HTMLDivElement | null>(null);
+  const slotsRef = useRef<DOMRect[]>([]);
+  const draggingRef = useRef(false);
+  const startPos = useRef({ x: 0, y: 0 });
+  const dragThreshold = 8; // px before drag starts
+  const pendingDragIndex = useRef(-1);
+
+  const gridRef = useCallback((el: HTMLDivElement | null) => {
+    gridEl.current = el;
+  }, []);
+
+  const measureSlots = useCallback(() => {
+    if (!gridEl.current) return;
+    const children = gridEl.current.children;
+    const rects: DOMRect[] = [];
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      if (child) rects.push(child.getBoundingClientRect());
+    }
+    slotsRef.current = rects;
+  }, []);
+
+  const hitTest = useCallback(
+    (clientX: number, clientY: number): number => {
+      for (let i = 0; i < slotsRef.current.length; i++) {
+        const r = slotsRef.current[i];
+        if (
+          r &&
+          clientX >= r.left &&
+          clientX <= r.right &&
+          clientY >= r.top &&
+          clientY <= r.bottom
+        ) {
+          return i;
+        }
+      }
+      return -1;
+    },
+    [],
+  );
+
+  const onPointerDown = useCallback(
+    (index: number, e: React.PointerEvent) => {
+      // Ignore right-click and don't interfere with buttons inside slot
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement;
+      if (target.closest("button") || target.closest("input")) return;
+
+      e.preventDefault();
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
+      startPos.current = { x: e.clientX, y: e.clientY };
+      pendingDragIndex.current = index;
+      draggingRef.current = false;
+
+      const pointerId = e.pointerId;
+      const currentTarget = e.currentTarget as HTMLElement;
+
+      const onMove = (ev: PointerEvent) => {
+        if (!draggingRef.current) {
+          const dx = ev.clientX - startPos.current.x;
+          const dy = ev.clientY - startPos.current.y;
+          if (Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) {
+            return;
+          }
+          // Drag threshold exceeded — start drag
+          draggingRef.current = true;
+          measureSlots();
+          setState({ dragIndex: pendingDragIndex.current, overIndex: -1 });
+        }
+        const over = hitTest(ev.clientX, ev.clientY);
+        setState((prev) => {
+          if (prev.overIndex === over) return prev;
+          return { ...prev, overIndex: over };
+        });
+      };
+
+      const onUp = (ev: PointerEvent) => {
+        currentTarget.removeEventListener("pointermove", onMove);
+        currentTarget.removeEventListener("pointerup", onUp);
+        currentTarget.removeEventListener("pointercancel", onUp);
+        try {
+          currentTarget.releasePointerCapture(pointerId);
+        } catch {
+          // already released
+        }
+
+        if (draggingRef.current) {
+          const over = hitTest(ev.clientX, ev.clientY);
+          if (
+            over !== -1 &&
+            over !== pendingDragIndex.current &&
+            over < itemCount
+          ) {
+            onReorder(pendingDragIndex.current, over);
+          }
+        }
+
+        draggingRef.current = false;
+        pendingDragIndex.current = -1;
+        setState({ dragIndex: -1, overIndex: -1 });
+      };
+
+      currentTarget.addEventListener("pointermove", onMove);
+      currentTarget.addEventListener("pointerup", onUp);
+      currentTarget.addEventListener("pointercancel", onUp);
+    },
+    [hitTest, itemCount, measureSlots, onReorder],
+  );
+
+  const bindSlot = useCallback(
+    (index: number) => ({
+      onPointerDown: (e: React.PointerEvent) => onPointerDown(index, e),
+      style: { touchAction: "none" as const },
+    }),
+    [onPointerDown],
+  );
+
+  return {
+    dragIndex: state.dragIndex,
+    overIndex: state.overIndex,
+    bindSlot,
+    gridRef,
+  };
+}

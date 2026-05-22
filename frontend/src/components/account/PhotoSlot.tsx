@@ -20,12 +20,16 @@ export function PhotoSlot({
   cloudName,
   onUploaded,
   onDeleted,
+  isDragging = false,
+  isOver = false,
 }: {
   position: number;
   publicId?: string;
   cloudName: string;
   onUploaded: (publicId: string) => void;
   onDeleted: () => void;
+  isDragging?: boolean;
+  isOver?: boolean;
 }) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -61,7 +65,15 @@ export function PhotoSlot({
   };
 
   return (
-    <div className="relative aspect-square overflow-hidden rounded-2xl bg-neutral-100 dark:bg-neutral-900">
+    <div
+      className={`relative aspect-square overflow-hidden rounded-2xl transition-all duration-150 ${
+        isDragging
+          ? "scale-95 opacity-50 ring-2 ring-neutral-400 dark:ring-neutral-600"
+          : isOver
+            ? "ring-2 ring-blue-500 scale-105 bg-blue-50 dark:bg-blue-950"
+            : "bg-neutral-100 dark:bg-neutral-900"
+      }`}
+    >
       {publicId && cloudName ? (
         <img
           src={cloudinaryUrl(cloudName, publicId, { w: 480, h: 480 })}

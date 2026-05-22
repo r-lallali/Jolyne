@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { FriendConversation } from "@/components/friends/FriendConversation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FriendConversation, RemoveConfirmModal } from "@/components/friends/FriendConversation";
 import { FriendProfileModal } from "@/components/friends/FriendProfileModal";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
-import { FriendSummary, listFriends } from "@/lib/friends";
+import { FriendSummary, listFriends, removeFriend, reportFriend } from "@/lib/friends";
 import { useT } from "@/lib/i18n";
 import { useUserStore } from "@/stores/userStore";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { FriendActionsMenu } from "@/components/friends/FriendActionsMenu";
+import { ReportModal } from "@/components/chat/ReportModal";
 
 // FriendsMode : vue "Mes conversations" rendue inline dans la home quand
 // l'utilisateur bascule sur l'onglet droit (ModeTabs). Gère son propre
@@ -54,21 +56,24 @@ export function FriendsMode({
     };
   }, [openFriendID]);
 
+  const refresh = useCallback(async () => {
+    try {
+      const list = await listFriends();
+      setFriends(list);
+      if (onUnreadChange) {
+        const total = list.reduce((acc, f) => acc + (f.unread_count ?? 0), 0);
+        onUnreadChange(total);
+      }
+    } catch {
+      // silent
+    }
+  }, [onUnreadChange]);
+
   useEffect(() => {
     let stopped = false;
     const tick = async () => {
       if (stopped) return;
-      try {
-        const list = await listFriends();
-        if (stopped) return;
-        setFriends(list);
-        if (onUnreadChange) {
-          const total = list.reduce((acc, f) => acc + (f.unread_count ?? 0), 0);
-          onUnreadChange(total);
-        }
-      } catch {
-        // silent
-      }
+      await refresh();
     };
     tick();
     const id = setInterval(tick, POLL_MS);
@@ -77,7 +82,7 @@ export function FriendsMode({
       stopped = true;
       clearInterval(id);
     };
-  }, [onUnreadChange]);
+  }, [refresh]);
 
   // Vue conversation : prend toute la place dispo. Le back-button du
   // FriendConversation rappelle setOpenFriendID(null) → on retombe sur
@@ -129,6 +134,7 @@ export function FriendsMode({
                 cloud={cloud}
                 onOpen={() => setOpenFriendID(f.id)}
                 onOpenProfile={() => setProfileFriendID(f.id)}
+                onRefresh={refresh}
               />
             ))}
           </ul>
@@ -150,17 +156,64 @@ function FriendRow({
   cloud,
   onOpen,
   onOpenProfile,
+  onRefresh,
 }: {
   friend: FriendSummary;
   cloud: string;
   onOpen: () => void;
   onOpenProfile: () => void;
+  onRefresh: () => void;
 }) {
   const t = useT();
   const me = useUserStore((s) => s.user);
   const hasUnread = friend.unread_count > 0;
   const peerName = friend.peer_name || "—";
   const isMine = me && friend.last_message_sender_id === me.id;
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [muted, setMuted] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setMuted(localStorage.getItem(`jolyne:muted_friend_${friend.id}`) === "1");
+  }, [friend.id]);
+
+  const toggleMute = () => {
+    setMuted((prev) => {
+      const next = !prev;
+      try {
+        if (next) localStorage.setItem(`jolyne:muted_friend_${friend.id}`, "1");
+        else localStorage.removeItem(`jolyne:muted_friend_${friend.id}`);
+      } catch {
+        // silent
+      }
+      return next;
+    });
+    setMenuOpen(false);
+  };
+
+  const submitReport = async (reason: string) => {
+    try {
+      await reportFriend(friend.id, reason);
+      onRefresh();
+    } catch {
+      // silent
+    }
+  };
+
+  const remove = async () => {
+    setConfirmRemove(false);
+    setMenuOpen(false);
+    try {
+      await removeFriend(friend.id);
+      onRefresh();
+    } catch {
+      // silent
+    }
+  };
+
   // Preview style Instagram : "Toi : salut" si je suis l'auteur, sinon
   // le body brut. Message supprimé → on affiche le placeholder en italique
   // (le body remonté du backend est déjà vidé dans ce cas).
@@ -216,6 +269,24 @@ function FriendRow({
                 <VerifiedBadge className="size-3.5" />
               </span>
             )}
+            {muted && (
+              <span className="shrink-0 text-neutral-400 dark:text-neutral-500" title="Sourdine active">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-3"
+                  aria-hidden
+                >
+                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                  <path d="M3 3l18 18" />
+                </svg>
+              </span>
+            )}
           </div>
           <span className="shrink-0 text-[11px] text-neutral-400 dark:text-neutral-500">
             {relativeTime(friend.last_message_at)}
@@ -242,6 +313,43 @@ function FriendRow({
           )}
         </div>
       </button>
+      <div className="relative shrink-0">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label={t.chats.menuLabel || "Menu d'actions"}
+          className="inline-flex size-8 items-center justify-center rounded-full text-neutral-500 opacity-0 transition-all hover:bg-neutral-100 hover:text-neutral-900 active:scale-90 group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+        >
+          <DotsIcon />
+        </button>
+        {menuOpen && (
+          <FriendActionsMenu
+            muted={muted}
+            onToggleMute={toggleMute}
+            onReport={() => {
+              setMenuOpen(false);
+              setReportOpen(true);
+            }}
+            onRemove={() => {
+              setMenuOpen(false);
+              setConfirmRemove(true);
+            }}
+            onClose={() => setMenuOpen(false)}
+          />
+        )}
+      </div>
+
+      <ReportModal
+        open={reportOpen}
+        peerNick={peerName}
+        onClose={() => setReportOpen(false)}
+        onSubmit={submitReport}
+      />
+      <RemoveConfirmModal
+        open={confirmRemove}
+        onCancel={() => setConfirmRemove(false)}
+        onConfirm={remove}
+      />
     </li>
   );
 }
@@ -263,4 +371,23 @@ function relativeTime(iso: string): string {
     day: "numeric",
     month: "short",
   });
+}
+
+function DotsIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3.5"
+      aria-hidden
+    >
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+    </svg>
+  );
 }

@@ -645,7 +645,7 @@ function DoubleCheckIcon() {
 // RemoveConfirmModal : remplace l'`alert()` natif par une boîte au style
 // du reste du produit. Identique au pattern de la modale Quitter du chat
 // anonyme — bouton rouge à droite pour confirmer, escape ferme.
-function RemoveConfirmModal({
+export function RemoveConfirmModal({
   open,
   onCancel,
   onConfirm,

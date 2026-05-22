@@ -310,6 +310,133 @@ func (s *Store) DeletePhoto(ctx context.Context, userID int64, position int) (st
 	return publicID, nil
 }
 
+// ReorderPhotos : réorganise les photos d'un user en une seule
+// transaction. `ordering` contient les positions actuelles dans le
+// nouvel ordre voulu (ex: [3,1,2] = la photo actuellement en position 3
+// passe en 1, celle en 1 passe en 2, celle en 2 passe en 3).
+// Étape 1 : déplace tout vers des positions négatives temporaires pour
+// éviter les violations de contrainte unique (user_id, position).
+// Étape 2 : applique l'ordre final.
+func (s *Store) ReorderPhotos(ctx context.Context, userID int64, ordering []int) ([]Photo, error) {
+	if len(ordering) == 0 {
+		return []Photo{}, nil
+	}
+	for _, pos := range ordering {
+		if pos < 1 || pos > MaxPhotos {
+			return nil, fmt.Errorf("profile: reorder: position invalide %d", pos)
+		}
+	}
+	// Vérifier les doublons dans ordering.
+	seen := make(map[int]bool, len(ordering))
+	for _, pos := range ordering {
+		if seen[pos] {
+			return nil, fmt.Errorf("profile: reorder: position dupliquée %d", pos)
+		}
+		seen[pos] = true
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("profile: reorder begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Vérifier que le nombre de photos correspond.
+	var count int
+	err = tx.QueryRow(ctx,
+		`SELECT count(*) FROM user_photos WHERE user_id = $1`, userID,
+	).Scan(&count)
+	if err != nil {
+		return nil, fmt.Errorf("profile: reorder count: %w", err)
+	}
+	if count != len(ordering) {
+		return nil, fmt.Errorf("profile: reorder: ordering length %d != photo count %d", len(ordering), count)
+	}
+
+	// Récupérer l'identité de la photo actuellement en position 1
+	// pour détecter si le main photo change (=> reset vérification).
+	var oldMainPublicID string
+	err = tx.QueryRow(ctx,
+		`SELECT public_id FROM user_photos WHERE user_id = $1 AND position = 1`,
+		userID,
+	).Scan(&oldMainPublicID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("profile: reorder get main: %w", err)
+	}
+
+	// Étape 1 : positions temporaires négatives.
+	for i, oldPos := range ordering {
+		tmpPos := -(i + 1)
+		_, err = tx.Exec(ctx,
+			`UPDATE user_photos SET position = $1 WHERE user_id = $2 AND position = $3`,
+			tmpPos, userID, oldPos,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("profile: reorder tmp pos: %w", err)
+		}
+	}
+
+	// Étape 2 : positions finales.
+	for i := range ordering {
+		newPos := i + 1
+		tmpPos := -(i + 1)
+		_, err = tx.Exec(ctx,
+			`UPDATE user_photos SET position = $1 WHERE user_id = $2 AND position = $3`,
+			newPos, userID, tmpPos,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("profile: reorder final pos: %w", err)
+		}
+	}
+
+	// Si la photo principale a changé, reset la vérification.
+	if oldMainPublicID != "" {
+		var newMainPublicID string
+		err = tx.QueryRow(ctx,
+			`SELECT public_id FROM user_photos WHERE user_id = $1 AND position = 1`,
+			userID,
+		).Scan(&newMainPublicID)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("profile: reorder check main: %w", err)
+		}
+		if newMainPublicID != oldMainPublicID {
+			_, err = tx.Exec(ctx,
+				`UPDATE user_profiles SET is_verified = false, updated_at = now() WHERE user_id = $1`,
+				userID,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("profile: reorder reset verification: %w", err)
+			}
+		}
+	}
+
+	// Lire les photos réordonnées.
+	rows, err := tx.Query(ctx,
+		`SELECT id, user_id, position, public_id FROM user_photos WHERE user_id = $1 ORDER BY position`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("profile: reorder list: %w", err)
+	}
+	defer rows.Close()
+	out := make([]Photo, 0, len(ordering))
+	for rows.Next() {
+		var p Photo
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Position, &p.PublicID); err != nil {
+			return nil, fmt.Errorf("profile: reorder scan: %w", err)
+		}
+		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("profile: reorder rows: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("profile: reorder commit: %w", err)
+	}
+	return out, nil
+}
+
 // MarkProfileVerified updates the verification status of a user profile.
 func (s *Store) MarkProfileVerified(ctx context.Context, userID int64, verified bool) error {
 	const q = `
