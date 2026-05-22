@@ -13,6 +13,9 @@ interface DragState {
   dragIndex: number;
   /** Index du slot survolé pendant le drag, -1 si rien */
   overIndex: number;
+  /** Offset (px) du pointeur par rapport au point de départ */
+  offsetX: number;
+  offsetY: number;
 }
 
 export interface PhotoDragResult {
@@ -38,6 +41,8 @@ export function usePhotoDrag({
   const [state, setState] = useState<DragState>({
     dragIndex: -1,
     overIndex: -1,
+    offsetX: 0,
+    offsetY: 0,
   });
 
   const gridEl = useRef<HTMLDivElement | null>(null);
@@ -104,13 +109,16 @@ export function usePhotoDrag({
           // Drag threshold exceeded — start drag
           draggingRef.current = true;
           measureSlots();
-          setState({ dragIndex: pendingDragIndex.current, overIndex: -1 });
         }
         ev.preventDefault();
         const over = hitTest(ev.clientX, ev.clientY);
-        setState((prev) => {
-          if (prev.overIndex === over) return prev;
-          return { ...prev, overIndex: over };
+        const offsetX = ev.clientX - startPos.current.x;
+        const offsetY = ev.clientY - startPos.current.y;
+        setState({
+          dragIndex: pendingDragIndex.current,
+          overIndex: over,
+          offsetX,
+          offsetY,
         });
       };
 
@@ -132,7 +140,7 @@ export function usePhotoDrag({
 
         draggingRef.current = false;
         pendingDragIndex.current = -1;
-        setState({ dragIndex: -1, overIndex: -1 });
+        setState({ dragIndex: -1, overIndex: -1, offsetX: 0, offsetY: 0 });
       };
 
       window.addEventListener("pointermove", onMove, { passive: false });
@@ -143,11 +151,20 @@ export function usePhotoDrag({
   );
 
   const bindSlot = useCallback(
-    (index: number) => ({
-      onPointerDown: (e: React.PointerEvent) => onPointerDown(index, e),
-      style: { touchAction: "none" as const },
-    }),
-    [onPointerDown],
+    (index: number) => {
+      const isDragged = state.dragIndex === index;
+      const style: React.CSSProperties = { touchAction: "none" };
+      if (isDragged) {
+        style.transform = `translate(${state.offsetX}px, ${state.offsetY}px)`;
+        style.zIndex = 50;
+        style.transition = "none";
+      }
+      return {
+        onPointerDown: (e: React.PointerEvent) => onPointerDown(index, e),
+        style,
+      };
+    },
+    [onPointerDown, state.dragIndex, state.offsetX, state.offsetY],
   );
 
   return {

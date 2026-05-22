@@ -167,10 +167,8 @@ export default function AccountPage() {
             const photo = photoByPos.get(pos);
             const itemKey = photo ? photo.public_id : `empty-${pos}`;
             return (
-              <motion.div
+              <div
                 key={itemKey}
-                layout
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
                 className="aspect-square cursor-grab active:cursor-grabbing"
                 {...photoDrag.bindSlot(i)}
               >
@@ -220,7 +218,7 @@ export default function AccountPage() {
                     });
                   }}
                 />
-              </motion.div>
+              </div>
             );
           })}
         </div>
