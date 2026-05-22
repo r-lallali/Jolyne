@@ -4,6 +4,8 @@ from io import BytesIO
 import flask
 import requests
 import face_recognition
+from PIL import Image, ImageOps
+import numpy as np
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("face-matcher")
@@ -25,6 +27,33 @@ def download_image(url):
         logger.error(f"Échec du téléchargement de l'image ({url}) : {e}")
         raise ValueError(f"Impossible de télécharger l'image : {e}")
 
+def load_image(file_obj):
+    img = Image.open(file_obj)
+    img = ImageOps.exif_transpose(img)
+    return np.array(img.convert("RGB"))
+
+def get_face_encodings(image, is_profile=False):
+    # Try 1: HOG avec upsampling par défaut (1)
+    locations = face_recognition.face_locations(image, number_of_times_to_upsample=1, model="hog")
+    
+    # Try 2: HOG avec upsampling de 2 (pour les visages plus petits, flous ou éloignés)
+    if not locations:
+        logger.info(f"Tentative de détection (HOG upsample=2) pour {'la photo de profil' if is_profile else 'le selfie'}...")
+        locations = face_recognition.face_locations(image, number_of_times_to_upsample=2, model="hog")
+        
+    # Try 3: Modèle CNN (très précis, résistant aux angles et à la luminosité)
+    if not locations:
+        logger.info(f"Tentative de détection (modèle CNN) pour {'la photo de profil' if is_profile else 'le selfie'}...")
+        try:
+            locations = face_recognition.face_locations(image, number_of_times_to_upsample=1, model="cnn")
+        except Exception as cnn_err:
+            logger.warning(f"Impossible d'utiliser le modèle CNN (dlib CUDA non disponible) : {cnn_err}")
+            
+    if not locations:
+        return []
+        
+    return face_recognition.face_encodings(image, known_face_locations=locations)
+
 @app.route('/compare', methods=['POST'])
 def compare_faces():
     data = flask.request.get_json()
@@ -42,13 +71,13 @@ def compare_faces():
         profile_file = download_image(profile_url)
         live_file = download_image(live_url)
 
-        # 2. Charger les images avec face_recognition
-        profile_image = face_recognition.load_image_file(profile_file)
-        live_image = face_recognition.load_image_file(live_file)
+        # 2. Charger les images et corriger l'orientation EXIF
+        profile_image = load_image(profile_file)
+        live_image = load_image(live_file)
 
-        # 3. Extraire les encodages faciaux
-        profile_encodings = face_recognition.face_encodings(profile_image)
-        live_encodings = face_recognition.face_encodings(live_image)
+        # 3. Extraire les encodages faciaux avec stratégie multi-passes (HOG + upsample + CNN)
+        profile_encodings = get_face_encodings(profile_image, is_profile=True)
+        live_encodings = get_face_encodings(live_image, is_profile=False)
 
         # 4. Valider la présence de visages
         if not profile_encodings:

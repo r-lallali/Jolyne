@@ -57,10 +57,10 @@ func (v *Verifier) VerifyProfile(ctx context.Context, userID int64, livePhotoPub
 		return false, 0, "Veuillez d'abord ajouter une photo de profil principale (position 1).", nil
 	}
 
-	// 2. Build secure Cloudinary URLs
+	// 2. Build secure Cloudinary URLs (limit to 800px max while preserving aspect ratio for faster download/processing)
 	cloudName := v.cloudinary.CloudName
-	profilePhotoURL := fmt.Sprintf("https://res.cloudinary.com/%s/image/upload/%s", cloudName, primaryPhoto.PublicID)
-	livePhotoURL := fmt.Sprintf("https://res.cloudinary.com/%s/image/upload/%s", cloudName, livePhotoPublicID)
+	profilePhotoURL := fmt.Sprintf("https://res.cloudinary.com/%s/image/upload/c_limit,w_800,h_800/%s", cloudName, primaryPhoto.PublicID)
+	livePhotoURL := fmt.Sprintf("https://res.cloudinary.com/%s/image/upload/c_limit,w_800,h_800/%s", cloudName, livePhotoPublicID)
 
 	// 3. Contact face-matcher microservice
 	matcherURL := os.Getenv("FACE_MATCHER_URL")
