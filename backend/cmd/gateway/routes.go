@@ -15,6 +15,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/grammar"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/profile"
+	"github.com/ralys/jolyne/backend/internal/push"
 	"github.com/ralys/jolyne/backend/internal/translate"
 	"github.com/ralys/jolyne/backend/internal/users"
 	"github.com/ralys/jolyne/backend/internal/ws"
@@ -33,6 +34,7 @@ type services struct {
 	users           *users.Handlers   // nil si auth utilisateur désactivée
 	profile         *profile.Handlers // nil si auth utilisateur désactivée
 	friends         *friends.Handlers // nil si auth utilisateur désactivée
+	push            *push.Handlers    // nil si VAPID env manquant
 	publicCORS      string            // origin autorisée pour /api/translate et /api/grammar
 }
 
@@ -127,6 +129,23 @@ func routes(s services) http.Handler {
 				s.friends.HandleRemove(w, r)
 			default:
 				http.NotFound(w, r)
+			}
+		}))))
+	}
+
+	if s.push != nil && s.users != nil {
+		auth := s.users.RequireAuth
+		cors := publicCORS(s.publicCORS)
+		mux.Handle("/api/notifications/vapid-public-key",
+			cors(methodOnly("GET", http.HandlerFunc(s.push.HandleVAPIDPublicKey))))
+		mux.Handle("/api/notifications/subscribe", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodPost:
+				s.push.HandleSubscribe(w, r)
+			case http.MethodDelete:
+				s.push.HandleUnsubscribe(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			}
 		}))))
 	}

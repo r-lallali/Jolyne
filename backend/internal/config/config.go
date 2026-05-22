@@ -60,6 +60,13 @@ type Config struct {
 	CloudinaryAPISecret string
 	CloudinaryFolder    string // ex: "jolyne/avatars"
 
+	// Web Push (VAPID). Tout vide → endpoints /api/notifications/* renvoient
+	// 503 et le sender no-op. VAPIDSubject est requis par la spec RFC 8292,
+	// typiquement "mailto:hello@jolyne.ralys.ovh".
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
+	VAPIDSubject    string
+
 	ShutdownGrace time.Duration
 }
 
@@ -94,6 +101,9 @@ func Load() (Config, error) {
 		CloudinaryAPIKey:     os.Getenv("CLOUDINARY_API_KEY"),
 		CloudinaryAPISecret:  os.Getenv("CLOUDINARY_API_SECRET"),
 		CloudinaryFolder:     getEnv("CLOUDINARY_FOLDER", "jolyne/avatars"),
+		VAPIDPublicKey:       os.Getenv("VAPID_PUBLIC_KEY"),
+		VAPIDPrivateKey:      os.Getenv("VAPID_PRIVATE_KEY"),
+		VAPIDSubject:         os.Getenv("VAPID_SUBJECT"),
 		ShutdownGrace:        getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
 	}
 	if err := cfg.validate(); err != nil {

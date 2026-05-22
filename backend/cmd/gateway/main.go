@@ -26,6 +26,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/obs"
 	"github.com/ralys/jolyne/backend/internal/profile"
+	"github.com/ralys/jolyne/backend/internal/push"
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/redisx"
 	"github.com/ralys/jolyne/backend/internal/reports"
@@ -271,12 +272,37 @@ func run() error {
 		}
 		log.Info("friends endpoints ready")
 
+		// Web Push : Postgres-backed subscriptions + VAPID sender. Si une
+		// des trois VAPID env n'est pas posée, le sender est laissé nil
+		// (no-op) et les routes /api/notifications/* renvoient 503.
+		var pushSender *push.Sender
+		if cfg.VAPIDPublicKey != "" && cfg.VAPIDPrivateKey != "" && cfg.VAPIDSubject != "" {
+			pushStore := push.NewStore(svc.pg)
+			pushSender = &push.Sender{
+				Store:     pushStore,
+				VAPIDPub:  cfg.VAPIDPublicKey,
+				VAPIDPriv: cfg.VAPIDPrivateKey,
+				VAPIDSubj: cfg.VAPIDSubject,
+				Log:       log,
+			}
+			svc.push = &push.Handlers{
+				Store:    pushStore,
+				VAPIDPub: cfg.VAPIDPublicKey,
+				Log:      log,
+			}
+			log.Info("web push handler ready")
+		} else {
+			log.Info("web push disabled — VAPID env keys missing")
+		}
+
 		// WS friend chat : /ws/friend/{id} — persisté, push temps-réel.
 		if wsDeps.Friends != nil && wsDeps.UserAuth != nil {
 			svc.wsFriendHandler = ws.NewFriendHandler(ws.FriendDeps{
 				RDB:      rdb,
 				Friends:  wsDeps.Friends,
 				UserAuth: wsDeps.UserAuth,
+				Push:     pushSender,
+				Profile:  profileStore,
 				Log:      log,
 			})
 			svc.wsInboxHandler = ws.NewInboxHandler(ws.InboxDeps{

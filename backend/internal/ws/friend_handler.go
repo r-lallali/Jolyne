@@ -15,6 +15,8 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ralys/jolyne/backend/internal/friends"
+	"github.com/ralys/jolyne/backend/internal/profile"
+	"github.com/ralys/jolyne/backend/internal/push"
 )
 
 // FriendDeps regroupe les dépendances du handler WS friend.
@@ -25,6 +27,8 @@ type FriendDeps struct {
 	RDB      *redis.Client
 	Friends  *friends.Store
 	UserAuth *UserAuth // obligatoire — pas de WS friend sans auth
+	Push     *push.Sender
+	Profile  *profile.Store // résout le nom à afficher dans la notif push
 	Log      *slog.Logger
 }
 
@@ -368,6 +372,52 @@ func (h *FriendHandler) handleSend(
 		Kind: friendKindMsg, FromConn: connID,
 		ID: m.ID, SenderID: m.SenderID, Body: dto.Body, SentAt: dto.SentAt,
 	})
+
+	// Web Push best-effort vers le peer. Goroutine détachée — on ne ralentit
+	// jamais le hot-path de la conv. Body tronqué (preview) : le contenu
+	// brut n'est pas envoyé. Pas de log du body côté push (CLAUDE.md règle
+	// d'or #1).
+	if h.d.Push != nil {
+		peerUID := friendPeerUID(uid, friendID, h)
+		if peerUID > 0 {
+			go func() {
+				bgCtx, bgCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer bgCancel()
+				preview := body
+				if len(preview) > 80 {
+					preview = preview[:80]
+				}
+				name := ""
+				if h.d.Profile != nil {
+					if p, err := h.d.Profile.Get(bgCtx, uid); err == nil {
+						name = p.DisplayName
+					}
+				}
+				if name == "" {
+					name = "Nouveau message"
+				}
+				h.d.Push.SendToUser(bgCtx, peerUID, push.Payload{
+					Title:    name,
+					Body:     preview,
+					URL:      "/chats/" + strconv.FormatInt(friendID, 10),
+					FriendID: friendID,
+					Tag:      "friend-" + strconv.FormatInt(friendID, 10),
+				})
+			}()
+		}
+	}
+}
+
+// friendPeerUID : récupère l'ID du peer d'une amitié (peer = l'autre user
+// que celui qui envoie). Helper local — on lit le Friend via Store.Get.
+func friendPeerUID(senderUID, friendID int64, h *FriendHandler) int64 {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	f, err := h.d.Friends.Get(ctx, friendID, senderUID)
+	if err != nil {
+		return 0
+	}
+	return f.PeerID
 }
 
 // handleEdit : modifie un message existant (auteur uniquement, dans la

@@ -8,6 +8,7 @@ import { openInboxWS } from "@/lib/inbox_ws";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useUserStore } from "@/stores/userStore";
 import { NotificationToasts } from "@/components/notifications/NotificationToasts";
+import { PushOptIn } from "@/components/notifications/PushOptIn";
 
 // InboxProvider : monté une seule fois dans le layout. Tant que l'user
 // est authentifié, ouvre le WS /ws/inbox et alimente le store de
@@ -140,5 +141,10 @@ export function InboxProvider() {
   }, [hydrated, user, hydrateUnread, incrementUnread, clearUnread, pushToast]);
 
   if (!hydrated || !user) return null;
-  return <NotificationToasts cloudName={cloudRef.current} />;
+  return (
+    <>
+      <PushOptIn />
+      <NotificationToasts cloudName={cloudRef.current} />
+    </>
+  );
 }
