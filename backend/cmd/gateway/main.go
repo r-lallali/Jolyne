@@ -237,6 +237,9 @@ func run() error {
 			CookieSecure:  cfg.IsProd(),
 			PublicURL:     cfg.PublicAppURL,
 			Log:           log,
+			OnUserAuthenticated: func(ctx context.Context, userID int64, fingerprint string) {
+				friends.ResolvePendingFriendships(ctx, rdb, wsDeps.Friends, userID, fingerprint, log)
+			},
 		}
 		log.Info("user auth ready",
 			"mailer", ml != nil,

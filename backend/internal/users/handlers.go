@@ -22,14 +22,15 @@ import (
 // signup directement dans `user_profiles` — sans ça, l'utilisateur doit
 // repasser par /account pour que ses futurs amis voient son nom.
 type Handlers struct {
-	Store         *Store
-	Profile       ProfileWriter
-	Mailer        *mailer.Mailer
-	SessionSecret []byte
-	CookieDomain  string
-	CookieSecure  bool
-	PublicURL     string // ex: https://jolyne.ralys.ovh — racine front
-	Log           *slog.Logger
+	Store               *Store
+	Profile             ProfileWriter
+	Mailer              *mailer.Mailer
+	SessionSecret       []byte
+	CookieDomain        string
+	CookieSecure        bool
+	PublicURL           string // ex: https://jolyne.ralys.ovh — racine front
+	Log                 *slog.Logger
+	OnUserAuthenticated func(ctx context.Context, userID int64, fingerprint string)
 }
 
 // ProfileWriter : sous-ensemble de profile.Store dont users a besoin.
@@ -55,6 +56,7 @@ func (h *Handlers) HandleSignup(w http.ResponseWriter, r *http.Request) {
 		Email       string `json:"email"`
 		Password    string `json:"password"`
 		DisplayName string `json:"display_name"`
+		Fingerprint string `json:"fingerprint"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*1024)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -104,14 +106,20 @@ func (h *Handlers) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	h.sendEmailLink(ctx, user, PurposeVerifyEmail, "/auth/verify")
 
 	h.openSession(w, user.ID)
+
+	if body.Fingerprint != "" && h.OnUserAuthenticated != nil {
+		go h.OnUserAuthenticated(context.Background(), user.ID, body.Fingerprint)
+	}
+
 	h.writeUser(w, user)
 }
 
 // HandleLogin : POST /api/auth/login {email, password} → 200 {user} + Set-Cookie.
 func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email       string `json:"email"`
+		Password    string `json:"password"`
+		Fingerprint string `json:"fingerprint"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*1024)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -127,6 +135,11 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = h.Store.TouchLastSeen(ctx, user.ID)
 	h.openSession(w, user.ID)
+
+	if body.Fingerprint != "" && h.OnUserAuthenticated != nil {
+		go h.OnUserAuthenticated(context.Background(), user.ID, body.Fingerprint)
+	}
+
 	h.writeUser(w, user)
 }
 

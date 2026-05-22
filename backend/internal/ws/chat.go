@@ -86,7 +86,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 	// authentifiés ET que le service Friends est branché. promptTimer
 	// déclenche le prompt à 10 min ; promptWindow ferme la fenêtre
 	// d'acceptation à T+10min+60s. Acceptances locale + remote tracking.
-	friendEligible := h.d.Friends != nil && sess.UserID > 0 && peer.UserID > 0
+	friendEligible := h.d.Friends != nil
 	var promptTimer <-chan time.Time
 	var promptWindow <-chan time.Time
 	if friendEligible {
@@ -155,7 +155,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			case roomKindFriendAccept:
 				peerAccept = true
 				if myAccept && !friendDone && friendEligible {
-					friendDone = tryMakeFriends(ctx, h, conn, sess.UserID, peer.UserID)
+					friendDone = tryMakeFriendsOrPending(ctx, h, conn, sess.UserID, peer.UserID, sess.Fingerprint, peer.Fingerprint)
 				}
 			}
 		case msg, ok := <-conn.Inbound:
@@ -273,7 +273,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				myAccept = true
 				_ = room.SendFriendAccept(ctx)
 				if peerAccept {
-					friendDone = tryMakeFriends(ctx, h, conn, sess.UserID, peer.UserID)
+					friendDone = tryMakeFriendsOrPending(ctx, h, conn, sess.UserID, peer.UserID, sess.Fingerprint, peer.Fingerprint)
 				}
 			}
 		}

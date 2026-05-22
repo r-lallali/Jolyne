@@ -1,6 +1,4 @@
-// Client HTTP minimal pour /api/auth/*. credentials:include partout pour
-// que le cookie de session user (Domain=.ralys.ovh en prod) soit posé
-// et renvoyé sur les appels cross-subdomain.
+import { getFingerprint } from "./fingerprint";
 
 const BASE = process.env.NEXT_PUBLIC_BACKEND_HTTP_URL ?? "";
 
@@ -38,18 +36,22 @@ export async function signup(
   password: string,
   displayName?: string,
 ): Promise<AuthUser> {
+  const fp = await getFingerprint().catch(() => "");
   const data = await postAuth<{ user: AuthUser }>("/api/auth/signup", {
     email,
     password,
     display_name: displayName ?? "",
+    fingerprint: fp,
   });
   return data.user;
 }
 
 export async function login(email: string, password: string): Promise<AuthUser> {
+  const fp = await getFingerprint().catch(() => "");
   const data = await postAuth<{ user: AuthUser }>("/api/auth/login", {
     email,
     password,
+    fingerprint: fp,
   });
   return data.user;
 }
