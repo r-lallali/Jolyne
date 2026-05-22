@@ -212,17 +212,25 @@ func (s *Store) SetPhoto(ctx context.Context, userID int64, position int, public
 		return Photo{}, "", fmt.Errorf("profile: set find old photo: %w", err)
 	}
 
-	// 2. Effectuer l'upsert
-	const q = `
-		INSERT INTO user_photos (user_id, position, public_id)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (user_id, position) DO UPDATE SET public_id = EXCLUDED.public_id
-		RETURNING id, user_id, position, public_id`
-	
+	// 2. Effectuer l'upsert manuellement (la contrainte UNIQUE (user_id,
+	// position) est DEFERRABLE pour permettre les swaps dans ReorderPhotos,
+	// or ON CONFLICT ne supporte pas les contraintes deferrable comme arbiter).
 	var p Photo
-	err = tx.QueryRow(ctx, q, userID, position, publicID).Scan(
-		&p.ID, &p.UserID, &p.Position, &p.PublicID,
-	)
+	if oldPublicID != "" {
+		err = tx.QueryRow(ctx,
+			`UPDATE user_photos SET public_id = $3
+			 WHERE user_id = $1 AND position = $2
+			 RETURNING id, user_id, position, public_id`,
+			userID, position, publicID,
+		).Scan(&p.ID, &p.UserID, &p.Position, &p.PublicID)
+	} else {
+		err = tx.QueryRow(ctx,
+			`INSERT INTO user_photos (user_id, position, public_id)
+			 VALUES ($1, $2, $3)
+			 RETURNING id, user_id, position, public_id`,
+			userID, position, publicID,
+		).Scan(&p.ID, &p.UserID, &p.Position, &p.PublicID)
+	}
 	if err != nil {
 		return Photo{}, "", fmt.Errorf("profile: set photo exec: %w", err)
 	}
