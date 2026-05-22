@@ -44,12 +44,22 @@ type Friend struct {
 	LastMessageSenderID int64
 }
 
+// EditWindow : durée pendant laquelle l'auteur d'un message peut le
+// modifier après l'envoi. Au-delà, l'édition est rejetée serveur (le
+// front cache aussi le bouton, mais la source de vérité reste ici).
+const EditWindow = 5 * time.Minute
+
 type Message struct {
 	ID       int64
 	FriendID int64
 	SenderID int64
 	Body     string
 	SentAt   time.Time
+	// EditedAt / DeletedAt : nil = état initial. Le store remplit ces
+	// pointeurs depuis la DB. La suppression est soft — la ligne reste
+	// pour préserver l'ordre, mais Body est vidé côté DTO.
+	EditedAt  *time.Time
+	DeletedAt *time.Time
 }
 
 type Store struct {
@@ -272,7 +282,7 @@ func (s *Store) ListMessages(ctx context.Context, friendID int64, limit int) ([]
 	}
 	// On prend les N plus récents puis on inverse pour ordre chronologique.
 	const q = `
-		SELECT id, friend_id, sender_id, body, sent_at
+		SELECT id, friend_id, sender_id, body, sent_at, edited_at, deleted_at
 		FROM friend_messages
 		WHERE friend_id = $1
 		ORDER BY sent_at DESC
@@ -285,7 +295,10 @@ func (s *Store) ListMessages(ctx context.Context, friendID int64, limit int) ([]
 	out := []Message{}
 	for rows.Next() {
 		var m Message
-		if err := rows.Scan(&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt); err != nil {
+		if err := rows.Scan(
+			&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt,
+			&m.EditedAt, &m.DeletedAt,
+		); err != nil {
 			return nil, fmt.Errorf("friends: scan msg: %w", err)
 		}
 		out = append(out, m)
@@ -338,6 +351,73 @@ func (s *Store) AppendMessage(ctx context.Context, friendID, senderID int64, bod
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return Message{}, fmt.Errorf("friends: commit: %w", err)
+	}
+	return m, nil
+}
+
+// ErrEditWindowClosed : tentative d'édition d'un message > EditWindow
+// après son envoi. Mapping côté handler vers une 403 / code applicatif.
+var ErrEditWindowClosed = errors.New("friends: fenêtre d'édition expirée")
+
+// EditMessage : remplace le body d'un message à condition que (a) le
+// caller en soit l'auteur, (b) il ne soit pas déjà supprimé, et (c) on
+// soit toujours dans la fenêtre `EditWindow` depuis l'envoi.
+func (s *Store) EditMessage(ctx context.Context, msgID, userID int64, body string) (Message, error) {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return Message{}, fmt.Errorf("friends: body vide")
+	}
+	if len(body) > MessageMaxLen {
+		body = body[:MessageMaxLen]
+	}
+	body = html.EscapeString(body)
+	// Tente l'update directement avec les conditions inline — un seul
+	// round-trip, et on lit `RETURNING` pour distinguer "non trouvé"
+	// (auteur erroné / supprimé / hors fenêtre) du succès.
+	const q = `
+		UPDATE friend_messages
+		SET body = $3, edited_at = now()
+		WHERE id = $1
+		  AND sender_id = $2
+		  AND deleted_at IS NULL
+		  AND sent_at >= now() - $4::interval
+		RETURNING id, friend_id, sender_id, body, sent_at, edited_at, deleted_at`
+	var m Message
+	err := s.pool.QueryRow(ctx, q, msgID, userID, body, EditWindow.String()).Scan(
+		&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt,
+		&m.EditedAt, &m.DeletedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Message{}, ErrEditWindowClosed
+		}
+		return Message{}, fmt.Errorf("friends: edit message: %w", err)
+	}
+	return m, nil
+}
+
+// DeleteMessage : soft-delete (le body devient invisible, la ligne reste
+// pour l'ordre chronologique + modération). Réservé à l'auteur. Pas de
+// fenêtre de temps — on peut supprimer un message qu'on a envoyé il y a
+// 3 mois.
+func (s *Store) DeleteMessage(ctx context.Context, msgID, userID int64) (Message, error) {
+	const q = `
+		UPDATE friend_messages
+		SET deleted_at = now()
+		WHERE id = $1
+		  AND sender_id = $2
+		  AND deleted_at IS NULL
+		RETURNING id, friend_id, sender_id, body, sent_at, edited_at, deleted_at`
+	var m Message
+	err := s.pool.QueryRow(ctx, q, msgID, userID).Scan(
+		&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt,
+		&m.EditedAt, &m.DeletedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Message{}, ErrNotFound
+		}
+		return Message{}, fmt.Errorf("friends: delete message: %w", err)
 	}
 	return m, nil
 }

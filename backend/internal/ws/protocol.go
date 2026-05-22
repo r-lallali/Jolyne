@@ -11,12 +11,14 @@ import "encoding/json"
 type ClientType string
 
 const (
-	ClientMsg          ClientType = "msg"
-	ClientNext         ClientType = "next"
-	ClientTyping       ClientType = "typing"
-	ClientReport       ClientType = "report"
-	ClientCorrect      ClientType = "correct"       // correction d'un message du peer
-	ClientFriendAccept ClientType = "friend_accept" // réponse au friend_prompt (10 min)
+	ClientMsg             ClientType = "msg"
+	ClientNext            ClientType = "next"
+	ClientTyping          ClientType = "typing"
+	ClientReport          ClientType = "report"
+	ClientCorrect         ClientType = "correct"       // correction d'un message du peer
+	ClientFriendAccept    ClientType = "friend_accept" // réponse au friend_prompt (10 min)
+	ClientFriendEditMsg   ClientType = "edit_msg"      // (chat ami) édition d'un message persisté
+	ClientFriendDeleteMsg ClientType = "delete_msg"    // (chat ami) suppression soft d'un message
 )
 
 type ClientFrame struct {

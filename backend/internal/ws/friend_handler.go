@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -59,6 +60,33 @@ type friendMsgDTO struct {
 	SenderID int64  `json:"sender_id"`
 	Body     string `json:"body"`
 	SentAt   string `json:"sent_at"`
+	// Présents si le message a été modifié / supprimé. Si Deleted, Body
+	// est vidé côté serveur — c'est le client qui affiche "Ce message a
+	// été supprimé".
+	EditedAt  string `json:"edited_at,omitempty"`
+	DeletedAt string `json:"deleted_at,omitempty"`
+}
+
+// toDTO : convertit une `friends.Message` en payload WS. Les champs
+// nullables (EditedAt, DeletedAt) deviennent des chaînes vides → JSON
+// les omet (omitempty), ce qui laisse le client appliquer le défaut.
+// Si le message est supprimé, on vide le Body côté serveur — pas la
+// peine de le pousser au client.
+func toDTO(m friends.Message) friendMsgDTO {
+	dto := friendMsgDTO{
+		ID:       m.ID,
+		SenderID: m.SenderID,
+		Body:     m.Body,
+		SentAt:   m.SentAt.UTC().Format(time.RFC3339),
+	}
+	if m.EditedAt != nil {
+		dto.EditedAt = m.EditedAt.UTC().Format(time.RFC3339)
+	}
+	if m.DeletedAt != nil {
+		dto.DeletedAt = m.DeletedAt.UTC().Format(time.RFC3339)
+		dto.Body = ""
+	}
+	return dto
 }
 
 type friendServerFrame struct {
@@ -89,6 +117,9 @@ type friendEnvelope struct {
 	SenderID int64  `json:"s,omitempty"`
 	Body     string `json:"b,omitempty"`
 	SentAt   string `json:"t,omitempty"`
+	// `friendKindEdit` / `friendKindDelete` : timestamps relatifs.
+	EditedAt  string `json:"e,omitempty"`
+	DeletedAt string `json:"d,omitempty"`
 	// `friendKindRead` uniquement : user_id ayant marqué + timestamp.
 	// Un subscriber filtre les receipts qui le concernent (= ceux émis
 	// par l'autre membre, pas les siens).
@@ -99,7 +130,9 @@ type friendEnvelope struct {
 const (
 	friendKindMsg     = "msg"
 	friendKindRemoved = "removed"
-	friendKindRead    = "read" // peer a marqué la conv comme lue
+	friendKindRead    = "read"   // peer a marqué la conv comme lue
+	friendKindEdit    = "edit"   // un message a été modifié — payload = état complet
+	friendKindDelete  = "delete" // un message a été supprimé (soft)
 )
 
 func friendChannel(friendID int64) string {
@@ -192,10 +225,7 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 	}
 	hist := make([]friendMsgDTO, 0, len(msgs))
 	for _, m := range msgs {
-		hist = append(hist, friendMsgDTO{
-			ID: m.ID, SenderID: m.SenderID, Body: m.Body,
-			SentAt: m.SentAt.UTC().Format(time.RFC3339),
-		})
+		hist = append(hist, toDTO(m))
 	}
 	conn.Send(friendServerFrame{
 		Type:     friendServerHistory,
@@ -237,12 +267,20 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 				return
 			}
 			switch env.Kind {
-			case friendKindMsg:
+			case friendKindMsg, friendKindEdit, friendKindDelete:
+				// Tous trois transportent l'état complet d'un message
+				// (créé / modifié / supprimé) — le client dédup par ID
+				// et remplace. Body est déjà vide côté envelope si le
+				// message est supprimé.
 				conn.Send(friendServerFrame{
 					Type: friendServerMsg,
 					Msg: &friendMsgDTO{
-						ID: env.ID, SenderID: env.SenderID,
-						Body: env.Body, SentAt: env.SentAt,
+						ID:        env.ID,
+						SenderID:  env.SenderID,
+						Body:      env.Body,
+						SentAt:    env.SentAt,
+						EditedAt:  env.EditedAt,
+						DeletedAt: env.DeletedAt,
 					},
 				})
 			case friendKindRemoved:
@@ -262,47 +300,106 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 			if !ok {
 				return
 			}
-			// On reparse l'inbound brut comme un friendClientFrame —
-			// le ws.Conn décode déjà en ClientFrame (match), mais les
-			// champs `type`/`body` se chevauchent et c'est suffisant
-			// pour notre cas (msg uniquement).
-			ft := friendClientType(string(raw.Type))
-			if ft != friendClientMsg {
-				continue
+			// Le ws.Conn décode toujours en `ClientFrame` (compat chat
+			// anonyme). On dispatche sur `Type` pour les frames friend.
+			switch ClientType(raw.Type) {
+			case ClientType(friendClientMsg):
+				h.handleSend(ctx, conn, connID, chanName, f.ID, uid, raw.Body)
+			case ClientFriendEditMsg:
+				h.handleEdit(ctx, conn, connID, chanName, uid, raw.ID, raw.Body)
+			case ClientFriendDeleteMsg:
+				h.handleDelete(ctx, conn, connID, chanName, uid, raw.ID)
 			}
-			body := strings.TrimSpace(raw.Body)
-			if body == "" {
-				continue
-			}
-			// Vérifie l'état d'amitié AVANT persistance — si j'ai retiré
-			// entre temps, on ferme. Si le peer m'a retiré, on persiste
-			// quand même (les deux gardent l'historique).
-			persistCtx, persistCancel := context.WithTimeout(ctx, 3*time.Second)
-			cur, errGet := h.d.Friends.Get(persistCtx, f.ID, uid)
-			if errGet != nil {
-				persistCancel()
-				return
-			}
-			m, errAppend := h.d.Friends.AppendMessage(persistCtx, f.ID, uid, body)
-			persistCancel()
-			if errAppend != nil {
-				conn.Send(friendErr("invalid_body", "message refused"))
-				continue
-			}
-			dto := friendMsgDTO{
-				ID: m.ID, SenderID: m.SenderID, Body: m.Body,
-				SentAt: m.SentAt.UTC().Format(time.RFC3339),
-			}
-			// Echo direct au sender (pas de roundtrip pub/sub).
-			conn.Send(friendServerFrame{Type: friendServerMsg, Msg: &dto})
-			// Publie pour le peer (sa conn skip via FromConn filter).
-			h.publish(ctx, chanName, friendEnvelope{
-				Kind: friendKindMsg, FromConn: connID,
-				ID: m.ID, SenderID: m.SenderID, Body: m.Body, SentAt: dto.SentAt,
-			})
-			_ = cur
 		}
 	}
+}
+
+// handleSend : persiste un nouveau message, fait l'echo au sender et le
+// publie au peer. Aucune validation côté friendship n'est rejouée par
+// AppendMessage (les checks d'éligibilité ont été faits à l'ouverture
+// du WS).
+func (h *FriendHandler) handleSend(
+	ctx context.Context, conn *Conn, connID, chanName string,
+	friendID, uid int64, rawBody string,
+) {
+	body := strings.TrimSpace(rawBody)
+	if body == "" {
+		return
+	}
+	persistCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	if _, err := h.d.Friends.Get(persistCtx, friendID, uid); err != nil {
+		return
+	}
+	m, err := h.d.Friends.AppendMessage(persistCtx, friendID, uid, body)
+	if err != nil {
+		conn.Send(friendErr("invalid_body", "message refused"))
+		return
+	}
+	dto := toDTO(m)
+	conn.Send(friendServerFrame{Type: friendServerMsg, Msg: &dto})
+	h.publish(ctx, chanName, friendEnvelope{
+		Kind: friendKindMsg, FromConn: connID,
+		ID: m.ID, SenderID: m.SenderID, Body: dto.Body, SentAt: dto.SentAt,
+	})
+}
+
+// handleEdit : modifie un message existant (auteur uniquement, dans la
+// fenêtre `friends.EditWindow`). Echo + publish portent l'état complet.
+func (h *FriendHandler) handleEdit(
+	ctx context.Context, conn *Conn, connID, chanName string,
+	uid int64, rawID, rawBody string,
+) {
+	msgID, err := strconv.ParseInt(rawID, 10, 64)
+	if err != nil || msgID <= 0 {
+		conn.Send(friendErr("invalid_param", "id required"))
+		return
+	}
+	editCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	m, err := h.d.Friends.EditMessage(editCtx, msgID, uid, rawBody)
+	if err != nil {
+		if errors.Is(err, friends.ErrEditWindowClosed) {
+			conn.Send(friendErr("edit_window_closed", "edit window closed"))
+		} else {
+			conn.Send(friendErr("invalid_body", "edit refused"))
+		}
+		return
+	}
+	dto := toDTO(m)
+	conn.Send(friendServerFrame{Type: friendServerMsg, Msg: &dto})
+	h.publish(ctx, chanName, friendEnvelope{
+		Kind: friendKindEdit, FromConn: connID,
+		ID: m.ID, SenderID: m.SenderID, Body: dto.Body, SentAt: dto.SentAt,
+		EditedAt: dto.EditedAt,
+	})
+}
+
+// handleDelete : soft-delete un message (auteur uniquement). Echo +
+// publish — le client remplace le rendu par "Ce message a été supprimé".
+func (h *FriendHandler) handleDelete(
+	ctx context.Context, conn *Conn, connID, chanName string,
+	uid int64, rawID string,
+) {
+	msgID, err := strconv.ParseInt(rawID, 10, 64)
+	if err != nil || msgID <= 0 {
+		conn.Send(friendErr("invalid_param", "id required"))
+		return
+	}
+	delCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	m, err := h.d.Friends.DeleteMessage(delCtx, msgID, uid)
+	if err != nil {
+		conn.Send(friendErr("not_found", "message not found"))
+		return
+	}
+	dto := toDTO(m)
+	conn.Send(friendServerFrame{Type: friendServerMsg, Msg: &dto})
+	h.publish(ctx, chanName, friendEnvelope{
+		Kind: friendKindDelete, FromConn: connID,
+		ID: m.ID, SenderID: m.SenderID, SentAt: dto.SentAt,
+		EditedAt: dto.EditedAt, DeletedAt: dto.DeletedAt,
+	})
 }
 
 func (h *FriendHandler) publish(ctx context.Context, chanName string, env friendEnvelope) {
