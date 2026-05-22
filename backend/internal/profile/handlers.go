@@ -162,12 +162,26 @@ func (h *Handlers) HandleSetPhoto(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	p, err := h.Store.SetPhoto(ctx, user.ID, body.Position, body.PublicID)
+	p, oldPublicID, err := h.Store.SetPhoto(ctx, user.ID, body.Position, body.PublicID)
 	if err != nil {
 		h.log().Error("account set photo", "err", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}
+
+	if oldPublicID != "" && oldPublicID != body.PublicID {
+		// Supprimer l'ancienne photo de Cloudinary de manière asynchrone
+		go func(pid string) {
+			bgCtx, bgCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer bgCancel()
+			if err := h.Cloudinary.Destroy(bgCtx, pid); err != nil {
+				h.log().Error("cloudinary destroy failed", "public_id", pid, "err", err)
+			} else {
+				h.log().Info("cloudinary photo deleted", "public_id", pid)
+			}
+		}(oldPublicID)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(photoToDTO(p))
 }
@@ -187,11 +201,26 @@ func (h *Handlers) HandleDeletePhoto(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	if err := h.Store.DeletePhoto(ctx, user.ID, pos); err != nil {
+	deletedPublicID, err := h.Store.DeletePhoto(ctx, user.ID, pos)
+	if err != nil {
 		h.log().Error("account delete photo", "err", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}
+
+	if deletedPublicID != "" {
+		// Supprimer la photo de Cloudinary de manière asynchrone
+		go func(pid string) {
+			bgCtx, bgCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer bgCancel()
+			if err := h.Cloudinary.Destroy(bgCtx, pid); err != nil {
+				h.log().Error("cloudinary destroy failed for deleted photo", "public_id", pid, "err", err)
+			} else {
+				h.log().Info("cloudinary photo deleted for deleted photo", "public_id", pid)
+			}
+		}(deletedPublicID)
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

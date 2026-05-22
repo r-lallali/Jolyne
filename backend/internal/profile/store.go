@@ -186,41 +186,128 @@ func (s *Store) ListPhotos(ctx context.Context, userID int64) ([]Photo, error) {
 }
 
 // SetPhoto : UPSERT position N pour un user. Position doit être 1..6.
-func (s *Store) SetPhoto(ctx context.Context, userID int64, position int, publicID string) (Photo, error) {
+// Retourne la photo créée/mise à jour, et l'ancien public_id (si elle a été remplacée) pour nettoyage.
+func (s *Store) SetPhoto(ctx context.Context, userID int64, position int, publicID string) (Photo, string, error) {
 	if position < 1 || position > MaxPhotos {
-		return Photo{}, fmt.Errorf("profile: position invalide (1..%d)", MaxPhotos)
+		return Photo{}, "", fmt.Errorf("profile: position invalide (1..%d)", MaxPhotos)
 	}
 	publicID = strings.TrimSpace(publicID)
 	if publicID == "" {
-		return Photo{}, fmt.Errorf("profile: public_id vide")
+		return Photo{}, "", fmt.Errorf("profile: public_id vide")
 	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Photo{}, "", fmt.Errorf("profile: set begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Récupérer l'ancien public_id s'il existe
+	var oldPublicID string
+	err = tx.QueryRow(ctx,
+		`SELECT public_id FROM user_photos WHERE user_id = $1 AND position = $2`,
+		userID, position,
+	).Scan(&oldPublicID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return Photo{}, "", fmt.Errorf("profile: set find old photo: %w", err)
+	}
+
+	// 2. Effectuer l'upsert
 	const q = `
 		INSERT INTO user_photos (user_id, position, public_id)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (user_id, position) DO UPDATE SET public_id = EXCLUDED.public_id
 		RETURNING id, user_id, position, public_id`
+	
 	var p Photo
-	err := s.pool.QueryRow(ctx, q, userID, position, publicID).Scan(
+	err = tx.QueryRow(ctx, q, userID, position, publicID).Scan(
 		&p.ID, &p.UserID, &p.Position, &p.PublicID,
 	)
 	if err != nil {
-		return Photo{}, fmt.Errorf("profile: set photo: %w", err)
+		return Photo{}, "", fmt.Errorf("profile: set photo exec: %w", err)
 	}
-	return p, nil
+
+	// 3. Si la photo principale (position 1) est modifiée, on décertifie le compte par sécurité
+	if position == 1 && oldPublicID != "" && oldPublicID != publicID {
+		_, err = tx.Exec(ctx,
+			`UPDATE user_profiles SET is_verified = false, updated_at = now() WHERE user_id = $1`,
+			userID,
+		)
+		if err != nil {
+			return Photo{}, "", fmt.Errorf("profile: set reset verification: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return Photo{}, "", fmt.Errorf("profile: set commit tx: %w", err)
+	}
+
+	return p, oldPublicID, nil
 }
 
-// DeletePhoto : supprime la photo à cette position pour ce user.
-// Pas de delete Cloudinary ici (asset peut être réutilisé) — un cron
-// périodique nettoiera les orphelins plus tard.
-func (s *Store) DeletePhoto(ctx context.Context, userID int64, position int) error {
-	_, err := s.pool.Exec(ctx,
+// DeletePhoto : supprime la photo à cette position pour ce user et décale
+// les photos suivantes vers la gauche (position-1) dans une transaction.
+// Retourne le public_id de la photo supprimée pour nettoyage Cloudinary.
+func (s *Store) DeletePhoto(ctx context.Context, userID int64, position int) (string, error) {
+	if position < 1 || position > MaxPhotos {
+		return "", fmt.Errorf("profile: position invalide (1..%d)", MaxPhotos)
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("profile: delete begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Récupérer le public_id de la photo à supprimer
+	var publicID string
+	err = tx.QueryRow(ctx,
+		`SELECT public_id FROM user_photos WHERE user_id = $1 AND position = $2`,
+		userID, position,
+	).Scan(&publicID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Rien à supprimer
+			return "", nil
+		}
+		return "", fmt.Errorf("profile: delete find photo: %w", err)
+	}
+
+	// 2. Supprimer la photo
+	_, err = tx.Exec(ctx,
 		`DELETE FROM user_photos WHERE user_id = $1 AND position = $2`,
 		userID, position,
 	)
 	if err != nil {
-		return fmt.Errorf("profile: delete photo: %w", err)
+		return "", fmt.Errorf("profile: delete photo exec: %w", err)
 	}
-	return nil
+
+	// 3. Décaler les photos suivantes vers la gauche (position-1)
+	_, err = tx.Exec(ctx,
+		`UPDATE user_photos SET position = position - 1 WHERE user_id = $1 AND position > $2`,
+		userID, position,
+	)
+	if err != nil {
+		return "", fmt.Errorf("profile: delete shift photos: %w", err)
+	}
+
+	// 4. Si la photo principale (position 1) a été supprimée ou décalée,
+	// et que le profil était certifié, on doit annuler la certification par sécurité !
+	if position == 1 {
+		_, err = tx.Exec(ctx,
+			`UPDATE user_profiles SET is_verified = false, updated_at = now() WHERE user_id = $1`,
+			userID,
+		)
+		if err != nil {
+			return "", fmt.Errorf("profile: delete reset verification: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("profile: delete commit tx: %w", err)
+	}
+
+	return publicID, nil
 }
 
 // MarkProfileVerified updates the verification status of a user profile.
