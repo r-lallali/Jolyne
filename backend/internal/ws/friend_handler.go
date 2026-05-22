@@ -40,10 +40,6 @@ const (
 	friendClientMsg friendClientType = "msg"
 )
 
-type friendClientFrame struct {
-	Type friendClientType `json:"type"`
-	Body string           `json:"body,omitempty"`
-}
 
 type friendServerType string
 
