@@ -274,7 +274,7 @@ func (h *Handlers) HandleVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second) // Face matching can take time
+	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second) // Face matching can take time (dlib is CPU intensive)
 	defer cancel()
 
 	verified, confidence, errMsg, err := h.Verifier.VerifyProfile(ctx, user.ID, body.LivePhotoID)
