@@ -364,29 +364,26 @@ func (s *Store) ReorderPhotos(ctx context.Context, userID int64, ordering []int)
 		return nil, fmt.Errorf("profile: reorder get main: %w", err)
 	}
 
-	// Étape 1 : positions temporaires négatives.
+	// Single UPDATE with CASE — Postgres ne vérifie les contraintes UNIQUE
+	// qu'à la fin de la commande, donc un swap atomique fonctionne sans
+	// passer par des positions temporaires (la CHECK position BETWEEN 1
+	// AND 6 interdit toute valeur hors plage, y compris transitoire).
+	// Les valeurs sont des ints validés 1..MaxPhotos, inlining safe.
+	var sb strings.Builder
+	sb.WriteString("UPDATE user_photos SET position = CASE position")
 	for i, oldPos := range ordering {
-		tmpPos := -(i + 1)
-		_, err = tx.Exec(ctx,
-			`UPDATE user_photos SET position = $1 WHERE user_id = $2 AND position = $3`,
-			tmpPos, userID, oldPos,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("profile: reorder tmp pos: %w", err)
-		}
+		fmt.Fprintf(&sb, " WHEN %d THEN %d", oldPos, i+1)
 	}
-
-	// Étape 2 : positions finales.
-	for i := range ordering {
-		newPos := i + 1
-		tmpPos := -(i + 1)
-		_, err = tx.Exec(ctx,
-			`UPDATE user_photos SET position = $1 WHERE user_id = $2 AND position = $3`,
-			newPos, userID, tmpPos,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("profile: reorder final pos: %w", err)
+	sb.WriteString(" END WHERE user_id = $1 AND position IN (")
+	for i, oldPos := range ordering {
+		if i > 0 {
+			sb.WriteString(",")
 		}
+		fmt.Fprintf(&sb, "%d", oldPos)
+	}
+	sb.WriteString(")")
+	if _, err = tx.Exec(ctx, sb.String(), userID); err != nil {
+		return nil, fmt.Errorf("profile: reorder update: %w", err)
 	}
 
 	// Si la photo principale a changé, reset la vérification.
