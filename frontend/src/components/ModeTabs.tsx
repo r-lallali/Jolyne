@@ -83,7 +83,7 @@ function Bar({
           scaleY: active ? 1 : 0.7,
         }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="block h-[4px] w-full rounded-full bg-neutral-900 transition-colors group-hover:bg-neutral-700 dark:bg-neutral-50 dark:group-hover:bg-neutral-300 sm:h-[3px]"
+        className="block h-[6px] w-full rounded-full bg-neutral-900 transition-colors group-hover:bg-neutral-700 dark:bg-neutral-50 dark:group-hover:bg-neutral-300 sm:h-[5px]"
       />
     </button>
   );
