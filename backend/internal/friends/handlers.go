@@ -49,6 +49,10 @@ type friendDTO struct {
 	LastMessageDeleted  bool   `json:"last_message_deleted"`
 	CreatedAt           string `json:"created_at"`
 	LastMessageAt       string `json:"last_message_at"`
+	Streak              int    `json:"streak"`
+	StreakAtRisk        bool   `json:"streak_at_risk"`
+	LostStreak          int    `json:"lost_streak,omitempty"`
+	LostAt              string `json:"lost_at,omitempty"`
 }
 
 type messageDTO struct {
@@ -89,6 +93,10 @@ func (h *Handlers) HandleList(w http.ResponseWriter, r *http.Request) {
 			LastMessageDeleted:  f.LastMessageDeleted,
 			CreatedAt:           f.CreatedAt.UTC().Format(time.RFC3339),
 			LastMessageAt:       f.LastMessageAt.UTC().Format(time.RFC3339),
+			Streak:              f.Streak,
+			StreakAtRisk:        f.StreakAtRisk,
+			LostStreak:          f.LostStreak,
+			LostAt:              formatLostAt(f.LostAt),
 		})
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -257,6 +265,7 @@ func (h *Handlers) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 		{Prompt: p.Prompt2, Answer: p.Answer2},
 		{Prompt: p.Prompt3, Answer: p.Answer3},
 	}
+	streak, atRisk, lostStreak, lostAt, _ := ReadStreak(ctx, h.Store.pool, f.ID)
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"peer_id":         f.PeerID,
 		"display_name":    p.DisplayName,
@@ -266,6 +275,10 @@ func (h *Handlers) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 		"prompts":         prompts,
 		"peer_removed_me": f.PeerRemovedMe,
 		"peer_verified":   p.IsVerified,
+		"streak":          streak,
+		"streak_at_risk":  atRisk,
+		"lost_streak":     lostStreak,
+		"lost_at":         formatLostAt(lostAt),
 	})
 }
 
@@ -383,6 +396,15 @@ func (h *Handlers) peerVerified(ctx context.Context, userID int64) bool {
 		return false
 	}
 	return p.IsVerified
+}
+
+// formatLostAt : "YYYY-MM-DD" UTC ou "" si nil — convient au champ DTO
+// `lost_at` qui est marqué `omitempty`.
+func formatLostAt(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.UTC().Format("2006-01-02")
 }
 
 func formatDate(t *time.Time) *string {

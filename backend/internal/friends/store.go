@@ -44,6 +44,15 @@ type Friend struct {
 	LastMessageBody     string
 	LastMessageSenderID int64
 	LastMessageDeleted  bool
+	// Streak entre les 2 amis (style TikTok). Streak = 0 si expiré (le
+	// dernier jour validé bilatéral remonte à > 1j). AtRisk = on a un
+	// jour pour ne pas le perdre, mais au moins un des deux n'a pas
+	// encore écrit aujourd'hui. LostStreak / LostAt : valeur du streak
+	// récemment perdu, disponible pour restauration (≤ 7 jours).
+	Streak     int
+	StreakAtRisk bool
+	LostStreak int
+	LostAt     *time.Time
 }
 
 // EditWindow : durée pendant laquelle l'auteur d'un message peut le
@@ -128,7 +137,12 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 	// dans des pointeurs pour distinguer "rien" vs "string vide". On
 	// vide `body` côté SQL si deleted_at est posé (le front affiche alors
 	// "Ce message a été supprimé").
+	// Le streak "vivant" : current_streak si last_streak_day >= today-1 (UTC),
+	// sinon 0. AtRisk : last_streak_day = today-1 ET au moins un côté n'a
+	// pas écrit aujourd'hui. lost_streak / lost_at : exposés tels quels
+	// pour permettre la restauration côté front.
 	const q = `
+		WITH today AS (SELECT (now() AT TIME ZONE 'UTC')::date AS d)
 		SELECT f.id, f.user_a_id, f.user_b_id, f.created_at, f.last_message_at,
 		       f.removed_by_a_at, f.removed_by_b_at,
 		       COALESCE((
@@ -143,7 +157,19 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		       ), 0) AS unread,
 		       last_msg.body,
 		       last_msg.sender_id,
-		       last_msg.deleted
+		       last_msg.deleted,
+		       CASE
+		         WHEN fs.last_streak_day IS NULL THEN 0
+		         WHEN fs.last_streak_day >= (SELECT d FROM today) - 1 THEN fs.current_streak
+		         ELSE 0
+		       END AS streak,
+		       (fs.last_streak_day = (SELECT d FROM today) - 1
+		        AND fs.current_streak >= 2
+		        AND (fs.last_a_msg_day IS DISTINCT FROM (SELECT d FROM today)
+		             OR fs.last_b_msg_day IS DISTINCT FROM (SELECT d FROM today)))
+		         AS streak_at_risk,
+		       COALESCE(fs.lost_streak, 0) AS lost_streak,
+		       fs.lost_at
 		FROM friends f
 		LEFT JOIN LATERAL (
 		    SELECT CASE WHEN deleted_at IS NULL THEN body ELSE '' END AS body,
@@ -154,6 +180,7 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		    ORDER BY sent_at DESC
 		    LIMIT 1
 		) AS last_msg ON true
+		LEFT JOIN friend_streaks fs ON fs.friend_id = f.id
 		WHERE (f.user_a_id = $1 OR f.user_b_id = $1)
 		  AND (CASE WHEN f.user_a_id = $1 THEN f.removed_by_a_at ELSE f.removed_by_b_at END) IS NULL
 		ORDER BY f.last_message_at DESC`
@@ -173,6 +200,7 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 			&f.ID, &f.UserAID, &f.UserBID, &f.CreatedAt, &f.LastMessageAt,
 			&aRem, &bRem, &f.UnreadCount,
 			&lastBody, &lastSenderID, &lastDeleted,
+			&f.Streak, &f.StreakAtRisk, &f.LostStreak, &f.LostAt,
 		); err != nil {
 			return nil, fmt.Errorf("friends: scan: %w", err)
 		}
@@ -330,10 +358,23 @@ func (s *Store) ListMessages(ctx context.Context, friendID int64, limit int) ([]
 // Trim + truncate sur body. Pas de modération obscène ici (les amis sont
 // considérés majeurs + consenting ; on garde la modération uniquement sur
 // les chats anonymes où les deux ne se connaissent pas).
+// AppendMessageWithStreak : variante qui renvoie aussi l'état streak
+// post-update. Conservée séparée d'AppendMessage pour ne pas casser
+// les appelants existants qui ne consomment que le message.
+func (s *Store) AppendMessageWithStreak(ctx context.Context, friendID, senderID int64, body string) (Message, Streak, error) {
+	m, st, err := s.appendInternal(ctx, friendID, senderID, body)
+	return m, st, err
+}
+
 func (s *Store) AppendMessage(ctx context.Context, friendID, senderID int64, body string) (Message, error) {
+	m, _, err := s.appendInternal(ctx, friendID, senderID, body)
+	return m, err
+}
+
+func (s *Store) appendInternal(ctx context.Context, friendID, senderID int64, body string) (Message, Streak, error) {
 	body = strings.TrimSpace(body)
 	if body == "" {
-		return Message{}, fmt.Errorf("friends: body vide")
+		return Message{}, Streak{}, fmt.Errorf("friends: body vide")
 	}
 	if len(body) > MessageMaxLen {
 		body = body[:MessageMaxLen]
@@ -343,7 +384,7 @@ func (s *Store) AppendMessage(ctx context.Context, friendID, senderID int64, bod
 	body = html.EscapeString(body)
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return Message{}, fmt.Errorf("friends: tx: %w", err)
+		return Message{}, Streak{}, fmt.Errorf("friends: tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
@@ -355,17 +396,21 @@ func (s *Store) AppendMessage(ctx context.Context, friendID, senderID int64, bod
 		friendID, senderID, body,
 	).Scan(&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt)
 	if err != nil {
-		return Message{}, fmt.Errorf("friends: insert message: %w", err)
+		return Message{}, Streak{}, fmt.Errorf("friends: insert message: %w", err)
 	}
 	if _, err := tx.Exec(ctx,
 		`UPDATE friends SET last_message_at = now() WHERE id = $1`, friendID,
 	); err != nil {
-		return Message{}, fmt.Errorf("friends: update last_message_at: %w", err)
+		return Message{}, Streak{}, fmt.Errorf("friends: update last_message_at: %w", err)
+	}
+	st, err := UpdateStreakOnMessage(ctx, tx, friendID, senderID, m.SentAt)
+	if err != nil {
+		return Message{}, Streak{}, fmt.Errorf("friends: update streak: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return Message{}, fmt.Errorf("friends: commit: %w", err)
+		return Message{}, Streak{}, fmt.Errorf("friends: commit: %w", err)
 	}
-	return m, nil
+	return m, st, nil
 }
 
 // ErrEditWindowClosed : tentative d'édition d'un message > EditWindow

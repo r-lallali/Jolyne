@@ -8,6 +8,7 @@ import { FriendSummary, listFriends, removeFriend, reportFriend } from "@/lib/fr
 import { useT } from "@/lib/i18n";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useUserStore } from "@/stores/userStore";
+import { StreakBadge } from "@/components/friends/StreakBadge";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { FriendActionsMenu } from "@/components/friends/FriendActionsMenu";
 import { ReportModal } from "@/components/chat/ReportModal";
@@ -288,6 +289,11 @@ function FriendRow({
                 <VerifiedBadge className="size-3.5" />
               </span>
             )}
+            <StreakBadge
+              streak={friend.streak}
+              atRisk={friend.streak_at_risk}
+              lostStreak={friend.lost_streak}
+            />
             {muted && (
               <span className="shrink-0 text-neutral-400 dark:text-neutral-500" title="Sourdine active">
                 <svg

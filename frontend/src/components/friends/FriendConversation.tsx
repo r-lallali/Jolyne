@@ -10,6 +10,7 @@ import {
   type TranslationRequest,
 } from "@/components/chat/TranslationPopover";
 import { FriendActionsMenu } from "@/components/friends/FriendActionsMenu";
+import { StreakBadge } from "@/components/friends/StreakBadge";
 import { BackButton } from "@/components/ui/BackButton";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
@@ -265,6 +266,14 @@ export function FriendConversation({
             <span className="shrink-0 text-emerald-500 dark:text-emerald-400" title="Profil Vérifié">
               <VerifiedBadge className="size-4" />
             </span>
+          )}
+          {profile && (
+            <StreakBadge
+              streak={profile.streak ?? 0}
+              atRisk={profile.streak_at_risk ?? false}
+              lostStreak={profile.lost_streak}
+              size="md"
+            />
           )}
           {muted && (
             <span

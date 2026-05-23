@@ -23,6 +23,10 @@ export interface FriendSummary {
   created_at: string;
   last_message_at: string;
   peer_verified?: boolean;
+  streak: number;
+  streak_at_risk: boolean;
+  lost_streak?: number;
+  lost_at?: string;
 }
 
 export interface FriendMessage {
@@ -34,6 +38,14 @@ export interface FriendMessage {
   deleted_at?: string;
 }
 
+// Étendu côté serveur dans /api/friends — voir handlers.go friendDTO.
+export interface FriendStreakFields {
+  streak: number;
+  streak_at_risk: boolean;
+  lost_streak?: number;
+  lost_at?: string;
+}
+
 export interface FriendProfile {
   peer_id: number;
   display_name: string;
@@ -43,6 +55,10 @@ export interface FriendProfile {
   prompts: { prompt: string; answer: string }[];
   peer_removed_me: boolean;
   peer_verified?: boolean;
+  streak: number;
+  streak_at_risk: boolean;
+  lost_streak?: number;
+  lost_at?: string;
 }
 
 export class FriendsError extends Error {
