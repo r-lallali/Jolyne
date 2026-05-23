@@ -55,6 +55,11 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
       CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-jolyne/avatars}
+      # Web Push (VAPID). Générer une fois via `npx web-push generate-vapid-keys`
+      # puis poser les 3 vars dans Dokploy → Environment.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     depends_on:
       redis:
         condition: service_healthy
