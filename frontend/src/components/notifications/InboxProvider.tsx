@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchCloudName } from "@/lib/account";
 import { getFriendProfile, listFriends, type FriendSummary } from "@/lib/friends";
 import { openInboxWS } from "@/lib/inbox_ws";
@@ -39,7 +39,15 @@ export function InboxProvider() {
   // `removed` (le serveur a invalidé l'amitié → on re-fetch).
   const friendsRef = useRef<Map<number, FriendSummary>>(new Map());
   const pathnameRef = useRef(pathname);
-  const cloudRef = useRef("");
+  // cloudName en state pour que les toasts re-rendent quand on l'obtient
+  // (sinon un toast rendu avant la résolution de fetchCloudName affiche
+  // l'initiale en fallback en permanence). Le ref miroir évite de
+  // re-déclencher l'effet WS sur chaque update du state.
+  const [cloudName, setCloudName] = useState("");
+  const cloudNameRef = useRef("");
+  useEffect(() => {
+    cloudNameRef.current = cloudName;
+  }, [cloudName]);
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
@@ -55,7 +63,7 @@ export function InboxProvider() {
           fetchCloudName().catch(() => ""),
         ]);
         if (cancelled) return;
-        cloudRef.current = cn;
+        if (cn) setCloudName(cn);
         const map = new Map<number, FriendSummary>();
         const unread: Record<number, number> = {};
         for (const f of list) {
@@ -69,6 +77,17 @@ export function InboxProvider() {
       }
     };
     loadFriends();
+    // Retry du cloud name si le 1er fetch a échoué : sans ça, aucun toast
+    // n'affichera la photo de profil pour le reste de la session.
+    const ensureCloud = setInterval(() => {
+      if (cancelled) return;
+      if (cloudNameRef.current) return;
+      fetchCloudName()
+        .then((cn) => {
+          if (!cancelled && cn) setCloudName(cn);
+        })
+        .catch(() => {});
+    }, 15_000);
 
     const handle: { reconnect: () => void; close: () => void } = openInboxWS((ev) => {
       if (ev.type === "msg") {
@@ -159,6 +178,7 @@ export function InboxProvider() {
 
     return () => {
       cancelled = true;
+      clearInterval(ensureCloud);
       handle.close();
     };
   }, [hydrated, user, hydrateUnread, incrementUnread, clearUnread, pushToast]);
@@ -167,7 +187,7 @@ export function InboxProvider() {
   return (
     <>
       <PushOptIn />
-      <NotificationToasts cloudName={cloudRef.current} />
+      <NotificationToasts cloudName={cloudName} />
     </>
   );
 }
