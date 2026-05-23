@@ -66,7 +66,7 @@ export function PushOptIn() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}
           transition={{ type: "spring", stiffness: 300, damping: 26 }}
-          className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[55] flex justify-center px-3 sm:top-6"
+          className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[55] flex justify-center px-3 sm:top-6"
         >
           <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-neutral-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/95">
             <div className="min-w-0 flex-1">

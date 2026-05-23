@@ -52,7 +52,7 @@ export default function RootLayout({
         <AuthBootstrap />
         <InboxProvider />
         <ChatWordmark />
-        <div className="fixed right-3 top-3 z-50 flex items-center gap-2 sm:right-4 sm:top-4">
+        <div className="fixed right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 flex items-center gap-2 sm:right-4 sm:top-4">
           <AuthTopRight />
           <ThemeToggle />
         </div>

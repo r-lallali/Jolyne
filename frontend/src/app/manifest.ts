@@ -13,9 +13,11 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#0a0a0a",
     theme_color: "#0a0a0a",
     icons: [
-      { src: "/icon1", sizes: "192x192", type: "image/png" },
-      { src: "/icon2", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icon2", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      // Next.js sert `apple-icon.tsx` (180×180) à `/apple-icon` et le SVG
+      // top-level à `/icon.svg`. Android Chrome accepte l'SVG comme any
+      // size — pas besoin de PNG multiples.
+      { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/apple-icon", sizes: "180x180", type: "image/png", purpose: "maskable" },
     ],
   };
 }

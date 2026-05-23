@@ -33,7 +33,7 @@ export function NotificationToasts({ cloudName }: { cloudName: string }) {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="pointer-events-none fixed right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[70] flex w-[min(20rem,calc(100vw-1.5rem))] flex-col gap-2 sm:right-6 sm:top-6">
+    <div className="pointer-events-none fixed right-3 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[70] flex w-[min(20rem,calc(100vw-1.5rem))] flex-col gap-2 sm:right-6 sm:top-6">
       <AnimatePresence initial={false}>
         {toasts.map((t) => (
           <motion.button

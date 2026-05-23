@@ -24,7 +24,7 @@ export function ModeTabs({ mode, onChange }: Props) {
   // Source de vérité live — l'InboxProvider alimente ce store via le WS.
   const unreadCount = useNotificationStore(selectTotalUnread);
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-30 flex justify-center pt-3 sm:pt-4">
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-30 flex justify-center pt-[calc(env(safe-area-inset-top)+0.85rem)] sm:pt-4">
       <div className="pointer-events-auto flex items-center gap-2">
         <Bar
           active={mode === "anon"}
@@ -74,7 +74,7 @@ function Bar({
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className="group relative flex h-3 w-24 items-center justify-center"
+      className="group relative flex h-4 w-32 items-center justify-center sm:h-3 sm:w-24"
     >
       <motion.span
         aria-hidden
@@ -83,7 +83,7 @@ function Bar({
           scaleY: active ? 1 : 0.7,
         }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="block h-[3px] w-full rounded-full bg-neutral-900 transition-colors group-hover:bg-neutral-700 dark:bg-neutral-50 dark:group-hover:bg-neutral-300"
+        className="block h-[4px] w-full rounded-full bg-neutral-900 transition-colors group-hover:bg-neutral-700 dark:bg-neutral-50 dark:group-hover:bg-neutral-300 sm:h-[3px]"
       />
     </button>
   );
