@@ -163,11 +163,13 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		         WHEN fs.last_streak_day >= (SELECT d FROM today) - 1 THEN fs.current_streak
 		         ELSE 0
 		       END AS streak,
-		       (fs.last_streak_day = (SELECT d FROM today) - 1
-		        AND fs.current_streak >= 2
-		        AND (fs.last_a_msg_day IS DISTINCT FROM (SELECT d FROM today)
-		             OR fs.last_b_msg_day IS DISTINCT FROM (SELECT d FROM today)))
-		         AS streak_at_risk,
+		       COALESCE(
+		         fs.last_streak_day = (SELECT d FROM today) - 1
+		         AND fs.current_streak >= 2
+		         AND (fs.last_a_msg_day IS DISTINCT FROM (SELECT d FROM today)
+		              OR fs.last_b_msg_day IS DISTINCT FROM (SELECT d FROM today)),
+		         false
+		       ) AS streak_at_risk,
 		       COALESCE(fs.lost_streak, 0) AS lost_streak,
 		       fs.lost_at
 		FROM friends f
