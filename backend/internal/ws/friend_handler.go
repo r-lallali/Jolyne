@@ -361,7 +361,7 @@ func (h *FriendHandler) handleSend(
 	if _, err := h.d.Friends.Get(persistCtx, friendID, uid); err != nil {
 		return
 	}
-	m, err := h.d.Friends.AppendMessage(persistCtx, friendID, uid, body)
+	m, streak, err := h.d.Friends.AppendMessageWithStreak(persistCtx, friendID, uid, body)
 	if err != nil {
 		conn.Send(friendErr("invalid_body", "message refused"))
 		return
@@ -377,35 +377,75 @@ func (h *FriendHandler) handleSend(
 	// jamais le hot-path de la conv. Body tronqué (preview) : le contenu
 	// brut n'est pas envoyé. Pas de log du body côté push (CLAUDE.md règle
 	// d'or #1).
-	if h.d.Push != nil {
-		peerUID := friendPeerUID(uid, friendID, h)
-		if peerUID > 0 {
-			go func() {
-				bgCtx, bgCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer bgCancel()
-				preview := body
-				if len(preview) > 80 {
-					preview = preview[:80]
+	peerUID := friendPeerUID(uid, friendID, h)
+	if h.d.Push != nil && peerUID > 0 {
+		go func() {
+			bgCtx, bgCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer bgCancel()
+			preview := body
+			if len(preview) > 80 {
+				preview = preview[:80]
+			}
+			name := ""
+			if h.d.Profile != nil {
+				if p, err := h.d.Profile.Get(bgCtx, uid); err == nil {
+					name = p.DisplayName
 				}
-				name := ""
-				if h.d.Profile != nil {
-					if p, err := h.d.Profile.Get(bgCtx, uid); err == nil {
-						name = p.DisplayName
-					}
-				}
-				if name == "" {
-					name = "Nouveau message"
-				}
-				h.d.Push.SendToUser(bgCtx, peerUID, push.Payload{
-					Title:    name,
-					Body:     preview,
-					URL:      "/chats/" + strconv.FormatInt(friendID, 10),
-					FriendID: friendID,
-					Tag:      "friend-" + strconv.FormatInt(friendID, 10),
-				})
-			}()
-		}
+			}
+			if name == "" {
+				name = "Nouveau message"
+			}
+			h.d.Push.SendToUser(bgCtx, peerUID, push.Payload{
+				Title:    name,
+				Body:     preview,
+				URL:      "/chats/" + strconv.FormatInt(friendID, 10),
+				FriendID: friendID,
+				Tag:      "friend-" + strconv.FormatInt(friendID, 10),
+			})
+		}()
 	}
+
+	// Milestone : palier franchi dans cette transaction. On notifie les
+	// deux users (sender ET peer) via leur inbox channel respectif, et on
+	// envoie un push web spécial avec un titre "🔥 N jours". Détaché.
+	if streak.NewMilestone > 0 {
+		go func() {
+			bgCtx, bgCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer bgCancel()
+			publishMilestone(bgCtx, h.d.RDB, friendID, uid, streak.NewMilestone)
+			if peerUID > 0 {
+				publishMilestone(bgCtx, h.d.RDB, friendID, peerUID, streak.NewMilestone)
+				if h.d.Push != nil {
+					h.d.Push.SendToUser(bgCtx, peerUID, push.Payload{
+						Title:    "🔥 " + strconv.Itoa(streak.NewMilestone) + " jours d'affilée !",
+						Body:     "Continuez sur votre lancée.",
+						URL:      "/chats/" + strconv.FormatInt(friendID, 10),
+						FriendID: friendID,
+						Tag:      "milestone-" + strconv.FormatInt(friendID, 10),
+					})
+					h.d.Push.SendToUser(bgCtx, uid, push.Payload{
+						Title:    "🔥 " + strconv.Itoa(streak.NewMilestone) + " jours d'affilée !",
+						Body:     "Continuez sur votre lancée.",
+						URL:      "/chats/" + strconv.FormatInt(friendID, 10),
+						FriendID: friendID,
+						Tag:      "milestone-" + strconv.FormatInt(friendID, 10),
+					})
+				}
+			}
+		}()
+	}
+}
+
+// publishMilestone : pousse un event "streak_milestone" dans l'inbox d'un
+// user. Le payload est volontairement plat (texte simple) pour rester
+// compatible avec le format du channel meta.
+func publishMilestone(ctx context.Context, rdb *redis.Client, friendID, userID int64, n int) {
+	if rdb == nil {
+		return
+	}
+	// Format : "milestone:{friend_id}:{n}" — l'inbox handler parse.
+	payload := "milestone:" + strconv.FormatInt(friendID, 10) + ":" + strconv.Itoa(n)
+	_ = rdb.Publish(ctx, friends.UserInboxChannel(userID), payload).Err()
 }
 
 // friendPeerUID : récupère l'ID du peer d'une amitié (peer = l'autre user

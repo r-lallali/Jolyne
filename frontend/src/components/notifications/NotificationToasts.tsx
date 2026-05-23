@@ -47,7 +47,12 @@ export function NotificationToasts({ cloudName }: { cloudName: string }) {
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 40, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            className="pointer-events-auto flex w-full items-center gap-3 rounded-2xl border border-neutral-200 bg-white/95 px-3 py-2.5 text-left shadow-lg backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/95"
+            className={
+              "pointer-events-auto flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left shadow-lg backdrop-blur-md " +
+              (t.milestone
+                ? "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 dark:border-orange-500/30 dark:from-orange-950/60 dark:to-amber-950/60"
+                : "border-neutral-200 bg-white/95 dark:border-neutral-800 dark:bg-neutral-950/95")
+            }
           >
             <div className="size-9 shrink-0 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
               {t.peerPhotoId && cloudName ? (
@@ -65,10 +70,10 @@ export function NotificationToasts({ cloudName }: { cloudName: string }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                {t.peerName}
+                {t.milestone ? `🔥 ${t.milestone} jours d'affilée` : t.peerName}
               </p>
               <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
-                {t.preview || "…"}
+                {t.milestone ? `Avec ${t.peerName}` : t.preview || "…"}
               </p>
             </div>
             <span

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,13 +39,16 @@ type inboxFrame struct {
 	SenderID int64  `json:"sender_id,omitempty"`
 	Preview  string `json:"preview,omitempty"`
 	SentAt   string `json:"sent_at,omitempty"`
+	// Champ rempli uniquement pour Type = "streak_milestone".
+	Streak int `json:"streak,omitempty"`
 }
 
 const (
-	inboxTypeMsg            = "msg"
-	inboxTypeRead           = "read"
-	inboxTypeRemoved        = "removed"
-	inboxTypeFriendsChanged = "friends_changed"
+	inboxTypeMsg              = "msg"
+	inboxTypeRead             = "read"
+	inboxTypeRemoved          = "removed"
+	inboxTypeFriendsChanged   = "friends_changed"
+	inboxTypeStreakMilestone  = "streak_milestone"
 )
 
 // previewLen : on tronque le body pour la notification toast. Volontairement
@@ -114,12 +118,27 @@ func (h *InboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				once.Do(func() { chanCancel() })
 				return
 			}
-			// Meta channel : payload texte simple ("friends_changed").
-			// Le front réagit en réouvrant le WS, ce qui re-snapshot la
-			// liste de canaux à souscrire.
+			// Meta channel : payloads texte. Deux formats reconnus :
+			//   - "friends_changed"             → reconnect côté client
+			//   - "milestone:{friend_id}:{n}"   → notif palier streak
 			if raw.Channel == userMetaChan {
 				if raw.Payload == friends.UserInboxKindFriendsChanged {
 					conn.Send(inboxFrame{Type: inboxTypeFriendsChanged})
+					continue
+				}
+				if strings.HasPrefix(raw.Payload, "milestone:") {
+					parts := strings.SplitN(raw.Payload, ":", 3)
+					if len(parts) == 3 {
+						fid, _ := strconv.ParseInt(parts[1], 10, 64)
+						n, _ := strconv.Atoi(parts[2])
+						if fid > 0 && n > 0 {
+							conn.Send(inboxFrame{
+								Type:     inboxTypeStreakMilestone,
+								FriendID: fid,
+								Streak:   n,
+							})
+						}
+					}
 				}
 				continue
 			}

@@ -125,6 +125,17 @@ export function InboxProvider() {
       } else if (ev.type === "removed") {
         clearUnread(ev.friend_id);
         friendsRef.current.delete(ev.friend_id);
+      } else if (ev.type === "streak_milestone") {
+        const f = friendsRef.current.get(ev.friend_id);
+        pushToast({
+          friendId: ev.friend_id,
+          senderId: 0,
+          peerName: f?.peer_name ?? "—",
+          peerPhotoId: f?.peer_photo_id,
+          preview: "",
+          sentAt: new Date().toISOString(),
+          milestone: ev.streak,
+        });
       } else if (ev.type === "friends_changed") {
         // Un ami a été ajouté/retiré côté serveur : re-fetch la liste pour
         // mettre à jour le cache, et reconnect le WS afin que le backend

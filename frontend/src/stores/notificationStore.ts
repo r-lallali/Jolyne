@@ -16,6 +16,9 @@ export interface ToastNotification {
   peerPhotoId?: string;
   preview: string;
   sentAt: string;
+  // Si renseigné, le toast a un style "milestone" — fond chaleureux,
+  // grand chiffre + flamme. Le preview est ignoré dans ce mode.
+  milestone?: number;
 }
 
 interface NotificationState {
