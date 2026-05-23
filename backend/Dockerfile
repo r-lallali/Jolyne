@@ -13,7 +13,14 @@ COPY . .
 # Build statique, sans CGO
 ENV CGO_ENABLED=0
 ENV GOOS=linux
-RUN go build -trimpath -ldflags="-s -w" -o /out/gateway ./cmd/gateway
+# Build metadata injectée via build args (passées par docker-compose.yml
+# depuis ${BUILD_COMMIT:-dev} / ${BUILD_VERSION:-dev}). Permet de retrouver
+# la révision exacte d'un binaire en prod via les logs au boot.
+ARG BUILD_COMMIT=dev
+ARG BUILD_VERSION=dev
+RUN go build -trimpath \
+    -ldflags="-s -w -X main.buildCommit=${BUILD_COMMIT} -X main.buildVersion=${BUILD_VERSION}" \
+    -o /out/gateway ./cmd/gateway
 
 # --- runtime stage ---
 FROM gcr.io/distroless/static-debian12:nonroot

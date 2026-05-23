@@ -11,7 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 
 	"github.com/ralys/jolyne/backend/internal/admin"
 	"github.com/ralys/jolyne/backend/internal/bans"
@@ -36,6 +38,13 @@ import (
 	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
+// Build metadata injectée via -ldflags au moment du `go build`. Vide en
+// build local sans linker args — on log "dev" pour distinguer.
+var (
+	buildCommit  = "dev"
+	buildVersion = "dev"
+)
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "gateway: %v\n", err)
@@ -51,7 +60,11 @@ func run() error {
 
 	log := obs.NewLogger(cfg.Env)
 	slog.SetDefault(log)
-	log.Info("gateway boot", "env", cfg.Env, "port", cfg.Port)
+	log.Info("gateway boot",
+		"env", cfg.Env,
+		"port", cfg.Port,
+		"commit", buildCommit,
+		"version", buildVersion)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -201,9 +214,12 @@ func run() error {
 			Bans:  banSvc,
 			Log:   log,
 		}
+		// Pas d'email en clair dans les logs (règle d'or #6). On garde
+		// uniquement les empreintes (8 octets hex) pour pouvoir corréler
+		// un user admin précis en cas de besoin sans révéler l'adresse.
 		log.Info("admin back-office ready",
 			"users", len(adminUsers),
-			"emails", admin.LoadedEmails(adminUsers),
+			"email_hashes", hashEmails(admin.LoadedEmails(adminUsers)),
 			"ip_allowlist", len(allowlist),
 			"cookie_domain", cfg.AdminCookieDomain)
 	} else {
@@ -373,4 +389,16 @@ func run() error {
 	}
 	log.Info("gateway stopped")
 	return nil
+}
+
+// hashEmails : SHA-256 tronqué à 8 octets (16 chars hex) par email,
+// pour identifier un admin dans les logs sans exposer l'adresse.
+// Conformité CLAUDE.md règle d'or #6 (pas de PII en clair).
+func hashEmails(emails []string) []string {
+	out := make([]string, 0, len(emails))
+	for _, e := range emails {
+		h := sha256.Sum256([]byte(e))
+		out = append(out, hex.EncodeToString(h[:8]))
+	}
+	return out
 }

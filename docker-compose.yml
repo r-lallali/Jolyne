@@ -14,6 +14,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        # SHA + version pour traçabilité au boot. Pose `BUILD_COMMIT` côté
+        # Dokploy (ex: `git rev-parse --short HEAD`) sinon le binaire log
+        # "dev" — signal qu'il faut taguer la build.
+        BUILD_COMMIT: ${BUILD_COMMIT:-dev}
+        BUILD_VERSION: ${BUILD_VERSION:-dev}
     restart: unless-stopped
     environment:
       JOLYNE_ENV: prod
