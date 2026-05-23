@@ -25,6 +25,16 @@ export function Conversation() {
   // privées). Local au composant, non persisté : un refresh ramène toujours
   // sur le chat anonyme — c'est la home par défaut.
   const [mode, setMode] = useState<Mode>("anon");
+  // Direction du slide entre les deux modes : 1 = anon → friends (le
+  // nouveau panneau entre depuis la droite), -1 = friends → anon (depuis
+  // la gauche). Mémorisé pour qu'AnimatePresence puisse en faire usage
+  // dans `custom`.
+  const [slideDir, setSlideDir] = useState(1);
+  const switchMode = (next: Mode) => {
+    if (next === mode) return;
+    setSlideDir(next === "friends" ? 1 : -1);
+    setMode(next);
+  };
 
   // Sur tout retour vers "idle" (quit, error→back, bfcache), on remet
   // l'URL à plat. Sinon un hash #config résiduel (laissé par la nav
@@ -82,12 +92,6 @@ export function Conversation() {
   const showTabs = hydrated && !!authedUser;
   // En mode "friends", on remplace tout le contenu chat anonyme par la vue
   // amis. Le ModeTabs reste visible au-dessus pour permettre de revenir.
-  const renderView = mode === "friends" && authedUser ? (
-    <FriendsMode />
-  ) : (
-    view
-  );
-  const renderKey = mode === "friends" ? "friends" : key;
 
   // Swipe horizontal pour switcher entre anon ↔ friends. Détection sur
   // pointer events (souris + tactile unifiés). Annulé si :
@@ -117,14 +121,23 @@ export function Conversation() {
     const dy = e.clientY - start.y;
     // Seuil : ≥ 70px horizontal ET franchement plus horizontal que vertical.
     if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    if (dx < 0 && mode === "anon") setMode("friends");
-    if (dx > 0 && mode === "friends") setMode("anon");
+    if (dx < 0 && mode === "anon") switchMode("friends");
+    if (dx > 0 && mode === "friends") switchMode("anon");
+  };
+
+  // Variants du slide horizontal entre les deux modes. Le `custom` passé
+  // à AnimatePresence + motion permet à `enter`/`exit` de lire la
+  // direction au moment où la transition démarre. Spring pour un feel iOS.
+  const slideVariants = {
+    enter: (dir: number) => ({ x: dir > 0 ? 80 : -80, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (dir: number) => ({ x: dir > 0 ? -80 : 80, opacity: 0 }),
   };
 
   return (
     <>
       {showTabs && (
-        <ModeTabs mode={mode} onChange={setMode} />
+        <ModeTabs mode={mode} onChange={switchMode} />
       )}
       <div
         // `self-start` casse le centrage vertical du `<main>` parent
@@ -142,16 +155,33 @@ export function Conversation() {
           swipeStart.current = null;
         }}
       >
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout" initial={false} custom={slideDir}>
           <motion.div
-            key={renderKey}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
+            key={mode}
+            custom={slideDir}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: "spring", stiffness: 320, damping: 30, opacity: { duration: 0.18 } }}
             className="flex w-full justify-center"
           >
-            {renderView}
+            {mode === "friends" && authedUser ? (
+              <FriendsMode />
+            ) : (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={key}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  className="flex w-full justify-center"
+                >
+                  {view}
+                </motion.div>
+              </AnimatePresence>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
