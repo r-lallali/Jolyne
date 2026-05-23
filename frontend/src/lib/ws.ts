@@ -4,7 +4,7 @@
 
 export type ServerFrame =
   | { type: "queued" }
-  | { type: "matched"; room: string; peer_nick: string }
+  | { type: "matched"; room: string; peer_nick: string; is_bot?: boolean }
   | { type: "msg"; body: string; id?: string }
   | {
       type: "correction";

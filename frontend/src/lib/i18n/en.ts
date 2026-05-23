@@ -58,6 +58,12 @@ export const en: Messages = {
     tapToTranslate: "Tap a word to translate it",
     backGuardTitle: "You're about to leave the conversation.",
     backGuardHint: ({ s }) => `Leaving in ${s}s…`,
+    botBadge: "AI Tutor",
+    botBadgeTitle: "AI language tutor — helps you practice",
+    botIntroTitle: "Your AI tutor is taking over",
+    botIntroHint:
+      "No one was available, so we connected you to an AI tutor — speaks the language you want to practice, corrects your mistakes, and suggests topics.",
+    botIntroDismiss: "Let's go",
   },
   translate: {
     label: "Translate",

@@ -44,6 +44,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 
 		var peerID, peerNick, peerFingerprint, peerIPHash, roomID string
 		var peerUserID int64
+		var peerIsBot bool
 		switch {
 		case out.Matched:
 			peerID = out.PeerID
@@ -70,9 +71,18 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		default:
 			conn.Send(ServerFrame{Type: ServerQueued})
 			defer func() { _ = h.d.Matcher.Cancel(ctx, speaks, wants, sess.ID) }()
+			// Bot prof IA : arme un timer 10s. Si personne ne match avant,
+			// le bot prend la main et réveille notre user via Hub.Wakeup
+			// (qui débloque le `<-wakeup` ci-dessous).
+			if h.d.Bot != nil {
+				h.d.Bot.SpawnFor(ctx, sess)
+			}
 			select {
 			case ev, ok := <-wakeup:
 				if !ok {
+					if h.d.Bot != nil {
+						h.d.Bot.Cancel(sess.ID)
+					}
 					return
 				}
 				roomID = ev.RoomID
@@ -81,13 +91,28 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 				peerFingerprint = ev.PeerFingerprint
 				peerIPHash = ev.PeerIPHash
 				peerUserID = ev.PeerUserID
+				peerIsBot = ev.IsBot
+				// Si on a été matché avant que le timer bot ne tire (cas
+				// nominal humain ou bot lui-même), on annule proprement.
+				if h.d.Bot != nil && !peerIsBot {
+					h.d.Bot.Cancel(sess.ID)
+				}
 			case <-time.After(queueTimeout):
+				if h.d.Bot != nil {
+					h.d.Bot.Cancel(sess.ID)
+				}
 				_ = h.d.Matcher.Cancel(ctx, speaks, wants, sess.ID)
 				conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeQueueTimeout})
 				return
 			case <-ctx.Done():
+				if h.d.Bot != nil {
+					h.d.Bot.Cancel(sess.ID)
+				}
 				return
 			case <-conn.Done():
+				if h.d.Bot != nil {
+					h.d.Bot.Cancel(sess.ID)
+				}
 				return
 			}
 		}
@@ -112,6 +137,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 			Nick:        peerNick,
 			Fingerprint: peerFingerprint,
 			IPHash:      peerIPHash,
+			IsBot:       peerIsBot,
 			UserID:      peerUserID,
 		}, roomID, canNext)
 		if exit == chatDisconnect {

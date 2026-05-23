@@ -65,3 +65,25 @@ func (m *Matcher) Cancel(ctx context.Context, speaks, wants LangCode, sessionID 
 	}
 	return nil
 }
+
+// RemoveFromQueue retire un sessionID PRÉCIS d'une queue donnée et
+// indique si la session y était (true) ou pas (false). Utilisé par le
+// botpeer pour s'assurer qu'il "prend la main" sur un user en attente
+// avant de déclencher un match — false = race perdue (le user a été
+// matché avec un humain entre-temps), on abort la spawn.
+//
+// `speaks`/`wants` sont ceux du USER qu'on veut sortir de queue
+// (= la queue où il est inscrit côté propre).
+func (m *Matcher) RemoveFromQueue(ctx context.Context, speaks, wants LangCode, sessionID string) (bool, error) {
+	if err := ValidatePair(speaks, wants); err != nil {
+		return false, err
+	}
+	if sessionID == "" {
+		return false, fmt.Errorf("matcher: sessionID vide")
+	}
+	n, err := m.rdb.LRem(ctx, queueOwn(speaks, wants), 0, sessionID).Result()
+	if err != nil {
+		return false, fmt.Errorf("matcher: lrem: %w", err)
+	}
+	return n > 0, nil
+}

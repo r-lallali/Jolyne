@@ -102,7 +102,7 @@ export function useMatch() {
             c.setStatus("queued");
             break;
           case "matched":
-            c.matched(f.peer_nick);
+            c.matched(f.peer_nick, f.is_bot);
             break;
           case "msg":
             c.pushPeer(f.id ?? newMessageId(), sanitizeMessage(f.body));

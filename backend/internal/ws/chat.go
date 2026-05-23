@@ -30,6 +30,9 @@ type chatPeer struct {
 	Fingerprint string
 	IPHash      string
 	UserID      int64
+	// IsBot = peer est un bot prof IA. Désactive le prompt ami 10-min et
+	// l'auto-block on report (pas de fingerprint réel à bloquer).
+	IsBot bool
 }
 
 // runChat est la boucle de chat avec un peer. Sort proprement sur "next",
@@ -52,12 +55,12 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 		_ = room.SendLeft(sendCtx)
 		_ = room.Close()
 	}()
-	conn.Send(ServerFrame{Type: ServerMatched, Room: roomID, PeerNick: peer.Nick})
+	conn.Send(ServerFrame{Type: ServerMatched, Room: roomID, PeerNick: peer.Nick, IsBot: peer.IsBot})
 
 	// Si le peer est authentifié + qu'on a accès au store profil, on
 	// pousse un peer_profile (avatar + prompts) — best-effort, on ne
 	// bloque pas le chat si la récup échoue.
-	if peer.UserID > 0 && h.d.Profiles != nil {
+	if peer.UserID > 0 && !peer.IsBot && h.d.Profiles != nil {
 		h.sendPeerProfile(ctx, conn, peer.UserID)
 	}
 
@@ -86,7 +89,9 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 	// authentifiés ET que le service Friends est branché. promptTimer
 	// déclenche le prompt à 10 min ; promptWindow ferme la fenêtre
 	// d'acceptation à T+10min+60s. Acceptances locale + remote tracking.
-	friendEligible := h.d.Friends != nil
+	// Pas de friend prompt avec un bot — pas d'amitié possible côté DB
+	// (le bot n'a pas de UserID).
+	friendEligible := h.d.Friends != nil && !peer.IsBot
 	var promptTimer <-chan time.Time
 	var promptWindow <-chan time.Time
 	if friendEligible {

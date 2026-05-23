@@ -58,6 +58,12 @@ export const de: Messages = {
     tapToTranslate: "Tippe ein Wort an, um es zu übersetzen",
     backGuardTitle: "Du verlässt gleich das Gespräch.",
     backGuardHint: ({ s }) => `In ${s} s zurück…`,
+    botBadge: "KI-Lehrkraft",
+    botBadgeTitle: "KI-Sprachlehrer — hilft dir beim Üben",
+    botIntroTitle: "Deine KI-Lehrkraft übernimmt",
+    botIntroHint:
+      "Niemand war verfügbar, daher verbinden wir dich mit einer KI-Lehrkraft — spricht die Sprache, die du üben willst, korrigiert deine Fehler und schlägt Themen vor.",
+    botIntroDismiss: "Los geht's",
   },
   translate: {
     label: "Übersetzen",

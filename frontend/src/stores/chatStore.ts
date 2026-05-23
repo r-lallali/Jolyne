@@ -71,6 +71,9 @@ interface ChatState {
   // Prompt ami 10-min (uniquement si les deux peers sont authentifiés).
   friendPrompt: FriendPromptState;
   peerProfile: PeerProfile | null;
+  // True si le peer est un bot prof IA (cf. backend internal/ws/bot_manager.go).
+  // Le front affiche un badge "🤖 Prof IA" et masque le prompt friend.
+  peerIsBot: boolean;
   // Timestamp du dernier match (ms). Sert au ring de cooldown anti-zap du
   // bouton Suivant. On le persiste dans le store plutôt qu'en state local
   // de ChatView pour qu'un remount (switch d'onglet "mes conversations" →
@@ -78,7 +81,7 @@ interface ChatState {
   matchedAt: number | null;
 
   setStatus: (s: ChatStatus) => void;
-  matched: (peerNick: string) => void;
+  matched: (peerNick: string, isBot?: boolean) => void;
   pushMe: (id: string, body: string) => void;
   pushPeer: (id: string, body: string) => void;
   // Patch d'un message existant avec une correction. Si le message ciblé
@@ -122,11 +125,12 @@ export const useChatStore = create<ChatState>((set) => ({
   endedBy: null,
   friendPrompt: null,
   peerProfile: null,
+  peerIsBot: false,
   matchedAt: null,
 
   setStatus: (status) => set({ status }),
 
-  matched: (peerNick) => {
+  matched: (peerNick, isBot) => {
     clearTypingTimer();
     set({
       status: "matched",
@@ -138,6 +142,7 @@ export const useChatStore = create<ChatState>((set) => ({
       endedBy: null,
       friendPrompt: null,
       peerProfile: null,
+      peerIsBot: !!isBot,
       matchedAt: Date.now(),
     });
   },
@@ -221,6 +226,7 @@ export const useChatStore = create<ChatState>((set) => ({
       endedBy: null,
       friendPrompt: null,
       peerProfile: null,
+      peerIsBot: false,
       matchedAt: null,
     });
   },

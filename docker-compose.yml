@@ -60,6 +60,12 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      # Bot prof IA (Claude). Vide → bot désactivé. Default model
+      # claude-haiku-4-5 pour coût/latence ; ~$0.002 par réponse.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5}
+      BOT_MAX_CONCURRENT: ${BOT_MAX_CONCURRENT:-20}
+      BOT_TRIGGER_DELAY_SEC: ${BOT_TRIGGER_DELAY_SEC:-10}
     depends_on:
       redis:
         condition: service_healthy

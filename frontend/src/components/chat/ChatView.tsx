@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { BackGuardModal } from "@/components/chat/BackGuardModal";
+import { BotIntroToast } from "@/components/chat/BotIntroToast";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { CorrectionModal } from "@/components/chat/CorrectionModal";
 import { MessageInput } from "@/components/chat/MessageInput";
@@ -29,6 +30,7 @@ export function ChatView() {
   const status = useChatStore((s) => s.status);
   const messageCount = useChatStore((s) => s.messages.length);
   const peerProfile = useChatStore((s) => s.peerProfile);
+  const peerIsBot = useChatStore((s) => s.peerIsBot);
   const matchedAt = useChatStore((s) => s.matchedAt);
   const [cloudName, setCloudName] = useState("");
   useEffect(() => {
@@ -176,7 +178,9 @@ export function ChatView() {
           cooldownStart={cooldownStart}
           cooldownMs={NEXT_COOLDOWN_MS}
           peerVerified={peerProfile?.verified}
+          peerIsBot={peerIsBot}
         />
+        <BotIntroToast show={peerIsBot && status === "matched"} />
         {peerProfile &&
           peerProfile.prompts.some((p) => p.prompt && p.answer) && (
             <PeerPromptStrip prompts={peerProfile.prompts} />

@@ -68,6 +68,11 @@ export interface Messages {
     tapToTranslate: string;
     backGuardTitle: string;
     backGuardHint: FormatString<{ s: number }>;
+    botBadge: string;
+    botBadgeTitle: string;
+    botIntroTitle: string;
+    botIntroHint: string;
+    botIntroDismiss: string;
   };
   translate: {
     label: string;

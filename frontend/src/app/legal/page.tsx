@@ -103,6 +103,21 @@ export default function LegalPage() {
               En cas de signalement, les N derniers messages capturés sont
               chiffrés au repos et purgés automatiquement après 90 jours.
             </li>
+            <li>
+              <strong>Bot prof IA :</strong> si aucun partenaire humain
+              n&apos;est disponible au bout de 10 secondes, un bot prof IA
+              (badge « 🤖 Prof IA » affiché côté chat) prend la main pour
+              que tu puisses pratiquer. Le contenu des messages échangés
+              avec ce bot est transmis en temps réel à Anthropic (éditeur
+              du modèle Claude) afin de générer ses réponses. Aucun
+              identifiant utilisateur n&apos;est joint à ces appels, et
+              Anthropic ne conserve pas ces échanges pour entraîner ses
+              modèles (politique commerciale standard). Si tu ne souhaites
+              pas que tes messages soient traités par Anthropic, ne
+              continue pas la conversation après l&apos;apparition du
+              badge — clique sur « Suivant » pour ré-essayer un match
+              humain.
+            </li>
           </ul>
           <p className="mt-3">
             <strong>Droit à l&apos;effacement</strong> : tu peux demander la

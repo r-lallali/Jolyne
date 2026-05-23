@@ -25,6 +25,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/obs"
+	"github.com/ralys/jolyne/backend/internal/claudeapi"
 	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/push"
 	"github.com/ralys/jolyne/backend/internal/quota"
@@ -257,6 +258,33 @@ func run() error {
 		// On branche le store profil au handler WS pour pouvoir pousser
 		// peer_profile au match quand le peer est authentifié.
 		wsDeps.Profiles = profileStore
+
+		// Bot prof IA : si ANTHROPIC_API_KEY est posée, on instancie un
+		// BotManager qui spawnera des bots après TriggerDelaySec si aucun
+		// peer humain ne se connecte. Sinon comportement chat = avant.
+		if cfg.AnthropicAPIKey != "" {
+			claudeClient := claudeapi.New(cfg.AnthropicAPIKey,
+				claudeapi.WithModel(cfg.AnthropicModel),
+				claudeapi.WithLogger(log),
+			)
+			wsDeps.Bot = ws.NewBotManager(ws.BotManagerConfig{
+				RDB:           rdb,
+				Matcher:       wsDeps.Matcher,
+				Hub:           wsDeps.Hub,
+				Claude:        claudeClient,
+				Log:           log,
+				TriggerDelay:  time.Duration(cfg.BotTriggerDelaySec) * time.Second,
+				MaxConcurrent: cfg.BotMaxConcurrent,
+			})
+			log.Info("bot peer ready",
+				"model", cfg.AnthropicModel,
+				"trigger_delay_sec", cfg.BotTriggerDelaySec,
+				"max_concurrent", cfg.BotMaxConcurrent,
+			)
+		} else {
+			log.Info("bot peer disabled — ANTHROPIC_API_KEY missing")
+		}
+
 		svc.wsHandler = ws.NewHandler(wsDeps)
 		log.Info("profile endpoints ready", "cloudinary", cld.IsConfigured())
 

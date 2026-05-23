@@ -14,6 +14,7 @@ type WakeupEvent struct {
 	PeerFingerprint string // utilisé pour identifier le peer en cas de signalement
 	PeerIPHash      string // idem
 	PeerUserID      int64  // > 0 si peer authentifié — éligible au prompt ami 10-min
+	IsBot           bool   // true si le peer est un bot prof IA (cf. bot_manager.go)
 }
 
 // pending est l'entrée du registre par sessionID en attente.

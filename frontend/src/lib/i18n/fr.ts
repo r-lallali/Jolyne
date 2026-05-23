@@ -58,6 +58,12 @@ export const fr: Messages = {
     tapToTranslate: "Touche un mot pour le traduire",
     backGuardTitle: "Tu vas quitter la conversation.",
     backGuardHint: ({ s }) => `Retour dans ${s} s…`,
+    botBadge: "Prof IA",
+    botBadgeTitle: "Bot prof IA — t'aide à pratiquer la langue",
+    botIntroTitle: "Ton prof IA prend la main",
+    botIntroHint:
+      "Personne n'était dispo, alors on te connecte à un prof IA — il parle dans la langue que tu veux pratiquer, corrige tes fautes, et te propose des sujets.",
+    botIntroDismiss: "C'est parti",
   },
   translate: {
     label: "Traduire",

@@ -72,7 +72,11 @@ type Deps struct {
 	// Profiles (optionnel). Si présent et que le peer est authentifié,
 	// on envoie un ServerPeerProfile au match (avatar + 3 prompts).
 	Profiles *profile.Store
-	Log      *slog.Logger
+	// Bot prof IA (optionnel). Si présent et qu'aucun peer humain ne se
+	// connecte au bout de TriggerDelay, un bot prend la main pour offrir
+	// une expérience de conversation continue.
+	Bot *BotManager
+	Log *slog.Logger
 }
 
 // UserAuth abstrait les bouts du package users dont le WS a besoin

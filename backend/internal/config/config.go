@@ -67,6 +67,14 @@ type Config struct {
 	VAPIDPrivateKey string
 	VAPIDSubject    string
 
+	// Bot prof IA (Anthropic Claude). ANTHROPIC_API_KEY vide → bot
+	// désactivé, comportement chat anonyme identique à avant. Default
+	// model "claude-haiku-4-5" pour coût/latence optimaux.
+	AnthropicAPIKey    string
+	AnthropicModel     string
+	BotMaxConcurrent   int
+	BotTriggerDelaySec int
+
 	ShutdownGrace time.Duration
 }
 
@@ -104,6 +112,10 @@ func Load() (Config, error) {
 		VAPIDPublicKey:       os.Getenv("VAPID_PUBLIC_KEY"),
 		VAPIDPrivateKey:      os.Getenv("VAPID_PRIVATE_KEY"),
 		VAPIDSubject:         os.Getenv("VAPID_SUBJECT"),
+		AnthropicAPIKey:      os.Getenv("ANTHROPIC_API_KEY"),
+		AnthropicModel:       getEnv("ANTHROPIC_MODEL", "claude-haiku-4-5"),
+		BotMaxConcurrent:     getEnvInt("BOT_MAX_CONCURRENT", 20),
+		BotTriggerDelaySec:   getEnvInt("BOT_TRIGGER_DELAY_SEC", 10),
 		ShutdownGrace:        getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
 	}
 	if err := cfg.validate(); err != nil {

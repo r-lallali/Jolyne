@@ -86,6 +86,10 @@ type ServerFrame struct {
 	PeerPhotoID  string         `json:"peer_photo_id,omitempty"`
 	PeerPrompts  []ServerPrompt `json:"peer_prompts,omitempty"`
 	PeerVerified bool           `json:"peer_verified,omitempty"`
+
+	// Frame `matched` : indique que le peer est un bot prof IA. Le front
+	// affiche un badge "🤖 Prof IA" et n'affiche pas le prompt friend.
+	IsBot bool `json:"is_bot,omitempty"`
 }
 
 // Codes d'erreur applicatifs (envoyés dans ServerFrame.Code).

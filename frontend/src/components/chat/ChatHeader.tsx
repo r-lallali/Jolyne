@@ -27,6 +27,8 @@ interface Props {
   cooldownStart: number | null;
   cooldownMs: number;
   peerVerified?: boolean;
+  // Affiche un badge "🤖 Prof IA" à côté du nom — cf. backend bot_manager.
+  peerIsBot?: boolean;
 }
 
 export function ChatHeader({
@@ -42,6 +44,7 @@ export function ChatHeader({
   cooldownStart,
   cooldownMs,
   peerVerified,
+  peerIsBot,
 }: Props) {
   const t = useT();
   const hasAvatar = !!(peerPhotoId && cloudName);
@@ -79,6 +82,14 @@ export function ChatHeader({
           {peerVerified && (
             <span className="shrink-0 text-emerald-500 dark:text-emerald-400" title="Profil Vérifié">
               <VerifiedBadge />
+            </span>
+          )}
+          {peerIsBot && (
+            <span
+              className="shrink-0 rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+              title={t.chat.botBadgeTitle}
+            >
+              🤖 {t.chat.botBadge}
             </span>
           )}
         </div>
