@@ -1,5 +1,9 @@
 Flask==3.0.3
-dlib-bin==19.24.6
-face-recognition==1.3.0
 requests==2.32.2
 urllib3==2.2.1
+# Deps explicites de face-recognition (qu'on installe via --no-deps dans
+# le Dockerfile pour empêcher pip de tirer `dlib` source — voir Dockerfile).
+face-recognition-models==0.3.0
+Click>=8.0
+numpy>=1.24
+Pillow>=10.0
