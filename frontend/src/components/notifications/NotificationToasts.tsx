@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { cloudinaryUrl } from "@/lib/account";
+import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
 import { useNotificationStore } from "@/stores/notificationStore";
 
 // NotificationToasts : stack de notifications style "ajout au panier" en
@@ -13,10 +13,36 @@ import { useNotificationStore } from "@/stores/notificationStore";
 
 const TOAST_TTL_MS = 5000;
 
-export function NotificationToasts({ cloudName }: { cloudName: string }) {
+export function NotificationToasts({ cloudName: initialCloudName }: { cloudName: string }) {
   const router = useRouter();
   const toasts = useNotificationStore((s) => s.toasts);
   const dismissToast = useNotificationStore((s) => s.dismissToast);
+
+  // Cloud name autonome : le composant tient son propre state et fait
+  // un fetch d'auto-récupération si la prop n'arrive pas (ou arrive
+  // tard). fetchCloudName a son propre cache module-level — appel
+  // gratuit en cas de succès précédent.
+  const [cloudName, setCloudName] = useState(initialCloudName);
+  useEffect(() => {
+    if (initialCloudName) setCloudName(initialCloudName);
+  }, [initialCloudName]);
+  useEffect(() => {
+    if (cloudName) return;
+    let cancelled = false;
+    const tryFetch = () => {
+      fetchCloudName()
+        .then((cn) => {
+          if (!cancelled && cn) setCloudName(cn);
+        })
+        .catch(() => {});
+    };
+    tryFetch();
+    const id = setInterval(tryFetch, 10_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [cloudName]);
 
   // Auto-dismiss : un timer par toast — quand il monte, on programme sa
   // suppression. Le cleanup couvre le cas "fermé à la main avant timeout".
