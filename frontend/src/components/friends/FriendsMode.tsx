@@ -109,7 +109,7 @@ export function FriendsMode() {
   // la liste sans avoir à naviguer.
   if (openFriendID !== null) {
     return (
-      <div className="h-dvh w-full sm:h-[92vh]">
+      <div className="h-dvh w-full sm:h-[92vh]" data-no-swipe>
         <FriendConversation
           friendId={openFriendID}
           onBack={() => window.history.back()}

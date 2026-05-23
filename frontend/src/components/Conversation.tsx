@@ -89,29 +89,70 @@ export function Conversation() {
   );
   const renderKey = mode === "friends" ? "friends" : key;
 
+  // Swipe horizontal pour switcher entre anon ↔ friends. Détection sur
+  // pointer events (souris + tactile unifiés). Annulé si :
+  //   - geste plus vertical qu'horizontal (protège le scroll)
+  //   - démarre sur un input / textarea / [contenteditable]
+  //   - démarre dans une zone marquée data-no-swipe (ex: conversation
+  //     friend inline qui a ses propres gestes back / swipe-times).
+  const swipeStart = useRef<{ x: number; y: number; blocked: boolean } | null>(null);
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!showTabs || !authedUser) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (
+      target.closest("input,textarea,[contenteditable=\"true\"]") ||
+      target.closest("[data-no-swipe]")
+    ) {
+      swipeStart.current = null;
+      return;
+    }
+    swipeStart.current = { x: e.clientX, y: e.clientY, blocked: false };
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    // Seuil : ≥ 70px horizontal ET franchement plus horizontal que vertical.
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx < 0 && mode === "anon") setMode("friends");
+    if (dx > 0 && mode === "friends") setMode("anon");
+  };
+
   return (
     <>
       {showTabs && (
         <ModeTabs mode={mode} onChange={setMode} />
       )}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={renderKey}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
-          // `self-start` casse le centrage vertical du `<main>` parent
-          // uniquement pour le mode amis : la liste doit remonter en haut
-          // de viewport, alors que le chat anonyme reste centré.
-          className={
-            "flex w-full justify-center " +
-            (mode === "friends" ? "self-start" : "")
-          }
-        >
-          {renderView}
-        </motion.div>
-      </AnimatePresence>
+      <div
+        className="flex w-full justify-center"
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => {
+          swipeStart.current = null;
+        }}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={renderKey}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            // `self-start` casse le centrage vertical du `<main>` parent
+            // uniquement pour le mode amis : la liste doit remonter en haut
+            // de viewport, alors que le chat anonyme reste centré.
+            className={
+              "flex w-full justify-center " +
+              (mode === "friends" ? "self-start" : "")
+            }
+          >
+            {renderView}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </>
   );
 }
