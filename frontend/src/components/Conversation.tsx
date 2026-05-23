@@ -127,7 +127,15 @@ export function Conversation() {
         <ModeTabs mode={mode} onChange={setMode} />
       )}
       <div
-        className="flex w-full justify-center"
+        // `self-start` casse le centrage vertical du `<main>` parent
+        // uniquement pour le mode amis : la liste doit remonter en haut
+        // de viewport, alors que le chat anonyme reste centré. Doit être
+        // sur ce wrapper (et pas sur la motion.div interne) car c'est lui
+        // qui est l'enfant direct du flex parent.
+        className={
+          "flex w-full justify-center " +
+          (mode === "friends" ? "self-start" : "")
+        }
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerCancel={() => {
@@ -141,13 +149,7 @@ export function Conversation() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
-            // `self-start` casse le centrage vertical du `<main>` parent
-            // uniquement pour le mode amis : la liste doit remonter en haut
-            // de viewport, alors que le chat anonyme reste centré.
-            className={
-              "flex w-full justify-center " +
-              (mode === "friends" ? "self-start" : "")
-            }
+            className="flex w-full justify-center"
           >
             {renderView}
           </motion.div>
