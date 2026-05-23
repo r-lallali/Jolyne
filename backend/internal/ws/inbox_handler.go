@@ -44,11 +44,12 @@ type inboxFrame struct {
 }
 
 const (
-	inboxTypeMsg              = "msg"
-	inboxTypeRead             = "read"
-	inboxTypeRemoved          = "removed"
-	inboxTypeFriendsChanged   = "friends_changed"
-	inboxTypeStreakMilestone  = "streak_milestone"
+	inboxTypeMsg             = "msg"
+	inboxTypeRead            = "read"
+	inboxTypeRemoved         = "removed"
+	inboxTypeFriendsChanged  = "friends_changed"
+	inboxTypeStreakMilestone = "streak_milestone"
+	inboxTypeStreakRestored  = "streak_restored"
 )
 
 // previewLen : on tronque le body pour la notification toast. Volontairement
@@ -134,6 +135,20 @@ func (h *InboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						if fid > 0 && n > 0 {
 							conn.Send(inboxFrame{
 								Type:     inboxTypeStreakMilestone,
+								FriendID: fid,
+								Streak:   n,
+							})
+						}
+					}
+				}
+				if strings.HasPrefix(raw.Payload, "restored:") {
+					parts := strings.SplitN(raw.Payload, ":", 3)
+					if len(parts) == 3 {
+						fid, _ := strconv.ParseInt(parts[1], 10, 64)
+						n, _ := strconv.Atoi(parts[2])
+						if fid > 0 {
+							conn.Send(inboxFrame{
+								Type:     inboxTypeStreakRestored,
 								FriendID: fid,
 								Streak:   n,
 							})

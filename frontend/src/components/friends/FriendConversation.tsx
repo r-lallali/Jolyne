@@ -11,6 +11,7 @@ import {
 } from "@/components/chat/TranslationPopover";
 import { FriendActionsMenu } from "@/components/friends/FriendActionsMenu";
 import { StreakBadge } from "@/components/friends/StreakBadge";
+import { StreakRestoreModal } from "@/components/friends/StreakRestoreModal";
 import { BackButton } from "@/components/ui/BackButton";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { cloudinaryUrl, fetchCloudName } from "@/lib/account";
@@ -72,6 +73,7 @@ export function FriendConversation({
   // Sélection multi pour suppression groupée.
   const [selectedIDs, setSelectedIDs] = useState<Set<number>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
   const selectionMode = selectedIDs.size > 0;
   const toggleSelected = (id: number) => {
     setSelectedIDs((prev) => {
@@ -272,6 +274,7 @@ export function FriendConversation({
               streak={profile.streak ?? 0}
               atRisk={profile.streak_at_risk ?? false}
               lostStreak={profile.lost_streak}
+              onRestoreClick={() => setRestoreOpen(true)}
               size="md"
             />
           )}
@@ -487,6 +490,22 @@ export function FriendConversation({
         peerNick={profile?.display_name ?? null}
         onClose={() => setReportOpen(false)}
         onSubmit={submitReport}
+      />
+      <StreakRestoreModal
+        open={restoreOpen}
+        friendId={friendId}
+        lostStreak={profile?.lost_streak ?? 0}
+        peerName={profile?.display_name ?? "—"}
+        onClose={() => setRestoreOpen(false)}
+        onRestored={(newStreak) => {
+          // Optimistic — le profil sera re-fetché par le push live, mais
+          // on met à jour localement pour que la flamme apparaisse direct.
+          setProfile((prev) =>
+            prev
+              ? { ...prev, streak: newStreak, lost_streak: 0, lost_at: undefined }
+              : prev,
+          );
+        }}
       />
       <RemoveConfirmModal
         open={confirmRemove}

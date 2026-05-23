@@ -413,6 +413,45 @@ func (s *Store) appendInternal(ctx context.Context, friendID, senderID int64, bo
 	return m, st, nil
 }
 
+// RestoreStreak : wrapper transactionnel autour de la fonction
+// éponyme dans streaks.go. Centralise la création de la tx pour les
+// callers HTTP.
+func (s *Store) RestoreStreak(ctx context.Context, friendID, userID int64, now time.Time) (RestoreResult, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return RestoreResult{}, fmt.Errorf("friends: restore tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	res, err := RestoreStreak(ctx, tx, friendID, userID, now)
+	if err != nil {
+		return RestoreResult{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return RestoreResult{}, fmt.Errorf("friends: restore commit: %w", err)
+	}
+	return res, nil
+}
+
+// QuotaForUser : nombre de restaurations restantes pour ce mois UTC.
+func (s *Store) QuotaForUser(ctx context.Context, userID int64, now time.Time) int {
+	var used int
+	var month string
+	if err := s.pool.QueryRow(ctx,
+		`SELECT streak_restores_used, streak_restores_month FROM users WHERE id = $1`,
+		userID,
+	).Scan(&used, &month); err != nil {
+		return RestoreMonthlyQuota
+	}
+	if month != monthKeyUTC(now) {
+		return RestoreMonthlyQuota
+	}
+	rem := RestoreMonthlyQuota - used
+	if rem < 0 {
+		return 0
+	}
+	return rem
+}
+
 // ErrEditWindowClosed : tentative d'édition d'un message > EditWindow
 // après son envoi. Mapping côté handler vers une 403 / code applicatif.
 var ErrEditWindowClosed = errors.New("friends: fenêtre d'édition expirée")

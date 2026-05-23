@@ -36,3 +36,19 @@ func PublishFriendsChanged(ctx context.Context, rdb *redis.Client, userIDs ...in
 		_ = rdb.Publish(ctx, UserInboxChannel(uid), UserInboxKindFriendsChanged).Err()
 	}
 }
+
+// PublishStreakRestored : signale aux deux users qu'un streak vient d'être
+// restauré sur cette amitié. Payload "restored:{friend_id}:{n}" parsé par
+// l'inbox handler côté ws.
+func PublishStreakRestored(ctx context.Context, rdb *redis.Client, userIDs []int64, friendID int64, newStreak int) {
+	if rdb == nil {
+		return
+	}
+	payload := "restored:" + strconv.FormatInt(friendID, 10) + ":" + strconv.Itoa(newStreak)
+	for _, uid := range userIDs {
+		if uid <= 0 {
+			continue
+		}
+		_ = rdb.Publish(ctx, UserInboxChannel(uid), payload).Err()
+	}
+}

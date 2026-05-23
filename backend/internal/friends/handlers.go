@@ -287,6 +287,60 @@ func (h *Handlers) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 // "session" / "fingerprint" / "ip_hash" sont réutilisées du flux anonyme
 // : on encode l'ID user via `user:{id}` pour rester compatible avec le
 // schéma existant sans migration.
+// HandleRestoreStreak : POST /api/friends/{id}/streak/restore.
+// Marque la demande de restauration côté caller. Si l'autre côté a déjà
+// demandé dans la fenêtre RestoreWindow, le streak est restauré
+// instantanément et 1 jeton est consommé chez chaque user.
+//
+// Réponse : { restored, pending, peer_was_waiting, new_streak,
+// remaining_this_month, err_code }
+func (h *Handlers) HandleRestoreStreak(w http.ResponseWriter, r *http.Request) {
+	user, ok := users.CurrentUser(r.Context())
+	if !ok {
+		http.Error(w, "auth required", http.StatusUnauthorized)
+		return
+	}
+	id, err := parseIDSuffix(r.URL.Path, "/api/friends/")
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	// /api/friends/{id}/streak/restore — on a déjà parsé l'id, on attend
+	// que le reste du path matche le suffixe attendu.
+	if !strings.HasSuffix(r.URL.Path, "/streak/restore") {
+		http.NotFound(w, r)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+	// Vérifie l'appartenance (la fonction core re-vérifie aussi).
+	if _, err := h.Store.Get(ctx, id, user.ID); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	res, err := h.Store.RestoreStreak(ctx, id, user.ID, time.Now())
+	if err != nil {
+		h.log().Error("friends restore streak", "err", err)
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	// Si restauration consensuelle : push événement aux deux users via
+	// leur inbox channel (frame `streak_restored`).
+	if res.Restored {
+		f, _ := h.Store.Get(ctx, id, user.ID)
+		PublishStreakRestored(r.Context(), h.RDB, []int64{user.ID, f.PeerID}, id, res.NewStreak)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"restored":             res.Restored,
+		"pending":              res.Pending,
+		"peer_was_waiting":     res.PeerWasWaiting,
+		"new_streak":           res.NewStreak,
+		"remaining_this_month": res.RemainingThisMonth,
+		"err_code":             res.ErrCode,
+	})
+}
+
 func (h *Handlers) HandleReport(w http.ResponseWriter, r *http.Request) {
 	user, ok := users.CurrentUser(r.Context())
 	if !ok {

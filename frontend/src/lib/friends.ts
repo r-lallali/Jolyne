@@ -137,3 +137,16 @@ export async function removeFriend(id: number): Promise<void> {
 export async function reportFriend(id: number, reason: string): Promise<void> {
   await api<void>("POST", `/api/friends/${id}/report`, { reason });
 }
+
+export interface RestoreStreakResult {
+  restored: boolean;
+  pending: boolean;
+  peer_was_waiting: boolean;
+  new_streak: number;
+  remaining_this_month: number;
+  err_code: string;
+}
+
+export async function restoreStreak(id: number): Promise<RestoreStreakResult> {
+  return api<RestoreStreakResult>("POST", `/api/friends/${id}/streak/restore`, {});
+}

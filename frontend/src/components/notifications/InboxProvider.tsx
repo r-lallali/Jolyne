@@ -136,6 +136,18 @@ export function InboxProvider() {
           sentAt: new Date().toISOString(),
           milestone: ev.streak,
         });
+      } else if (ev.type === "streak_restored") {
+        // Resync la liste pour reprendre les nouveaux compteurs partout.
+        loadFriends();
+        const f = friendsRef.current.get(ev.friend_id);
+        pushToast({
+          friendId: ev.friend_id,
+          senderId: 0,
+          peerName: f?.peer_name ?? "—",
+          peerPhotoId: f?.peer_photo_id,
+          preview: "Streak restauré 🔥",
+          sentAt: new Date().toISOString(),
+        });
       } else if (ev.type === "friends_changed") {
         // Un ami a été ajouté/retiré côté serveur : re-fetch la liste pour
         // mettre à jour le cache, et reconnect le WS afin que le backend

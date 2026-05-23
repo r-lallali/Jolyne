@@ -14,7 +14,8 @@ export type InboxEvent =
   | { type: "read"; friend_id: number }
   | { type: "removed"; friend_id: number }
   | { type: "friends_changed" }
-  | { type: "streak_milestone"; friend_id: number; streak: number };
+  | { type: "streak_milestone"; friend_id: number; streak: number }
+  | { type: "streak_restored"; friend_id: number; streak: number };
 
 export interface InboxHandle {
   reconnect(): void;
