@@ -74,7 +74,7 @@ function Bar({
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className="group relative flex h-4 w-32 items-center justify-center sm:h-3 sm:w-24"
+      className="group relative flex h-4 w-24 items-center justify-center sm:h-3"
     >
       <motion.span
         aria-hidden
