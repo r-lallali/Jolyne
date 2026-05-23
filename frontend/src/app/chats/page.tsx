@@ -32,7 +32,7 @@ export default function ChatsPage() {
   if (!user) notFound();
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
+    <main className="mx-auto max-w-2xl px-6 pb-10 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:pt-10">
       <BackButton href="/" label={t.auth.backToApp} />
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
         {t.chats.title}

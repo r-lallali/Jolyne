@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function LegalPage() {
   return (
-    <main className="mx-auto min-h-dvh max-w-2xl px-6 py-16 sm:px-8 sm:py-20">
+    <main className="mx-auto min-h-dvh max-w-2xl px-6 pb-16 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:px-8 sm:pb-20 sm:pt-20">
       <Link
         href="/"
         className="inline-flex items-center gap-1 text-sm text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"

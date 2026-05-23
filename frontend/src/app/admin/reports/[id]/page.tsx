@@ -82,7 +82,7 @@ export default function AdminReportDetailPage({
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-10">
+      <main className="mx-auto max-w-3xl px-6 pb-10 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:pt-10">
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
           Chargement…
         </p>
@@ -91,7 +91,7 @@ export default function AdminReportDetailPage({
   }
   if (err || !report) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-10">
+      <main className="mx-auto max-w-3xl px-6 pb-10 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:pt-10">
         <Link
           href="/admin/reports"
           className="text-sm text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
@@ -108,7 +108,7 @@ export default function AdminReportDetailPage({
   const closed = report.status !== "open";
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <main className="mx-auto max-w-3xl px-6 pb-10 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:pt-10">
       <Link
         href="/admin/reports"
         className="text-sm text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"

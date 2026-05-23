@@ -213,7 +213,7 @@ export default function AccountPage() {
   }
   if (loading) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto max-w-2xl px-6 pb-16 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:pt-16">
         <p className="text-sm text-neutral-500 dark:text-neutral-400">…</p>
       </main>
     );
@@ -223,7 +223,7 @@ export default function AccountPage() {
   const photoByPos = new Map(photos.map((p) => [p.position, p]));
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
+    <main className="mx-auto max-w-2xl px-6 pb-10 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:pt-10">
       <BackButton onClick={handleBack} label={t.auth.backToApp} />
 
       <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">

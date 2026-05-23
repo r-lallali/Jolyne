@@ -226,7 +226,7 @@ export function FriendConversation({
   if (!hydrated) return null;
   if (!user) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto max-w-2xl px-6 pb-16 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:pt-16">
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
           {t.auth.loginCta}
         </p>

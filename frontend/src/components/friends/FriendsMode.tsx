@@ -129,10 +129,10 @@ export function FriendsMode() {
 
   // Vue liste. `self-start` casse le centrage vertical du wrapper home
   // (`sm:items-center`) — sinon la liste se retrouve au milieu du viewport
-  // sur desktop. `pt-12` couvre les `ModeTabs` (~24 px) avec un léger
-  // air respirable.
+  // sur desktop. Padding-top intègre la safe area iOS + ~3.5rem pour
+  // dégager les ModeTabs / cluster avatar.
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col self-start px-4 pt-12 sm:px-6">
+    <main className="mx-auto flex w-full max-w-2xl flex-col self-start px-4 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:px-6 sm:pt-12">
       <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
         {t.chats.title}
       </h1>
