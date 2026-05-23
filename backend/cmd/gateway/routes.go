@@ -136,12 +136,24 @@ func routes(s services) http.Handler {
 		}))))
 	}
 
-	if s.push != nil && s.users != nil {
+	// Routes notifications enregistrées dès qu'on a l'auth user. Si VAPID
+	// n'est pas configuré côté backend, le handler renvoie 503 (avec CORS)
+	// au lieu d'un 404 muet qui génère une erreur CORS bruyante côté front.
+	if s.users != nil {
 		auth := s.users.RequireAuth
 		cors := publicCORS(s.publicCORS)
-		mux.Handle("/api/notifications/vapid-public-key",
-			cors(methodOnly("GET", http.HandlerFunc(s.push.HandleVAPIDPublicKey))))
+		mux.Handle("/api/notifications/vapid-public-key", cors(methodOnly("GET", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if s.push == nil {
+				http.Error(w, "push disabled", http.StatusServiceUnavailable)
+				return
+			}
+			s.push.HandleVAPIDPublicKey(w, r)
+		}))))
 		mux.Handle("/api/notifications/subscribe", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if s.push == nil {
+				http.Error(w, "push disabled", http.StatusServiceUnavailable)
+				return
+			}
 			switch r.Method {
 			case http.MethodPost:
 				s.push.HandleSubscribe(w, r)
