@@ -19,11 +19,24 @@ export interface ToastNotification {
   // Si renseigné, le toast a un style "milestone" — fond chaleureux,
   // grand chiffre + flamme. Le preview est ignoré dans ce mode.
   milestone?: number;
+  // Streak courant de l'ami au moment du toast (>= 2). Affiché en
+  // sur-impression sous le preview pour donner du contexte social.
+  streak?: number;
+}
+
+// StreakStartedEvent : célébration du tout premier streak (N=2). Popup
+// centré 3s, distinct du toast classique. Une entrée par ami.
+export interface StreakStartedEvent {
+  friendId: number;
+  peerName: string;
+  peerPhotoId?: string;
+  at: number;
 }
 
 interface NotificationState {
   unreadByFriend: Record<number, number>;
   toasts: ToastNotification[];
+  streakStarted: StreakStartedEvent | null;
 
   // Bulk reset depuis le fetch HTTP de la liste — appelé par FriendsMode /
   // la page /chats à chaque refresh.
@@ -36,11 +49,17 @@ interface NotificationState {
   // Toast queue.
   pushToast: (t: Omit<ToastNotification, "id">) => void;
   dismissToast: (id: string) => void;
+
+  // Popup célébration premier streak (N=2). Set sur event inbox, clear
+  // automatiquement après 3s par le composant qui l'affiche.
+  pushStreakStarted: (e: StreakStartedEvent) => void;
+  clearStreakStarted: () => void;
 }
 
 export const useNotificationStore = create<NotificationState>()((set) => ({
   unreadByFriend: {},
   toasts: [],
+  streakStarted: null,
   hydrateUnread: (entries) => set({ unreadByFriend: { ...entries } }),
   incrementUnread: (friendId) =>
     set((s) => ({
@@ -65,6 +84,8 @@ export const useNotificationStore = create<NotificationState>()((set) => ({
     })),
   dismissToast: (id) =>
     set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  pushStreakStarted: (e) => set({ streakStarted: e }),
+  clearStreakStarted: () => set({ streakStarted: null }),
 }));
 
 // Sélecteur dérivé pour la bulle d'onglet — total unread sur toutes les

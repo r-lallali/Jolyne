@@ -22,7 +22,9 @@ type Streak struct {
 
 // Liste des paliers déclencheurs de notif. Ordonnée croissant — on prend
 // le plus haut atteint pour éviter de re-notifier en cas de restauration.
-var StreakMilestones = []int{3, 7, 14, 30, 50, 100, 365}
+// 2 = "premier streak établi" (popup spécial célébration). Au-delà :
+// paliers classiques.
+var StreakMilestones = []int{2, 3, 7, 14, 30, 50, 100, 365}
 
 // UpdateStreakOnMessage : appelé dans la transaction d'AppendMessage.
 // Met à jour les compteurs et renvoie l'état post-update + le palier

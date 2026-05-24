@@ -27,6 +27,7 @@ export interface FriendSummary {
   streak_at_risk: boolean;
   lost_streak?: number;
   lost_at?: string;
+  restores_remaining_this_month?: number;
 }
 
 export interface FriendMessage {
@@ -59,6 +60,7 @@ export interface FriendProfile {
   streak_at_risk: boolean;
   lost_streak?: number;
   lost_at?: string;
+  restores_remaining_this_month?: number;
 }
 
 export class FriendsError extends Error {

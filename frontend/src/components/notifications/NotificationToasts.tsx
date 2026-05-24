@@ -95,8 +95,18 @@ export function NotificationToasts({ cloudName: initialCloudName }: { cloudName:
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                {t.milestone ? `🔥 ${t.milestone} jours d'affilée` : t.peerName}
+              <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                <span className="truncate">
+                  {t.milestone ? `🔥 ${t.milestone} jours d'affilée` : t.peerName}
+                </span>
+                {!t.milestone && t.streak && t.streak >= 2 && (
+                  <span
+                    aria-label={`Streak ${t.streak}`}
+                    className="shrink-0 rounded-full bg-orange-100 px-1.5 py-0 text-[10px] font-semibold text-orange-700 dark:bg-orange-500/15 dark:text-orange-400"
+                  >
+                    🔥 {t.streak}
+                  </span>
+                )}
               </p>
               <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
                 {t.milestone ? `Avec ${t.peerName}` : t.preview || "…"}

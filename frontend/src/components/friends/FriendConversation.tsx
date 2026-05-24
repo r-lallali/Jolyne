@@ -11,6 +11,7 @@ import {
 } from "@/components/chat/TranslationPopover";
 import { FriendActionsMenu } from "@/components/friends/FriendActionsMenu";
 import { StreakBadge } from "@/components/friends/StreakBadge";
+import { StreakLostBanner } from "@/components/friends/StreakLostBanner";
 import { StreakRestoreModal } from "@/components/friends/StreakRestoreModal";
 import { BackButton } from "@/components/ui/BackButton";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
@@ -439,6 +440,16 @@ export function FriendConversation({
             meId={user?.id ?? 0}
             peerReadAt={peerReadAt}
           />
+          {profile &&
+            (profile.lost_streak ?? 0) >= 2 &&
+            (profile.streak ?? 0) === 0 && (
+              <StreakLostBanner
+                lostStreak={profile.lost_streak ?? 0}
+                peerName={profile.display_name || "—"}
+                restoresRemaining={profile.restores_remaining_this_month}
+                onRestore={() => setRestoreOpen(true)}
+              />
+            )}
           {peerRemovedMe && (
             <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-center dark:border-neutral-800 dark:bg-neutral-900/60">
               <p className="text-sm font-medium text-neutral-900 dark:text-neutral-50">

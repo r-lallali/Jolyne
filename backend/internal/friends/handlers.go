@@ -267,18 +267,19 @@ func (h *Handlers) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	streak, atRisk, lostStreak, lostAt, _ := ReadStreak(ctx, h.Store.pool, f.ID)
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"peer_id":         f.PeerID,
-		"display_name":    p.DisplayName,
-		"bio":             p.Bio,
-		"birthdate":       formatDate(p.Birthdate),
-		"photos":          outPhotos,
-		"prompts":         prompts,
-		"peer_removed_me": f.PeerRemovedMe,
-		"peer_verified":   p.IsVerified,
-		"streak":          streak,
-		"streak_at_risk":  atRisk,
-		"lost_streak":     lostStreak,
-		"lost_at":         formatLostAt(lostAt),
+		"peer_id":                       f.PeerID,
+		"display_name":                  p.DisplayName,
+		"bio":                           p.Bio,
+		"birthdate":                     formatDate(p.Birthdate),
+		"photos":                        outPhotos,
+		"prompts":                       prompts,
+		"peer_removed_me":               f.PeerRemovedMe,
+		"peer_verified":                 p.IsVerified,
+		"streak":                        streak,
+		"streak_at_risk":                atRisk,
+		"lost_streak":                   lostStreak,
+		"lost_at":                       formatLostAt(lostAt),
+		"restores_remaining_this_month": h.Store.QuotaForUser(ctx, user.ID, time.Now()),
 	})
 }
 

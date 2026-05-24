@@ -293,6 +293,7 @@ function FriendRow({
               streak={friend.streak}
               atRisk={friend.streak_at_risk}
               lostStreak={friend.lost_streak}
+              size="md"
             />
             {muted && (
               <span className="shrink-0 text-neutral-400 dark:text-neutral-500" title="Sourdine active">

@@ -9,6 +9,7 @@ import { useNotificationStore } from "@/stores/notificationStore";
 import { useUserStore } from "@/stores/userStore";
 import { NotificationToasts } from "@/components/notifications/NotificationToasts";
 import { PushOptIn } from "@/components/notifications/PushOptIn";
+import { StreakStartedPopup } from "@/components/notifications/StreakStartedPopup";
 
 // InboxProvider : monté une seule fois dans le layout. Tant que l'user
 // est authentifié, ouvre le WS /ws/inbox et alimente le store de
@@ -33,6 +34,7 @@ export function InboxProvider() {
   const incrementUnread = useNotificationStore((s) => s.incrementUnread);
   const clearUnread = useNotificationStore((s) => s.clearUnread);
   const pushToast = useNotificationStore((s) => s.pushToast);
+  const pushStreakStarted = useNotificationStore((s) => s.pushStreakStarted);
 
   // On garde une map fraîche des amis (peer_name + photo) pour pouvoir
   // enrichir les toasts entrants. Mise à jour au mount + sur les events
@@ -125,6 +127,7 @@ export function InboxProvider() {
                   peerPhotoId: main ?? cached?.peer_photo_id,
                   preview: ev.preview,
                   sentAt: ev.sent_at,
+                  streak: p.streak,
                 });
               })
               .catch(() => {
@@ -146,15 +149,28 @@ export function InboxProvider() {
         friendsRef.current.delete(ev.friend_id);
       } else if (ev.type === "streak_milestone") {
         const f = friendsRef.current.get(ev.friend_id);
-        pushToast({
-          friendId: ev.friend_id,
-          senderId: 0,
-          peerName: f?.peer_name ?? "—",
-          peerPhotoId: f?.peer_photo_id,
-          preview: "",
-          sentAt: new Date().toISOString(),
-          milestone: ev.streak,
-        });
+        if (ev.streak === 2) {
+          // Premier streak établi — popup centré 3s au lieu du toast
+          // classique. Le toast serait noyé dans le bruit pour ce moment
+          // "première fois", on lui réserve un visuel distinct.
+          pushStreakStarted({
+            friendId: ev.friend_id,
+            peerName: f?.peer_name ?? "—",
+            peerPhotoId: f?.peer_photo_id,
+            at: Date.now(),
+          });
+        } else {
+          pushToast({
+            friendId: ev.friend_id,
+            senderId: 0,
+            peerName: f?.peer_name ?? "—",
+            peerPhotoId: f?.peer_photo_id,
+            preview: "",
+            sentAt: new Date().toISOString(),
+            milestone: ev.streak,
+            streak: ev.streak,
+          });
+        }
       } else if (ev.type === "streak_restored") {
         // Resync la liste pour reprendre les nouveaux compteurs partout.
         loadFriends();
@@ -181,13 +197,14 @@ export function InboxProvider() {
       clearInterval(ensureCloud);
       handle.close();
     };
-  }, [hydrated, user, hydrateUnread, incrementUnread, clearUnread, pushToast]);
+  }, [hydrated, user, hydrateUnread, incrementUnread, clearUnread, pushToast, pushStreakStarted]);
 
   if (!hydrated || !user) return null;
   return (
     <>
       <PushOptIn />
       <NotificationToasts cloudName={cloudName} />
+      <StreakStartedPopup cloudName={cloudName} />
     </>
   );
 }
