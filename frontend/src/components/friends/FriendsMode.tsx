@@ -48,12 +48,22 @@ export function FriendsMode() {
     window.addEventListener("popstate", onPop);
     return () => {
       window.removeEventListener("popstate", onPop);
-      // Si on quitte la conv autrement que par popstate (ex: friend retiré
-      // → setOpenFriendID(null) direct), on doit consommer notre entrée
-      // d'historique pour ne pas la laisser derrière nous.
-      if (pushedRef.current) {
+      // Consomme notre entrée d'historique UNIQUEMENT si on est toujours
+      // dessus (= cas "friend retiré, setOpenFriendID(null) direct"). Si
+      // Next.js a déjà router.push'é ailleurs (ex: clic sur "Mon compte"
+      // depuis le menu avatar), `history.state.jolyne` n'est plus
+      // "friend-inline" et appeler back() annulerait la navigation
+      // utilisateur — bug observé en prod (clic "Mon compte" depuis une
+      // conversation ramenait sur la home).
+      if (
+        pushedRef.current &&
+        typeof window !== "undefined" &&
+        window.history.state?.jolyne === "friend-inline"
+      ) {
         pushedRef.current = false;
         window.history.back();
+      } else {
+        pushedRef.current = false;
       }
     };
   }, [openFriendID]);
