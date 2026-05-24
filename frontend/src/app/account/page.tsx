@@ -384,7 +384,7 @@ export default function AccountPage() {
         </section>
 
         <div className="flex items-center justify-end pt-2">
-          <SaveButton state={savingState} />
+          <SaveButton state={savingState} dirty={isDirty} />
         </div>
       </form>
       <UnsavedChangesModal
@@ -512,19 +512,28 @@ function AutoGrowTextarea({
 // SaveButton : transition fluide idle → busy (spinner + label) → saved
 // (checkmark vert + label) → idle. AnimatePresence avec mode="wait" pour
 // que le swap d'icône / fond / texte arrive en un mouvement cohérent.
-function SaveButton({ state }: { state: "idle" | "busy" | "saved" }) {
+// Désactivé tant que le formulaire n'est pas dirty — évite les submits
+// inutiles + signal visuel clair que rien n'a changé.
+function SaveButton({
+  state,
+  dirty,
+}: {
+  state: "idle" | "busy" | "saved";
+  dirty: boolean;
+}) {
   const t = useT();
   const isSaved = state === "saved";
   const isBusy = state === "busy";
+  const isDisabled = isBusy || (!dirty && !isSaved);
   return (
     <motion.button
       type="submit"
-      disabled={isBusy}
+      disabled={isDisabled}
       animate={{
         backgroundColor: isSaved ? "rgb(16 185 129)" : undefined,
       }}
       transition={{ duration: 0.25 }}
-      className="relative flex h-11 min-w-[10rem] items-center justify-center gap-2 overflow-hidden rounded-xl bg-neutral-900 px-5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
+      className="relative flex h-11 min-w-[10rem] items-center justify-center gap-2 overflow-hidden rounded-xl bg-neutral-900 px-5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:opacity-40 dark:bg-neutral-50 dark:text-neutral-900"
     >
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
