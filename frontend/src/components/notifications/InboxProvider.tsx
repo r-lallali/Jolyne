@@ -54,6 +54,16 @@ export function InboxProvider() {
     pathnameRef.current = pathname;
   }, [pathname]);
 
+  // Ref miroir de notificationStore.activeFriendId — set par
+  // FriendConversation à son mount, sert à gating les notifs.
+  const activeFriendIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const unsub = useNotificationStore.subscribe((s) => {
+      activeFriendIdRef.current = s.activeFriendId;
+    });
+    return unsub;
+  }, []);
+
   useEffect(() => {
     if (!hydrated || !user) return;
     let cancelled = false;
@@ -92,13 +102,18 @@ export function InboxProvider() {
     }, 15_000);
 
     const handle: { reconnect: () => void; close: () => void } = openInboxWS((ev) => {
+      // Détection "conv ouverte" via le store global — set par
+      // FriendConversation (inline ET /chats/[id] page utilisent le
+      // même composant donc l'effet déclenche dans les deux cas).
+      // Fallback URL au cas où FriendConversation pas encore monté.
+      const activeId = activeFriendIdRef.current;
+      const urlMatch = pathnameRef.current?.match(/^\/chats\/(\d+)/);
+      const urlActiveId = urlMatch ? Number(urlMatch[1]) : null;
+      const isTalkingTo = (fid: number) =>
+        activeId === fid || urlActiveId === fid;
+
       if (ev.type === "msg") {
-        // Heuristique "conv ouverte" : on regarde l'URL. Si l'utilisateur
-        // est sur /chats/{id} qui matche le friend_id, on ne notifie pas.
-        const openMatch = pathnameRef.current?.match(/^\/chats\/(\d+)/);
-        const openFriendID = openMatch ? Number(openMatch[1]) : null;
-        const isOpen = openFriendID === ev.friend_id;
-        if (!isOpen) {
+        if (!isTalkingTo(ev.friend_id)) {
           incrementUnread(ev.friend_id);
           const muted =
             typeof window !== "undefined" &&
@@ -148,23 +163,49 @@ export function InboxProvider() {
         clearUnread(ev.friend_id);
         friendsRef.current.delete(ev.friend_id);
       } else if (ev.type === "streak_milestone") {
-        const f = friendsRef.current.get(ev.friend_id);
+        if (isTalkingTo(ev.friend_id)) {
+          // L'user discute déjà avec cet ami — pas besoin de toast,
+          // le header sera mis à jour quand le profile sera re-fetch.
+          return;
+        }
+        const cached = friendsRef.current.get(ev.friend_id);
         if (ev.streak === 2) {
-          // Premier streak établi — popup centré 3s au lieu du toast
-          // classique. Le toast serait noyé dans le bruit pour ce moment
-          // "première fois", on lui réserve un visuel distinct.
-          pushStreakStarted({
-            friendId: ev.friend_id,
-            peerName: f?.peer_name ?? "—",
-            peerPhotoId: f?.peer_photo_id,
-            at: Date.now(),
-          });
+          // Premier streak — popup centré 3s avec photo FRAÎCHE.
+          // L'avatar caché pouvait être stale ; on va chercher le
+          // profile pour récupérer la position 1 actuelle.
+          getFriendProfile(ev.friend_id)
+            .then((p) => {
+              const main =
+                p.photos.find((ph) => ph.position === 1)?.public_id ??
+                p.photos[0]?.public_id;
+              if (cached) {
+                friendsRef.current.set(ev.friend_id, {
+                  ...cached,
+                  peer_name: p.display_name || cached.peer_name,
+                  peer_photo_id: main ?? cached.peer_photo_id,
+                });
+              }
+              pushStreakStarted({
+                friendId: ev.friend_id,
+                peerName: p.display_name || cached?.peer_name || "—",
+                peerPhotoId: main ?? cached?.peer_photo_id,
+                at: Date.now(),
+              });
+            })
+            .catch(() => {
+              pushStreakStarted({
+                friendId: ev.friend_id,
+                peerName: cached?.peer_name ?? "—",
+                peerPhotoId: cached?.peer_photo_id,
+                at: Date.now(),
+              });
+            });
         } else {
           pushToast({
             friendId: ev.friend_id,
             senderId: 0,
-            peerName: f?.peer_name ?? "—",
-            peerPhotoId: f?.peer_photo_id,
+            peerName: cached?.peer_name ?? "—",
+            peerPhotoId: cached?.peer_photo_id,
             preview: "",
             sentAt: new Date().toISOString(),
             milestone: ev.streak,
@@ -174,6 +215,9 @@ export function InboxProvider() {
       } else if (ev.type === "streak_restored") {
         // Resync la liste pour reprendre les nouveaux compteurs partout.
         loadFriends();
+        if (isTalkingTo(ev.friend_id)) {
+          return;
+        }
         const f = friendsRef.current.get(ev.friend_id);
         pushToast({
           friendId: ev.friend_id,

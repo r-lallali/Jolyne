@@ -37,6 +37,11 @@ interface NotificationState {
   unreadByFriend: Record<number, number>;
   toasts: ToastNotification[];
   streakStarted: StreakStartedEvent | null;
+  // ID de l'ami dont la conversation est actuellement ouverte (vue
+  // inline depuis FriendsMode OU page /chats/[id]). Sert à
+  // l'InboxProvider pour ne pas notifier de cet ami pendant qu'on
+  // discute avec lui. null = aucune conv ouverte.
+  activeFriendId: number | null;
 
   // Bulk reset depuis le fetch HTTP de la liste — appelé par FriendsMode /
   // la page /chats à chaque refresh.
@@ -54,12 +59,14 @@ interface NotificationState {
   // automatiquement après 3s par le composant qui l'affiche.
   pushStreakStarted: (e: StreakStartedEvent) => void;
   clearStreakStarted: () => void;
+  setActiveFriendId: (id: number | null) => void;
 }
 
 export const useNotificationStore = create<NotificationState>()((set) => ({
   unreadByFriend: {},
   toasts: [],
   streakStarted: null,
+  activeFriendId: null,
   hydrateUnread: (entries) => set({ unreadByFriend: { ...entries } }),
   incrementUnread: (friendId) =>
     set((s) => ({
@@ -86,6 +93,7 @@ export const useNotificationStore = create<NotificationState>()((set) => ({
     set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   pushStreakStarted: (e) => set({ streakStarted: e }),
   clearStreakStarted: () => set({ streakStarted: null }),
+  setActiveFriendId: (id) => set({ activeFriendId: id }),
 }));
 
 // Sélecteur dérivé pour la bulle d'onglet — total unread sur toutes les

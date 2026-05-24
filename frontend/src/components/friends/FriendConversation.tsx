@@ -26,6 +26,7 @@ import {
 import { openFriendWS, FriendWSHandle } from "@/lib/friend_ws";
 import { useT } from "@/lib/i18n";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useNotificationStore } from "@/stores/notificationStore";
 import { useUserStore } from "@/stores/userStore";
 
 // Clé localStorage pour le mute par ami. Non synchronisé serveur — c'est
@@ -54,6 +55,14 @@ export function FriendConversation({
   const t = useT();
   const user = useUserStore((s) => s.user);
   const hydrated = useUserStore((s) => s.hydrated);
+  const setActiveFriendId = useNotificationStore((s) => s.setActiveFriendId);
+  // Déclare cette conv comme active dans le store global → l'InboxProvider
+  // sait qu'il ne doit pas notifier de cet ami pendant que l'utilisateur
+  // est en train de lui parler. Cleanup en unmount.
+  useEffect(() => {
+    setActiveFriendId(friendId);
+    return () => setActiveFriendId(null);
+  }, [friendId, setActiveFriendId]);
   const [profile, setProfile] = useState<FriendProfile | null>(null);
   const [cloud, setCloud] = useState("");
   const [msgs, setMsgs] = useState<FriendMessage[]>([]);
