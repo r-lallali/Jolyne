@@ -21,6 +21,14 @@ import { useUserStore } from "@/stores/userStore";
 
 const MAX_PHOTOS = 6;
 
+// Variants pour le stagger d'entrée des sections de /account. Chaque
+// enfant motion.* hérite de `visible` au mount via le parent qui
+// déclenche le stagger (staggerChildren + delayChildren).
+const sectionVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.32, ease: "easeOut" as const } },
+};
+
 export default function AccountPage() {
   const t = useT();
   const user = useUserStore((s) => s.user);
@@ -223,22 +231,40 @@ export default function AccountPage() {
   const photoByPos = new Map(photos.map((p) => [p.position, p]));
 
   return (
-    <main className="mx-auto max-w-2xl px-6 pb-10 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:pt-10">
-      <BackButton onClick={handleBack} label={t.auth.backToApp} />
+    <motion.main
+      className="mx-auto max-w-2xl px-6 pb-10 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:pt-10"
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: {},
+        visible: {
+          transition: { staggerChildren: 0.06, delayChildren: 0.04 },
+        },
+      }}
+    >
+      <motion.div variants={sectionVariants}>
+        <BackButton onClick={handleBack} label={t.auth.backToApp} />
+      </motion.div>
 
-      <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
+      <motion.h1
+        variants={sectionVariants}
+        className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50"
+      >
         {t.account.title}
-      </h1>
-      <div className="mt-1 flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+      </motion.h1>
+      <motion.div
+        variants={sectionVariants}
+        className="mt-1 flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400"
+      >
         <span className="truncate">{user.email}</span>
         {!user.email_verified && (
           <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
             {t.auth.notVerifiedBadge}
           </span>
         )}
-      </div>
+      </motion.div>
 
-      <section className="mt-8">
+      <motion.section variants={sectionVariants} className="mt-8">
         <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
           {t.account.photos}
         </h2>
@@ -306,9 +332,9 @@ export default function AccountPage() {
             );
           })}
         </div>
-      </section>
+      </motion.section>
 
-      <div className="mt-8">
+      <motion.div variants={sectionVariants} className="mt-8">
         <VerificationCard
           isVerified={account?.profile.is_verified ?? false}
           hasProfilePhoto={photoByPos.has(1)}
@@ -326,37 +352,43 @@ export default function AccountPage() {
             );
           }}
         />
-      </div>
+      </motion.div>
 
       <form onSubmit={save} className="mt-10 space-y-4">
-        <Field label={t.account.displayName}>
-          <input
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder={t.account.displayNamePlaceholder}
-            maxLength={40}
-            className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
-          />
-        </Field>
-        <Field label={t.account.bio}>
-          <AutoGrowTextarea
-            value={bio}
-            onChange={setBio}
-            placeholder={t.account.bioPlaceholder}
-            maxLength={280}
-          />
-        </Field>
-        <Field label={t.account.birthdate}>
-          <input
-            type="date"
-            value={birthdate}
-            onChange={(e) => setBirthdate(e.target.value)}
-            className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
-          />
-        </Field>
+        <motion.div variants={sectionVariants}>
+          <Field label={t.account.displayName}>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder={t.account.displayNamePlaceholder}
+              maxLength={40}
+              className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
+            />
+          </Field>
+        </motion.div>
+        <motion.div variants={sectionVariants}>
+          <Field label={t.account.bio}>
+            <AutoGrowTextarea
+              value={bio}
+              onChange={setBio}
+              placeholder={t.account.bioPlaceholder}
+              maxLength={280}
+            />
+          </Field>
+        </motion.div>
+        <motion.div variants={sectionVariants}>
+          <Field label={t.account.birthdate}>
+            <input
+              type="date"
+              value={birthdate}
+              onChange={(e) => setBirthdate(e.target.value)}
+              className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
+            />
+          </Field>
+        </motion.div>
 
-        <section className="pt-2">
+        <motion.section variants={sectionVariants} className="pt-2">
           <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             {t.account.prompts}
           </h2>
@@ -381,11 +413,14 @@ export default function AccountPage() {
               />
             ))}
           </div>
-        </section>
+        </motion.section>
 
-        <div className="flex items-center justify-end pt-2">
+        <motion.div
+          variants={sectionVariants}
+          className="flex items-center justify-end pt-2"
+        >
           <SaveButton state={savingState} dirty={isDirty} />
-        </div>
+        </motion.div>
       </form>
       <UnsavedChangesModal
         open={unsavedOpen}
@@ -393,7 +428,7 @@ export default function AccountPage() {
         onSave={saveAndLeave}
         onDiscard={discardAndLeave}
       />
-    </main>
+    </motion.main>
   );
 }
 
