@@ -36,6 +36,10 @@ export function Conversation() {
     setMode(next);
   };
 
+  // Référence stable pour switchMode afin d'éviter la stale closure dans l'effet tactile
+  const switchModeRef = useRef(switchMode);
+  switchModeRef.current = switchMode;
+
   // Sur tout retour vers "idle" (quit, error→back, bfcache), on remet
   // l'URL à plat. Sinon un hash #config résiduel (laissé par la nav
   // setup avant la conv) refait atterrir SetupView sur l'étape config
@@ -137,8 +141,8 @@ export function Conversation() {
       // Geste horizontal franc uniquement — protège le scroll vertical.
       if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
       const m = modeRef.current;
-      if (dx < 0 && m === "anon") switchMode("friends");
-      if (dx > 0 && m === "friends") switchMode("anon");
+      if (dx < 0 && m === "anon") switchModeRef.current("friends");
+      if (dx > 0 && m === "friends") switchModeRef.current("anon");
     };
 
     document.addEventListener("touchstart", onTouchStart, { passive: true });
