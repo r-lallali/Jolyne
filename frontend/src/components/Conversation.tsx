@@ -93,50 +93,67 @@ export function Conversation() {
   // En mode "friends", on remplace tout le contenu chat anonyme par la vue
   // amis. Le ModeTabs reste visible au-dessus pour permettre de revenir.
 
-  // Swipe horizontal pour switcher entre anon ↔ friends. Même pattern que
-  // FriendConversation (onTouchStart / onTouchEnd en React). Annulé si :
+  // Swipe horizontal pour switcher entre anon ↔ friends. Listeners
+  // attachés sur document (touchstart / touchend) via useEffect pour
+  // contourner les problèmes de propagation à travers les motion.div
+  // de framer-motion. Même seuils que FriendConversation.
+  //
+  // Annulé si :
   //   - geste clairement vertical (= scroll, protège le scroll)
   //   - démarre sur un input / textarea / [contenteditable]
-  //   - démarre dans une zone marquée data-no-swipe (ex: conversation
-  //     friend inline qui a ses propres gestes back / swipe-times).
-  //
-  // Seuils mobile-friendly :
-  //   - distance horizontale min : 18% de la largeur viewport (cap à 60px)
-  //   - ratio dx > dy*1.2 (moins strict que 1.5, ergonomique pouce)
+  //   - démarre dans une zone marquée data-no-swipe
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const showTabsRef = useRef(showTabs);
+  showTabsRef.current = showTabs;
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (!showTabs || !authedUser) return;
-    const t = e.touches[0];
-    if (!t) return;
-    const target = e.target as HTMLElement;
-    if (
-      target.closest("input,textarea,[contenteditable=\"true\"]") ||
-      target.closest("[data-no-swipe]")
-    ) {
-      swipeStart.current = null;
-      return;
-    }
-    swipeStart.current = { x: t.clientX, y: t.clientY };
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const start = swipeStart.current;
-    swipeStart.current = null;
-    if (!start) return;
-    const end = e.changedTouches[0];
-    if (!end) return;
-    const dx = end.clientX - start.x;
-    const dy = end.clientY - start.y;
-    const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
-    const minDist = Math.min(60, vw * 0.18);
-    // Geste horizontal franc uniquement — protège le scroll vertical.
-    if (Math.abs(dx) < minDist || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-    if (dx < 0 && mode === "anon") switchMode("friends");
-    if (dx > 0 && mode === "friends") switchMode("anon");
-  };
+  useEffect(() => {
+    let start: { x: number; y: number } | null = null;
 
-  // Desktop : pointer events souris. Même logique, filtrés sur mouse only
-  // car le tactile est géré ci-dessus.
+    const onTouchStart = (e: TouchEvent) => {
+      if (!showTabsRef.current) return;
+      const t = e.touches[0];
+      if (!t) return;
+      const target = e.target as HTMLElement;
+      if (
+        target.closest("input,textarea,[contenteditable=\"true\"]") ||
+        target.closest("[data-no-swipe]")
+      ) {
+        start = null;
+        return;
+      }
+      start = { x: t.clientX, y: t.clientY };
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      const s = start;
+      start = null;
+      if (!s) return;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - s.x;
+      const dy = t.clientY - s.y;
+      // Geste horizontal franc uniquement — protège le scroll vertical.
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      const m = modeRef.current;
+      if (dx < 0 && m === "anon") switchMode("friends");
+      if (dx > 0 && m === "friends") switchMode("anon");
+    };
+
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  // switchMode dépend de mode via closure mais modeRef.current le
+  // fournit sans re-register. Les refs showTabsRef/modeRef sont stables.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Desktop : pointer events souris (drag). Même logique, filtrés sur
+  // mouse only car le tactile est géré par les listeners document.
   const onPointerDown = (e: React.PointerEvent) => {
     if (!showTabs || !authedUser) return;
     if (e.pointerType !== "mouse" || e.button !== 0) return;
@@ -185,8 +202,6 @@ export function Conversation() {
           "flex w-full justify-center " +
           (mode === "friends" ? "self-start" : "")
         }
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
       >
