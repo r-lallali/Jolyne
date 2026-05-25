@@ -97,6 +97,7 @@ export function FriendConversation({
   const speaks = useSessionStore((s) => s.speaks);
   const wants = useSessionStore((s) => s.wants);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasLoadedHistory = useRef(false);
   const wsRef = useRef<FriendWSHandle | null>(null);
   const [peerTyping, setPeerTyping] = useState(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -215,10 +216,43 @@ export function FriendConversation({
   }, [hydrated, user, friendId]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    if (msgs.length === 0) return;
+
+    const el = scrollRef.current;
+    if (!el) return;
+
+    if (!hasLoadedHistory.current) {
+      // Premier chargement : scroll instantané à plat pour éviter l'effet d'animation au montage
+      el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
+      hasLoadedHistory.current = true;
+
+      // Filet de sécurité pour mobile (attente de la fin de la passe de layout du navigateur)
+      const t1 = setTimeout(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
+      }, 50);
+      const t2 = setTimeout(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
+      }, 150);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    } else {
+      // Nouveaux messages ou indicateur "typing" : scroll fluide et agréable
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+
+      // Filet de sécurité pour garantir la fin du scroll fluide après layout
+      const t1 = setTimeout(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }, 50);
+      const t2 = setTimeout(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }, 150);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
   }, [msgs.length, peerTyping]);
 
   const remove = async () => {
