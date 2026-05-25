@@ -95,11 +95,16 @@ export function Conversation() {
 
   // Swipe horizontal pour switcher entre anon ↔ friends. Détection sur
   // pointer events (souris + tactile unifiés). Annulé si :
-  //   - geste plus vertical qu'horizontal (protège le scroll)
+  //   - geste clairement vertical (= scroll, protège le scroll)
   //   - démarre sur un input / textarea / [contenteditable]
   //   - démarre dans une zone marquée data-no-swipe (ex: conversation
   //     friend inline qui a ses propres gestes back / swipe-times).
-  const swipeStart = useRef<{ x: number; y: number; blocked: boolean } | null>(null);
+  //
+  // Seuils mobile-friendly :
+  //   - distance horizontale min : 18% de la largeur viewport (cap à 60px)
+  //   - ratio dx > dy*1.2 (moins strict que 1.5, ergonomique pouce)
+  //   - abort dès que dy > 35px (l'utilisateur scrolle, on lâche)
+  const swipeStart = useRef<{ x: number; y: number; aborted: boolean } | null>(null);
   const onPointerDown = (e: React.PointerEvent) => {
     if (!showTabs || !authedUser) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -111,16 +116,34 @@ export function Conversation() {
       swipeStart.current = null;
       return;
     }
-    swipeStart.current = { x: e.clientX, y: e.clientY, blocked: false };
+    swipeStart.current = { x: e.clientX, y: e.clientY, aborted: false };
+    // Capture du pointer pour ne pas perdre l'event si le doigt sort du
+    // wrapper pendant le swipe (typique sur mobile).
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // ignore si déjà capturé
+    }
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const start = swipeStart.current;
+    if (!start || start.aborted) return;
+    const dy = e.clientY - start.y;
+    // Si l'utilisateur scrolle franchement, on annule pour ne pas voler
+    // son geste.
+    if (Math.abs(dy) > 35 && Math.abs(dy) > Math.abs(e.clientX - start.x)) {
+      start.aborted = true;
+    }
   };
   const onPointerUp = (e: React.PointerEvent) => {
     const start = swipeStart.current;
     swipeStart.current = null;
-    if (!start) return;
+    if (!start || start.aborted) return;
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
-    // Seuil : ≥ 70px horizontal ET franchement plus horizontal que vertical.
-    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const minDist = Math.min(60, vw * 0.18);
+    if (Math.abs(dx) < minDist || Math.abs(dx) < Math.abs(dy) * 1.2) return;
     if (dx < 0 && mode === "anon") switchMode("friends");
     if (dx > 0 && mode === "friends") switchMode("anon");
   };
@@ -150,6 +173,7 @@ export function Conversation() {
           (mode === "friends" ? "self-start" : "")
         }
         onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={() => {
           swipeStart.current = null;
