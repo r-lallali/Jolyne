@@ -22,7 +22,7 @@ services:
         BUILD_VERSION: ${BUILD_VERSION:-dev}
     restart: unless-stopped
     environment:
-      JOLYNE_ENV: prod
+      JOLYNE_ENV: ${JOLYNE_ENV:-prod}
       JOLYNE_PORT: 8080
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
