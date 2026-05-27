@@ -194,6 +194,7 @@ export function SetupView() {
                   onChange={setPseudo}
                   placeholder={t.setup.nickPlaceholder}
                   suggestion={suggestion}
+                  autoFocus={!user}
                 />
                 {pseudoBlocked && (
                   <p className="mt-3 text-center text-xs text-red-600 dark:text-red-400">

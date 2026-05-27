@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const MAX = 20;
 const ALLOWED = /^[\p{L}\p{N}_-]*$/u;
@@ -15,13 +15,20 @@ interface Props {
   // le store — c'est juste un visuel. La promotion vers une vraie valeur
   // se fait côté parent quand l'user clique Start.
   suggestion?: string;
+  autoFocus?: boolean;
 }
 
 // Input invisible + spans Framer Motion ~180 ms par lettre.
 // Le serveur applique la même règle de charset (CLAUDE.md règle d'or #3).
-export function PseudoInput({ value, onChange, placeholder, suggestion }: Props) {
+export function PseudoInput({ value, onChange, placeholder, suggestion, autoFocus = true }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (autoFocus) {
+      inputRef.current?.focus();
+    }
+  }, [autoFocus]);
 
   const handle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const next = e.target.value.slice(0, MAX);
@@ -41,7 +48,6 @@ export function PseudoInput({ value, onChange, placeholder, suggestion }: Props)
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         maxLength={MAX}
-        autoFocus
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
