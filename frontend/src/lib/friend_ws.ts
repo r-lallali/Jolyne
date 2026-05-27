@@ -22,6 +22,7 @@ export type FriendWSEvent =
   | { type: "peer_removed" }
   | { type: "read"; read_at: string }
   | { type: "typing" }
+  | { type: "streak"; streak: number; streak_at_risk: boolean }
   | { type: "error"; code: string; message?: string };
 
 export interface FriendWSHandle {

@@ -31,6 +31,8 @@ export function FriendsMode() {
   const [openFriendID, setOpenFriendID] = useState<number | null>(null);
   const [profileFriendID, setProfileFriendID] = useState<number | null>(null);
   const hydrateUnread = useNotificationStore((s) => s.hydrateUnread);
+  const streakByFriend = useNotificationStore((s) => s.streakByFriend);
+  const setLiveStreak = useNotificationStore((s) => s.setLiveStreak);
 
   // Back navigateur : on push un état leurre quand on ouvre une conv
   // inline. Au popstate (bouton retour navigateur OU geste swipe iOS), on
@@ -78,12 +80,15 @@ export function FriendsMode() {
       const unread: Record<number, number> = {};
       for (const f of list) {
         if (f.unread_count > 0) unread[f.id] = f.unread_count;
+        // Réaligne la valeur live sur le serveur : couvre les cas où un
+        // streak s'éteint par inactivité (aucun WS event possible).
+        setLiveStreak(f.id, f.streak, f.streak_at_risk);
       }
       hydrateUnread(unread);
     } catch {
       // silent
     }
-  }, [hydrateUnread]);
+  }, [hydrateUnread, setLiveStreak]);
 
   // Préchauffe le cache navigateur pour les photos de profil des amis dès
   // que la liste arrive : on évite le flash gris à l'ouverture d'une conv.
@@ -157,16 +162,22 @@ export function FriendsMode() {
           </p>
         ) : (
           <ul className="divide-y divide-neutral-100 dark:divide-neutral-900">
-            {friends.map((f) => (
-              <FriendRow
-                key={f.id}
-                friend={f}
-                cloud={cloud}
-                onOpen={() => setOpenFriendID(f.id)}
-                onOpenProfile={() => setProfileFriendID(f.id)}
-                onRefresh={refresh}
-              />
-            ))}
+            {friends.map((f) => {
+              const live = streakByFriend[f.id];
+              const merged = live
+                ? { ...f, streak: live.streak, streak_at_risk: live.at_risk }
+                : f;
+              return (
+                <FriendRow
+                  key={f.id}
+                  friend={merged}
+                  cloud={cloud}
+                  onOpen={() => setOpenFriendID(f.id)}
+                  onOpenProfile={() => setProfileFriendID(f.id)}
+                  onRefresh={refresh}
+                />
+              );
+            })}
           </ul>
         )}
       </div>

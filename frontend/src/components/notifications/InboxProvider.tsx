@@ -35,6 +35,7 @@ export function InboxProvider() {
   const clearUnread = useNotificationStore((s) => s.clearUnread);
   const pushToast = useNotificationStore((s) => s.pushToast);
   const pushStreakStarted = useNotificationStore((s) => s.pushStreakStarted);
+  const setLiveStreak = useNotificationStore((s) => s.setLiveStreak);
 
   // On garde une map fraîche des amis (peer_name + photo) pour pouvoir
   // enrichir les toasts entrants. Mise à jour au mount + sur les events
@@ -212,6 +213,19 @@ export function InboxProvider() {
             streak: ev.streak,
           });
         }
+      } else if (ev.type === "streak_update") {
+        // Live bump du streak après un message (sans palier). On reflète
+        // immédiatement la nouvelle valeur dans la liste d'amis et le
+        // cache local — pas de toast (le bump est silencieux).
+        setLiveStreak(ev.friend_id, ev.streak, ev.streak_at_risk);
+        const cached = friendsRef.current.get(ev.friend_id);
+        if (cached) {
+          friendsRef.current.set(ev.friend_id, {
+            ...cached,
+            streak: ev.streak,
+            streak_at_risk: ev.streak_at_risk,
+          });
+        }
       } else if (ev.type === "streak_restored") {
         // Resync la liste pour reprendre les nouveaux compteurs partout.
         loadFriends();
@@ -241,7 +255,7 @@ export function InboxProvider() {
       clearInterval(ensureCloud);
       handle.close();
     };
-  }, [hydrated, user, hydrateUnread, incrementUnread, clearUnread, pushToast, pushStreakStarted]);
+  }, [hydrated, user, hydrateUnread, incrementUnread, clearUnread, pushToast, pushStreakStarted, setLiveStreak]);
 
   if (!hydrated || !user) return null;
   return (

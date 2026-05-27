@@ -52,3 +52,25 @@ func PublishStreakRestored(ctx context.Context, rdb *redis.Client, userIDs []int
 		_ = rdb.Publish(ctx, UserInboxChannel(uid), payload).Err()
 	}
 }
+
+// PublishStreakUpdate : pousse la valeur courante du streak (et le flag
+// at_risk) aux deux users à chaque message — permet à la liste d'amis
+// et aux toasts de refléter instantanément la flamme sans attendre un
+// fetch HTTP. Payload "streak:{friend_id}:{n}:{at_risk}" parsé par
+// l'inbox handler côté ws.
+func PublishStreakUpdate(ctx context.Context, rdb *redis.Client, userIDs []int64, friendID int64, current int, atRisk bool) {
+	if rdb == nil {
+		return
+	}
+	ar := "0"
+	if atRisk {
+		ar = "1"
+	}
+	payload := "streak:" + strconv.FormatInt(friendID, 10) + ":" + strconv.Itoa(current) + ":" + ar
+	for _, uid := range userIDs {
+		if uid <= 0 {
+			continue
+		}
+		_ = rdb.Publish(ctx, UserInboxChannel(uid), payload).Err()
+	}
+}

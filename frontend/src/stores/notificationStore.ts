@@ -33,10 +33,19 @@ export interface StreakStartedEvent {
   at: number;
 }
 
+// LiveStreak : valeur courante poussée par le WS inbox à chaque message
+// (ou par le flow de restauration). Surcharge la valeur HTTP polled de
+// la liste d'amis et du profile pour un rendu instantané bilatéral.
+export interface LiveStreak {
+  streak: number;
+  at_risk: boolean;
+}
+
 interface NotificationState {
   unreadByFriend: Record<number, number>;
   toasts: ToastNotification[];
   streakStarted: StreakStartedEvent | null;
+  streakByFriend: Record<number, LiveStreak>;
   // ID de l'ami dont la conversation est actuellement ouverte (vue
   // inline depuis FriendsMode OU page /chats/[id]). Sert à
   // l'InboxProvider pour ne pas notifier de cet ami pendant qu'on
@@ -60,12 +69,16 @@ interface NotificationState {
   pushStreakStarted: (e: StreakStartedEvent) => void;
   clearStreakStarted: () => void;
   setActiveFriendId: (id: number | null) => void;
+
+  // Live update du streak (poussé par WS inbox sur chaque message).
+  setLiveStreak: (friendId: number, streak: number, atRisk: boolean) => void;
 }
 
 export const useNotificationStore = create<NotificationState>()((set) => ({
   unreadByFriend: {},
   toasts: [],
   streakStarted: null,
+  streakByFriend: {},
   activeFriendId: null,
   hydrateUnread: (entries) => set({ unreadByFriend: { ...entries } }),
   incrementUnread: (friendId) =>
@@ -94,6 +107,13 @@ export const useNotificationStore = create<NotificationState>()((set) => ({
   pushStreakStarted: (e) => set({ streakStarted: e }),
   clearStreakStarted: () => set({ streakStarted: null }),
   setActiveFriendId: (id) => set({ activeFriendId: id }),
+  setLiveStreak: (friendId, streak, atRisk) =>
+    set((s) => ({
+      streakByFriend: {
+        ...s.streakByFriend,
+        [friendId]: { streak, at_risk: atRisk },
+      },
+    })),
 }));
 
 // Sélecteur dérivé pour la bulle d'onglet — total unread sur toutes les

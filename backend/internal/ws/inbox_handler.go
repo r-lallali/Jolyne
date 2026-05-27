@@ -39,8 +39,11 @@ type inboxFrame struct {
 	SenderID int64  `json:"sender_id,omitempty"`
 	Preview  string `json:"preview,omitempty"`
 	SentAt   string `json:"sent_at,omitempty"`
-	// Champ rempli uniquement pour Type = "streak_milestone".
+	// Rempli pour Type = "streak_milestone", "streak_restored" et
+	// "streak_update" — valeur courante du streak.
 	Streak int `json:"streak,omitempty"`
+	// Rempli pour Type = "streak_update".
+	StreakAtRisk bool `json:"streak_at_risk,omitempty"`
 }
 
 const (
@@ -50,6 +53,7 @@ const (
 	inboxTypeFriendsChanged  = "friends_changed"
 	inboxTypeStreakMilestone = "streak_milestone"
 	inboxTypeStreakRestored  = "streak_restored"
+	inboxTypeStreakUpdate    = "streak_update"
 )
 
 // previewLen : on tronque le body pour la notification toast. Volontairement
@@ -151,6 +155,24 @@ func (h *InboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								Type:     inboxTypeStreakRestored,
 								FriendID: fid,
 								Streak:   n,
+							})
+						}
+					}
+				}
+				if strings.HasPrefix(raw.Payload, "streak:") {
+					// Format "streak:{friend_id}:{n}:{at_risk}". On accepte
+					// streak = 0 (transition vers "pas de streak") — la liste
+					// d'amis a besoin de cette info pour éteindre la flamme.
+					parts := strings.SplitN(raw.Payload, ":", 4)
+					if len(parts) == 4 {
+						fid, _ := strconv.ParseInt(parts[1], 10, 64)
+						n, _ := strconv.Atoi(parts[2])
+						if fid > 0 {
+							conn.Send(inboxFrame{
+								Type:         inboxTypeStreakUpdate,
+								FriendID:     fid,
+								Streak:       n,
+								StreakAtRisk: parts[3] == "1",
 							})
 						}
 					}

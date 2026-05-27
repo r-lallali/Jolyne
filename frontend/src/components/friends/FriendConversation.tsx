@@ -56,6 +56,10 @@ export function FriendConversation({
   const user = useUserStore((s) => s.user);
   const hydrated = useUserStore((s) => s.hydrated);
   const setActiveFriendId = useNotificationStore((s) => s.setActiveFriendId);
+  const setLiveStreak = useNotificationStore((s) => s.setLiveStreak);
+  const liveStreak = useNotificationStore(
+    (s) => s.streakByFriend[friendId],
+  );
   // Déclare cette conv comme active dans le store global → l'InboxProvider
   // sait qu'il ne doit pas notifier de cet ami pendant que l'utilisateur
   // est en train de lui parler. Cleanup en unmount.
@@ -161,9 +165,13 @@ export function FriendConversation({
       .then(([p, cn]) => {
         setProfile(p);
         setCloud(cn);
+        // Aligne le store live sur la vérité serveur — sinon une valeur
+        // stale (ex: streak éteint par inactivité) survit en mémoire et
+        // l'override `liveStreak ?? profile.streak` masque la valeur fraîche.
+        setLiveStreak(friendId, p.streak ?? 0, p.streak_at_risk ?? false);
       })
       .catch(() => {});
-  }, [hydrated, user, friendId]);
+  }, [hydrated, user, friendId, setLiveStreak]);
 
   useEffect(() => {
     if (!hydrated || !user || !Number.isFinite(friendId)) return;
@@ -199,6 +207,14 @@ export function FriendConversation({
           break;
         case "typing":
           receivePeerTyping();
+          break;
+        case "streak":
+          setProfile((prev) =>
+            prev
+              ? { ...prev, streak: ev.streak, streak_at_risk: ev.streak_at_risk }
+              : prev,
+          );
+          setLiveStreak(friendId, ev.streak, ev.streak_at_risk);
           break;
         case "error":
           break;
@@ -315,8 +331,8 @@ export function FriendConversation({
           )}
           {profile && (
             <StreakBadge
-              streak={profile.streak ?? 0}
-              atRisk={profile.streak_at_risk ?? false}
+              streak={liveStreak?.streak ?? profile.streak ?? 0}
+              atRisk={liveStreak?.at_risk ?? profile.streak_at_risk ?? false}
               lostStreak={profile.lost_streak}
               onRestoreClick={() => setRestoreOpen(true)}
               size="md"

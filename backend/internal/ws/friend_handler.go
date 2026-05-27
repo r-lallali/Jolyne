@@ -53,6 +53,7 @@ const (
 	friendServerPeerRemoved friendServerType = "peer_removed"
 	friendServerRead        friendServerType = "read"
 	friendServerTyping      friendServerType = "typing"
+	friendServerStreak      friendServerType = "streak"
 	friendServerError       friendServerType = "error"
 )
 
@@ -105,6 +106,11 @@ type friendServerFrame struct {
 	// le peer ouvre la conv). Permet d'afficher le marqueur "Vu" sous
 	// mes propres messages dont sent_at <= ReadAt.
 	ReadAt string `json:"read_at,omitempty"`
+	// Présents uniquement sur `streak` : nouvelle valeur courante et flag
+	// at_risk. Le client met à jour le badge du header sans refetch HTTP.
+	// Pointeurs pour distinguer "absent" (omis) de "valeur 0/false".
+	Streak       *int  `json:"streak,omitempty"`
+	StreakAtRisk *bool `json:"streak_at_risk,omitempty"`
 }
 
 const friendChanPrefix = "friend:"
@@ -126,6 +132,9 @@ type friendEnvelope struct {
 	// par l'autre membre, pas les siens).
 	ReadByUID int64  `json:"u,omitempty"`
 	ReadAt    string `json:"r,omitempty"`
+	// `friendKindStreak` uniquement : streak courant + flag at_risk.
+	Streak       int  `json:"sk,omitempty"`
+	StreakAtRisk bool `json:"ar,omitempty"`
 }
 
 const (
@@ -135,6 +144,7 @@ const (
 	friendKindEdit    = "edit"   // un message a été modifié — payload = état complet
 	friendKindDelete  = "delete" // un message a été supprimé (soft)
 	friendKindTyping  = "typing" // peer est en train d'écrire
+	friendKindStreak  = "streak" // streak courant mis à jour après un message
 )
 
 func friendChannel(friendID int64) string {
@@ -323,6 +333,14 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 				conn.Send(friendServerFrame{
 					Type: friendServerTyping,
 				})
+			case friendKindStreak:
+				st := env.Streak
+				ar := env.StreakAtRisk
+				conn.Send(friendServerFrame{
+					Type:         friendServerStreak,
+					Streak:       &st,
+					StreakAtRisk: &ar,
+				})
 			}
 		case raw, ok := <-conn.Inbound:
 			if !ok {
@@ -373,11 +391,38 @@ func (h *FriendHandler) handleSend(
 		ID: m.ID, SenderID: m.SenderID, Body: dto.Body, SentAt: dto.SentAt,
 	})
 
+	// Streak live : pousse la nouvelle valeur courante au sender (echo
+	// local) ET au peer via le channel friend → le badge du header se
+	// met à jour des deux côtés sans attendre un refetch. On notifie
+	// aussi les deux inbox channels pour rafraîchir la liste d'amis.
+	peerUID := friendPeerUID(uid, friendID, h)
+	{
+		st := streak.Current
+		ar := streak.AtRisk
+		conn.Send(friendServerFrame{
+			Type:         friendServerStreak,
+			Streak:       &st,
+			StreakAtRisk: &ar,
+		})
+		h.publish(ctx, chanName, friendEnvelope{
+			Kind: friendKindStreak, FromConn: connID,
+			Streak: streak.Current, StreakAtRisk: streak.AtRisk,
+		})
+		go func() {
+			bgCtx, bgCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer bgCancel()
+			ids := []int64{uid}
+			if peerUID > 0 {
+				ids = append(ids, peerUID)
+			}
+			friends.PublishStreakUpdate(bgCtx, h.d.RDB, ids, friendID, streak.Current, streak.AtRisk)
+		}()
+	}
+
 	// Web Push best-effort vers le peer. Goroutine détachée — on ne ralentit
 	// jamais le hot-path de la conv. Body tronqué (preview) : le contenu
 	// brut n'est pas envoyé. Pas de log du body côté push (CLAUDE.md règle
 	// d'or #1).
-	peerUID := friendPeerUID(uid, friendID, h)
 	if h.d.Push != nil && peerUID > 0 {
 		go func() {
 			bgCtx, bgCancel := context.WithTimeout(context.Background(), 5*time.Second)
