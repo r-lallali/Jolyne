@@ -67,6 +67,11 @@ type friendMsgDTO struct {
 	// été supprimé".
 	EditedAt  string `json:"edited_at,omitempty"`
 	DeletedAt string `json:"deleted_at,omitempty"`
+	// Kind = "user" (omis JSON par défaut) ou un identifiant système. Le
+	// front rend les `system_*` comme des lignes d'événement centrées.
+	Kind string `json:"kind,omitempty"`
+	// Payload : JSON brut (ex. {"days":12}) lié au kind système.
+	Payload string `json:"payload,omitempty"`
 }
 
 // toDTO : convertit une `friends.Message` en payload WS. Les champs
@@ -87,6 +92,10 @@ func toDTO(m friends.Message) friendMsgDTO {
 	if m.DeletedAt != nil {
 		dto.DeletedAt = m.DeletedAt.UTC().Format(time.RFC3339)
 		dto.Body = ""
+	}
+	if m.Kind != "" && m.Kind != friends.MessageKindUser {
+		dto.Kind = m.Kind
+		dto.Payload = m.Payload
 	}
 	return dto
 }
@@ -135,6 +144,10 @@ type friendEnvelope struct {
 	// `friendKindStreak` uniquement : streak courant + flag at_risk.
 	Streak       int  `json:"sk,omitempty"`
 	StreakAtRisk bool `json:"ar,omitempty"`
+	// Pour les messages système (kind = system_*) : type d'événement et
+	// payload JSON brut. Vides pour un message utilisateur.
+	MsgKind    string `json:"mk,omitempty"`
+	MsgPayload string `json:"mp,omitempty"`
 }
 
 const (
@@ -293,6 +306,8 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 						SentAt:    env.SentAt,
 						EditedAt:  env.EditedAt,
 						DeletedAt: env.DeletedAt,
+						Kind:      env.MsgKind,
+						Payload:   env.MsgPayload,
 					},
 				})
 
@@ -608,4 +623,32 @@ func (h *FriendHandler) handleTyping(ctx context.Context, connID, chanName strin
 
 func friendErr(code, msg string) friendServerFrame {
 	return friendServerFrame{Type: friendServerError, Code: code, Message: msg}
+}
+
+// PublishFriendSystemMessage retourne un publisher utilisable par les jobs
+// externes (cron streak-loss notamment) pour pousser un message système
+// inséré en DB vers les peers actuellement connectés. Sans Redis (`rdb`
+// nil) → no-op : la persistance suffit, le frontend récupérera la ligne
+// à l'ouverture suivante de la conv.
+func PublishFriendSystemMessage(rdb *redis.Client) friends.StreakLossPublisher {
+	if rdb == nil {
+		return nil
+	}
+	return func(ctx context.Context, friendID, msgID, senderID int64, body, kind, payload, sentAt string) {
+		env := friendEnvelope{
+			Kind:       friendKindMsg,
+			FromConn:   "cron",
+			ID:         msgID,
+			SenderID:   senderID,
+			Body:       body,
+			SentAt:     sentAt,
+			MsgKind:    kind,
+			MsgPayload: payload,
+		}
+		raw, err := json.Marshal(env)
+		if err != nil {
+			return
+		}
+		_ = rdb.Publish(ctx, friendChannel(friendID), raw).Err()
+	}
 }

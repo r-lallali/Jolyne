@@ -37,6 +37,12 @@ export interface FriendMessage {
   sent_at: string;
   edited_at?: string;
   deleted_at?: string;
+  // Kind = absent / "user" pour un message tapé par un user, ou un
+  // identifiant système ("system_streak_lost", …). Les messages système
+  // ne sont pas éditables / supprimables côté UI.
+  kind?: string;
+  // Payload : JSON brut associé à un kind système (ex. {"days":12}).
+  payload?: string;
 }
 
 // Étendu côté serveur dans /api/friends — voir handlers.go friendDTO.

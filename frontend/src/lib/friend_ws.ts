@@ -14,6 +14,11 @@ export interface FriendWSMessage {
   sent_at: string;
   edited_at?: string;
   deleted_at?: string;
+  // Kind = absent / "user" → message normal. Sinon identifiant système
+  // (cf. backend friends.MessageKind*). Le front rend ces lignes via
+  // SystemMessage au lieu de MessageBubble.
+  kind?: string;
+  payload?: string;
 }
 
 export type FriendWSEvent =

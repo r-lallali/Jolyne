@@ -42,6 +42,9 @@ export const es: Messages = {
   chat: {
     chattingWith: ({ nick }) => `Estás chateando con ${nick}`,
     sayHello: "Saluda para empezar.",
+    systemPeerLeft: ({ nick }) => `${nick} salió de la conversación`,
+    systemPeerLeftAnon: "La otra persona salió de la conversación",
+    systemStreakLost: ({ days }) => `🔥 Racha de ${days} días perdida`,
     placeholder: "Tu mensaje…",
     sendLabel: "Enviar",
     next: "Siguiente",

@@ -71,7 +71,22 @@ type Message struct {
 	// pour préserver l'ordre, mais Body est vidé côté DTO.
 	EditedAt  *time.Time
 	DeletedAt *time.Time
+	// Kind = "user" pour un message classique (par défaut), ou un
+	// identifiant d'événement système — voir kind_*.go. Les messages
+	// système ne sont pas éditables ni supprimables côté UI.
+	Kind string
+	// Payload : JSON brut pour les messages système (ex. {"days":12}).
+	// Vide pour les messages utilisateur.
+	Payload string
 }
+
+const (
+	// MessageKindUser : message tapé par un user. Valeur par défaut en DB.
+	MessageKindUser = "user"
+	// MessageKindStreakLost : ligne système posée par le cron quand un
+	// streak ≥ 2 s'est terminé. Payload = {"days": <perdu>}.
+	MessageKindStreakLost = "system_streak_lost"
+)
 
 type Store struct {
 	pool *pgxpool.Pool
@@ -325,7 +340,8 @@ func (s *Store) ListMessages(ctx context.Context, friendID int64, limit int) ([]
 	}
 	// On prend les N plus récents puis on inverse pour ordre chronologique.
 	const q = `
-		SELECT id, friend_id, sender_id, body, sent_at, edited_at, deleted_at
+		SELECT id, friend_id, sender_id, body, sent_at, edited_at, deleted_at,
+		       kind, COALESCE(payload::text, '')
 		FROM friend_messages
 		WHERE friend_id = $1
 		ORDER BY sent_at DESC
@@ -340,7 +356,7 @@ func (s *Store) ListMessages(ctx context.Context, friendID int64, limit int) ([]
 		var m Message
 		if err := rows.Scan(
 			&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt,
-			&m.EditedAt, &m.DeletedAt,
+			&m.EditedAt, &m.DeletedAt, &m.Kind, &m.Payload,
 		); err != nil {
 			return nil, fmt.Errorf("friends: scan msg: %w", err)
 		}
@@ -394,9 +410,9 @@ func (s *Store) appendInternal(ctx context.Context, friendID, senderID int64, bo
 	err = tx.QueryRow(ctx,
 		`INSERT INTO friend_messages (friend_id, sender_id, body)
 		 VALUES ($1, $2, $3)
-		 RETURNING id, friend_id, sender_id, body, sent_at`,
+		 RETURNING id, friend_id, sender_id, body, sent_at, kind`,
 		friendID, senderID, body,
-	).Scan(&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt)
+	).Scan(&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt, &m.Kind)
 	if err != nil {
 		return Message{}, Streak{}, fmt.Errorf("friends: insert message: %w", err)
 	}
@@ -479,12 +495,13 @@ func (s *Store) EditMessage(ctx context.Context, msgID, userID int64, body strin
 		WHERE id = $1
 		  AND sender_id = $2
 		  AND deleted_at IS NULL
+		  AND kind = 'user'
 		  AND sent_at >= now() - $4::interval
-		RETURNING id, friend_id, sender_id, body, sent_at, edited_at, deleted_at`
+		RETURNING id, friend_id, sender_id, body, sent_at, edited_at, deleted_at, kind`
 	var m Message
 	err := s.pool.QueryRow(ctx, q, msgID, userID, body, EditWindow.String()).Scan(
 		&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt,
-		&m.EditedAt, &m.DeletedAt,
+		&m.EditedAt, &m.DeletedAt, &m.Kind,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -506,11 +523,12 @@ func (s *Store) DeleteMessage(ctx context.Context, msgID, userID int64) (Message
 		WHERE id = $1
 		  AND sender_id = $2
 		  AND deleted_at IS NULL
-		RETURNING id, friend_id, sender_id, body, sent_at, edited_at, deleted_at`
+		  AND kind = 'user'
+		RETURNING id, friend_id, sender_id, body, sent_at, edited_at, deleted_at, kind`
 	var m Message
 	err := s.pool.QueryRow(ctx, q, msgID, userID).Scan(
 		&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt,
-		&m.EditedAt, &m.DeletedAt,
+		&m.EditedAt, &m.DeletedAt, &m.Kind,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

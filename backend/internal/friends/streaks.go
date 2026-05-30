@@ -100,11 +100,14 @@ func UpdateStreakOnMessage(ctx context.Context, tx pgx.Tx, friendID, senderID in
 		}
 		if lastStreakDay == nil || gap > 1 {
 			// Reset. Si on avait un streak ≥ 2, snapshot pour permettre
-			// une restauration ultérieure (lost_streak / lost_at).
+			// une restauration ultérieure (lost_streak / lost_at). Reset
+			// aussi lost_notified_at — sinon le cron ne notifierait pas
+			// cette nouvelle perte (le flag traînait d'une perte précédente).
 			if currentStreak >= 2 && lastStreakDay != nil {
 				if _, err := tx.Exec(ctx,
 					`UPDATE friend_streaks
-					 SET lost_streak = $2, lost_at = $3::date
+					 SET lost_streak = $2, lost_at = $3::date,
+					     lost_notified_at = NULL
 					 WHERE friend_id = $1`,
 					friendID, currentStreak, lastStreakDay.UTC().Format("2006-01-02"),
 				); err != nil {
@@ -338,6 +341,7 @@ func RestoreStreak(ctx context.Context, tx pgx.Tx, friendID, userID int64, now t
 		 SET current_streak = $2, last_streak_day = $3::date,
 		     lost_streak = NULL, lost_at = NULL,
 		     restore_req_a_at = NULL, restore_req_b_at = NULL,
+		     lost_notified_at = NULL,
 		     updated_at = now()
 		 WHERE friend_id = $1`,
 		friendID, restored, todayDate,

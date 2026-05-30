@@ -357,6 +357,15 @@ func run() error {
 			})
 			log.Info("friend ws handler ready")
 		}
+
+		// Cron de fin de streak : matérialise la perte d'un streak via une
+		// ligne système permanente dans le chat ami. Tourne en goroutine,
+		// indépendant du fait qu'un des deux amis soit connecté ou non.
+		friends.StartStreakLossCron(
+			ctx, svc.pg, log, 15*time.Minute,
+			ws.PublishFriendSystemMessage(rdb),
+		)
+		log.Info("friend streak loss cron ready")
 	} else {
 		log.Info("user auth disabled — Postgres / USER_SESSION_SECRET manquants")
 	}
