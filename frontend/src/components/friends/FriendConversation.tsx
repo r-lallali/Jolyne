@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { MessageInput } from "@/components/chat/MessageInput";
 import { ReportModal } from "@/components/chat/ReportModal";
+import { SystemMessage } from "@/components/chat/SystemMessage";
 import {
   TranslationPopover,
   type TranslationRequest,
@@ -32,6 +33,34 @@ import { useUserStore } from "@/stores/userStore";
 // Clé localStorage pour le mute par ami. Non synchronisé serveur — c'est
 // un settings strictement UI tant qu'on n'a pas de notifs push réelles.
 const muteKey = (id: number) => `jolyne:muted_friend_${id}`;
+
+// formatSystemBody : convertit un message système (kind + payload JSON)
+// en texte localisé. Fallback sur `body` (FR brut côté serveur) si le
+// kind est inconnu ou le payload illisible — garantit qu'on ne montre
+// pas une chaîne vide.
+function formatSystemBody(
+  m: FriendMessage,
+  t: ReturnType<typeof useT>,
+): string {
+  if (m.kind === "system_streak_lost") {
+    const days = parseSystemPayload(m.payload).days;
+    if (typeof days === "number" && days > 0) {
+      return t.chat.systemStreakLost({ days });
+    }
+  }
+  return m.body || "";
+}
+
+function parseSystemPayload(raw?: string): { days?: number } {
+  if (!raw) return {};
+  try {
+    const v = JSON.parse(raw);
+    if (v && typeof v === "object") return v as { days?: number };
+  } catch {
+    // Payload corrompu — on retombe sur le body brut.
+  }
+  return {};
+}
 
 // FriendConversation : UI complète d'un chat persisté entre amis.
 // Réutilisable : embarquée inline dans FriendsMode (toggle home) ou dans
@@ -430,6 +459,14 @@ export function FriendConversation({
       >
         <div className="mx-auto w-full max-w-2xl space-y-2 px-4 py-4 sm:px-6">
           {msgs.map((m) => {
+            if (m.kind && m.kind !== "user") {
+              return (
+                <SystemMessage
+                  key={m.id}
+                  body={formatSystemBody(m, t)}
+                />
+              );
+            }
             const mine = user ? m.sender_id === user.id : false;
             return (
               <MessageBubble

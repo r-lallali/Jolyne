@@ -53,6 +53,13 @@ export interface Messages {
   chat: {
     chattingWith: FormatString<{ nick: string }>;
     sayHello: string;
+    // Ligne système inline dans le flux quand le peer quitte (Next ou
+    // déconnexion). Distinct du titre de la PostChatCard qui reste affiché
+    // en dessous.
+    systemPeerLeft: FormatString<{ nick: string }>;
+    systemPeerLeftAnon: string;
+    // Ligne système permanente dans le chat ami quand un streak se termine.
+    systemStreakLost: FormatString<{ days: number }>;
     placeholder: string;
     sendLabel: string;
     next: string;

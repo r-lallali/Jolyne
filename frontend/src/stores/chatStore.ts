@@ -35,6 +35,10 @@ export interface ChatMessage {
   // Sert uniquement à l'affichage tooltip "envoyé à 14:32" — pas relayé.
   at: number;
   correction?: MessageCorrection;
+  // "user"    : bulle normale (par défaut).
+  // "system"  : ligne d'événement (peer parti, etc.) — rendue par
+  //             SystemMessage : texte centré italique, pas de bulle.
+  kind?: "user" | "system";
 }
 
 // État du prompt ami 10-min :
@@ -84,6 +88,9 @@ interface ChatState {
   matched: (peerNick: string, isBot?: boolean) => void;
   pushMe: (id: string, body: string) => void;
   pushPeer: (id: string, body: string) => void;
+  // Ligne d'événement dans le flux (peer parti, etc.). Pas d'ID partagé
+  // côté backend — on en génère un local pour la clé React.
+  pushSystem: (body: string) => void;
   // Patch d'un message existant avec une correction. Si le message ciblé
   // n'existe plus (purge / mismatch), la correction est ignorée.
   applyCorrection: (targetId: string, c: MessageCorrection) => void;
@@ -164,6 +171,20 @@ export const useChatStore = create<ChatState>((set) => ({
     }));
   },
 
+  pushSystem: (body) =>
+    set((s) => ({
+      messages: [
+        ...s.messages,
+        {
+          id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          from: "peer",
+          body,
+          at: Date.now(),
+          kind: "system",
+        },
+      ],
+    })),
+
   applyCorrection: (targetId, c) =>
     set((s) => ({
       messages: s.messages.map((m) =>
@@ -187,6 +208,9 @@ export const useChatStore = create<ChatState>((set) => ({
     // conservé pour pouvoir l'afficher dans le récap. Uniquement déclenché
     // côté receveur — pour le côté qui clique Suivant/Quitter on re-queue
     // ou on stop direct sans passer par le post_chat.
+    //
+    // La ligne système "X a quitté la conversation" est poussée par
+    // l'appelant (useMatch) via pushSystem, pour bénéficier d'i18n.
     set({ status: "post_chat", peerTyping: false, endedBy: "peer" });
   },
 

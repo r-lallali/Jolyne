@@ -60,6 +60,10 @@ type messageDTO struct {
 	SenderID int64  `json:"sender_id"`
 	Body     string `json:"body"`
 	SentAt   string `json:"sent_at"`
+	// Kind = "user" (omis) ou identifiant système (cf. friends.MessageKind*).
+	Kind string `json:"kind,omitempty"`
+	// Payload : JSON brut (ex. {"days":12}) lié à un kind système.
+	Payload string `json:"payload,omitempty"`
 }
 
 // HandleList : GET /api/friends → mes amis (visible = non-soft-deleted
@@ -166,10 +170,15 @@ func (h *Handlers) HandleGetMessages(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]messageDTO, 0, len(msgs))
 	for _, m := range msgs {
-		out = append(out, messageDTO{
+		dto := messageDTO{
 			ID: m.ID, SenderID: m.SenderID, Body: m.Body,
 			SentAt: m.SentAt.UTC().Format(time.RFC3339),
-		})
+		}
+		if m.Kind != "" && m.Kind != MessageKindUser {
+			dto.Kind = m.Kind
+			dto.Payload = m.Payload
+		}
+		out = append(out, dto)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{

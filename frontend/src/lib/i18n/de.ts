@@ -43,6 +43,9 @@ export const de: Messages = {
   chat: {
     chattingWith: ({ nick }) => `Du chattest mit ${nick}`,
     sayHello: "Sag Hallo, um zu starten.",
+    systemPeerLeft: ({ nick }) => `${nick} hat das Gespräch verlassen`,
+    systemPeerLeftAnon: "Die andere Person hat das Gespräch verlassen",
+    systemStreakLost: ({ days }) => `🔥 Streak von ${days} Tagen verloren`,
     placeholder: "Deine Nachricht…",
     sendLabel: "Senden",
     next: "Weiter",

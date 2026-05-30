@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { getFingerprint } from "@/lib/fingerprint";
 import { buzz } from "@/lib/haptics";
 import { sanitizeMessage } from "@/lib/sanitize";
+import { useT } from "@/lib/i18n";
 import { connectMatch, type Connection } from "@/lib/ws";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -54,6 +55,7 @@ function newMessageId(): string {
 export function useMatch() {
   const chat = useChatStore;
   const session = useSessionStore;
+  const t = useT();
 
   const stop = useCallback(() => {
     activeConn?.close();
@@ -117,9 +119,15 @@ export function useMatch() {
             });
             buzz(25);
             break;
-          case "peer_left":
+          case "peer_left": {
+            const nick = c.peerNick;
+            const body = nick
+              ? t.chat.systemPeerLeft({ nick })
+              : t.chat.systemPeerLeftAnon;
+            c.pushSystem(body);
             c.peerLeft();
             break;
+          }
           case "typing":
             c.receivePeerTyping();
             break;
@@ -153,7 +161,7 @@ export function useMatch() {
         }
       },
     });
-  }, [chat, session]);
+  }, [chat, session, t]);
 
   const sendMsg = useCallback(
     (raw: string) => {

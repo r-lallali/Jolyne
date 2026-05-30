@@ -43,6 +43,9 @@ export const en: Messages = {
   chat: {
     chattingWith: ({ nick }) => `You're chatting with ${nick}`,
     sayHello: "Say hi to get started.",
+    systemPeerLeft: ({ nick }) => `${nick} left the conversation`,
+    systemPeerLeftAnon: "The other person left the conversation",
+    systemStreakLost: ({ days }) => `🔥 ${days}-day streak lost`,
     placeholder: "Your message…",
     sendLabel: "Send",
     next: "Next",

@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { FriendPromptCard } from "@/components/chat/FriendPromptCard";
 import { PostChatCard } from "@/components/chat/PostChatCard";
+import { SystemMessage } from "@/components/chat/SystemMessage";
 import {
   TranslationPopover,
   type TranslationRequest,
@@ -52,7 +53,9 @@ export function MessageList({
   // de la 1ère session. Une fois vu (tap ou timeout), persistance
   // localStorage pour ne plus jamais le réafficher.
   const [hintShown, setHintShown] = useState(false);
-  const firstPeerIdx = messages.findIndex((m) => m.from === "peer");
+  const firstPeerIdx = messages.findIndex(
+    (m) => m.from === "peer" && m.kind !== "system",
+  );
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.localStorage.getItem(HINT_STORAGE_KEY) === "1") return;
@@ -132,6 +135,9 @@ export function MessageList({
           </div>
         ) : (
           messages.map((m, i) => {
+            if (m.kind === "system") {
+              return <SystemMessage key={m.id} body={m.body} />;
+            }
             // Édition possible uniquement pour mes propres corrections (qui
             // vivent sous des messages peer).
             const canEdit =
