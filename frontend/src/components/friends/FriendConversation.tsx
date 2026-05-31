@@ -48,6 +48,12 @@ function formatSystemBody(
       return t.chat.systemStreakLost({ days });
     }
   }
+  if (m.kind === "system_streak_restored") {
+    const days = parseSystemPayload(m.payload).days;
+    if (typeof days === "number" && days > 0) {
+      return t.chat.systemStreakRestored({ days });
+    }
+  }
   return m.body || "";
 }
 

@@ -47,6 +47,8 @@ export const fr: Messages = {
     systemPeerLeftAnon: "L'autre personne a quitté la conversation",
     systemStreakLost: ({ days }) =>
       `🔥 Streak de ${days} jours perdu`,
+    systemStreakRestored: ({ days }) =>
+      `🔥 Streak de ${days} jours restauré`,
     placeholder: "Ton message…",
     sendLabel: "Envoyer",
     next: "Suivant",

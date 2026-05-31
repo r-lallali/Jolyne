@@ -175,16 +175,14 @@ func UpdateStreakOnMessage(ctx context.Context, tx pgx.Tx, friendID, senderID in
 const RestoreWindow = 7
 
 // RestoreMonthlyQuota : jetons par user et par mois calendaire UTC.
+// Chaque user peut restaurer jusqu'à 3 fois par mois — la restauration est
+// unilatérale (cf. RestoreStreak), donc seul l'initiateur consomme un jeton.
 const RestoreMonthlyQuota = 3
 
 // RestoreResult : état renvoyé par RestoreStreak.
 type RestoreResult struct {
-	// True si les deux ont accepté et que le streak est désormais restauré.
+	// True si le streak a été restauré (toujours immédiat — unilatéral).
 	Restored bool
-	// True si seul le caller a posé sa demande, on attend l'autre côté.
-	Pending bool
-	// True si l'autre côté avait déjà demandé — c'est la mutual consent.
-	PeerWasWaiting bool
 	// Streak final si Restored=true.
 	NewStreak int
 	// Compteur restant ce mois pour le caller (après éventuelle conso).
@@ -196,9 +194,13 @@ type RestoreResult struct {
 // monthKeyUTC : "2026-05" — UTC. Sert au reset du compteur mensuel.
 func monthKeyUTC(now time.Time) string { return now.UTC().Format("2006-01") }
 
-// RestoreStreak : implémente l'algorithme de restauration mutuelle.
-// Voir CLAUDE.md règle d'or #1 — aucune écriture du contenu de message
-// ici, on ne touche que les compteurs et l'état du streak.
+// RestoreStreak : restauration unilatérale d'un streak perdu. L'un des deux
+// amis décide seul — pas d'accord mutuel. Le streak repart immédiatement et
+// 1 jeton est consommé chez l'initiateur uniquement (3 par mois et par user).
+//
+// Voir CLAUDE.md règle d'or #1 — aucune écriture du contenu de message ici,
+// on ne touche que les compteurs et l'état du streak. La ligne système
+// "streak restauré" est posée par le handler HTTP après coup.
 //
 // Codes ErrCode possibles :
 //   "no_loss"          : rien à restaurer (streak vivant ou jamais perdu)
@@ -209,21 +211,15 @@ func RestoreStreak(ctx context.Context, tx pgx.Tx, friendID, userID int64, now t
 	today := now.UTC()
 	todayDate := today.Format("2006-01-02")
 
-	// 1. Lire la friendship pour savoir si user est A ou B.
+	// 1. Lire la friendship pour valider l'appartenance du caller.
 	var userAID, userBID int64
 	if err := tx.QueryRow(ctx,
 		`SELECT user_a_id, user_b_id FROM friends WHERE id = $1`, friendID,
 	).Scan(&userAID, &userBID); err != nil {
 		return RestoreResult{}, fmt.Errorf("restore: load friend: %w", err)
 	}
-	isA := userID == userAID
-	isB := userID == userBID
-	if !isA && !isB {
+	if userID != userAID && userID != userBID {
 		return RestoreResult{ErrCode: "not_member"}, nil
-	}
-	peerID := userBID
-	if isB {
-		peerID = userAID
 	}
 
 	// 2. Lire / créer la ligne friend_streaks.
@@ -238,14 +234,11 @@ func RestoreStreak(ctx context.Context, tx pgx.Tx, friendID, userID int64, now t
 		lastStreakDay *time.Time
 		lostStreak    *int
 		lostAt        *time.Time
-		reqAAt        *time.Time
-		reqBAt        *time.Time
 	)
 	if err := tx.QueryRow(ctx,
-		`SELECT current_streak, last_streak_day, lost_streak, lost_at,
-		        restore_req_a_at, restore_req_b_at
+		`SELECT current_streak, last_streak_day, lost_streak, lost_at
 		 FROM friend_streaks WHERE friend_id = $1`, friendID,
-	).Scan(&currentStreak, &lastStreakDay, &lostStreak, &lostAt, &reqAAt, &reqBAt); err != nil {
+	).Scan(&currentStreak, &lastStreakDay, &lostStreak, &lostAt); err != nil {
 		return RestoreResult{}, fmt.Errorf("restore: read row: %w", err)
 	}
 
@@ -298,40 +291,11 @@ func RestoreStreak(ctx context.Context, tx pgx.Tx, friendID, userID int64, now t
 		return RestoreResult{ErrCode: "quota_exhausted", RemainingThisMonth: 0}, nil
 	}
 
-	// 6. Marque la demande côté caller (idempotent — re-clic ré-arme le ts).
-	col := "restore_req_a_at"
-	if isB {
-		col = "restore_req_b_at"
-	}
-	if _, err := tx.Exec(ctx,
-		fmt.Sprintf("UPDATE friend_streaks SET %s = $2 WHERE friend_id = $1", col),
-		friendID, now,
-	); err != nil {
-		return RestoreResult{}, fmt.Errorf("restore: mark request: %w", err)
-	}
-
-	// 7. Vérifie si l'autre côté a déjà demandé dans la fenêtre. Si oui,
-	//    on consomme un jeton à chaque user et on restaure.
-	peerReq := reqBAt
-	if isB {
-		peerReq = reqAAt
-	}
-	mutual := peerReq != nil && now.Sub(*peerReq) < RestoreWindow*24*time.Hour
-
-	if !mutual {
-		// 7a. En attente du peer. On ne consomme pas encore le jeton.
-		return RestoreResult{
-			Pending:            true,
-			RemainingThisMonth: RestoreMonthlyQuota - used,
-		}, nil
-	}
-
-	// 7b. Consensus : consomme 1 jeton chacun, restaure, reset les flags.
+	// 6. Restauration unilatérale immédiate : consomme 1 jeton chez le
+	//    caller et remet le streak à sa valeur perdue, daté d'aujourd'hui.
+	//    Les anciennes colonnes de demande mutuelle sont remises à NULL (au
+	//    cas où elles traîneraient d'une version antérieure).
 	if err := bumpUserQuota(ctx, tx, userID, used, currentMonth); err != nil {
-		return RestoreResult{}, err
-	}
-	if err := bumpUserQuota(ctx, tx, peerID, -1, currentMonth); err != nil {
-		// -1 = signal "lire la valeur avant d'incrémenter"
 		return RestoreResult{}, err
 	}
 
@@ -351,29 +315,14 @@ func RestoreStreak(ctx context.Context, tx pgx.Tx, friendID, userID int64, now t
 
 	return RestoreResult{
 		Restored:           true,
-		PeerWasWaiting:     true,
 		NewStreak:          restored,
 		RemainingThisMonth: RestoreMonthlyQuota - (used + 1),
 	}, nil
 }
 
-// bumpUserQuota : incrémente le compteur mensuel d'un user. Si `prevUsed`
-// vaut -1, on relit la valeur en DB d'abord (cas peer dans la même tx).
+// bumpUserQuota : incrémente le compteur mensuel d'un user. `prevUsed` est
+// la valeur déjà lue (et remise à 0 si le mois a changé) par l'appelant.
 func bumpUserQuota(ctx context.Context, tx pgx.Tx, userID int64, prevUsed int, currentMonth string) error {
-	if prevUsed < 0 {
-		var used int
-		var month string
-		if err := tx.QueryRow(ctx,
-			`SELECT streak_restores_used, streak_restores_month FROM users WHERE id = $1`,
-			userID,
-		).Scan(&used, &month); err != nil {
-			return fmt.Errorf("restore: read peer quota: %w", err)
-		}
-		if month != currentMonth {
-			used = 0
-		}
-		prevUsed = used
-	}
 	if _, err := tx.Exec(ctx,
 		`UPDATE users SET streak_restores_used = $2, streak_restores_month = $3 WHERE id = $1`,
 		userID, prevUsed+1, currentMonth,

@@ -26,7 +26,12 @@ type Handlers struct {
 	Profile *profile.Store    // pour exposer le profil d'un ami
 	Reports *reports.Service  // nil si Postgres / clé de chiffrement absents
 	RDB     *redis.Client     // nil = pas de pub/sub inbox (dev sans Redis)
-	Log     *slog.Logger
+	// SystemMsgPublisher pousse une ligne système (kind=system_*) vers les
+	// peers connectés via le channel friend. Injecté au wire
+	// (ws.PublishFriendSystemMessage). nil = no-op : la persistance suffit,
+	// le front récupérera la ligne à la prochaine ouverture de la conv.
+	SystemMsgPublisher StreakLossPublisher
+	Log                *slog.Logger
 }
 
 func (h *Handlers) log() *slog.Logger {
@@ -298,12 +303,12 @@ func (h *Handlers) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 // : on encode l'ID user via `user:{id}` pour rester compatible avec le
 // schéma existant sans migration.
 // HandleRestoreStreak : POST /api/friends/{id}/streak/restore.
-// Marque la demande de restauration côté caller. Si l'autre côté a déjà
-// demandé dans la fenêtre RestoreWindow, le streak est restauré
-// instantanément et 1 jeton est consommé chez chaque user.
+// Restauration unilatérale : le caller restaure seul le streak perdu (pas
+// d'accord mutuel). Le streak repart immédiatement, 1 jeton est consommé
+// chez le caller (3 par mois), une ligne système est postée dans le chat et
+// la flamme est rallumée live des deux côtés.
 //
-// Réponse : { restored, pending, peer_was_waiting, new_streak,
-// remaining_this_month, err_code }
+// Réponse : { restored, new_streak, remaining_this_month, err_code }
 func (h *Handlers) HandleRestoreStreak(w http.ResponseWriter, r *http.Request) {
 	user, ok := users.CurrentUser(r.Context())
 	if !ok {
@@ -335,17 +340,27 @@ func (h *Handlers) HandleRestoreStreak(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}
-	// Si restauration consensuelle : push événement aux deux users via
-	// leur inbox channel (frame `streak_restored`).
 	if res.Restored {
 		f, _ := h.Store.Get(ctx, id, user.ID)
-		PublishStreakRestored(r.Context(), h.RDB, []int64{user.ID, f.PeerID}, id, res.NewStreak)
+		peers := []int64{user.ID, f.PeerID}
+		// Ligne système permanente "streak restauré" dans le chat (miroir de
+		// la perte) — le sender est l'initiateur pour que l'autre côté soit
+		// notifié (l'inbox skip le sender). Poussée live aux peers connectés.
+		if m, err := h.Store.InsertStreakRestoredMessage(ctx, id, user.ID, res.NewStreak); err != nil {
+			h.log().Error("friends restore: insert system msg", "err", err)
+		} else if h.SystemMsgPublisher != nil {
+			h.SystemMsgPublisher(r.Context(), id, m.ID, m.SenderID, m.Body, m.Kind, m.Payload,
+				m.SentAt.UTC().Format(time.RFC3339))
+		}
+		// Rallume la flamme instantanément partout (liste d'amis + header de
+		// conv des deux côtés) via le frame `streak_update`, et déclenche un
+		// resync de la liste via `streak_restored`.
+		PublishStreakUpdate(r.Context(), h.RDB, peers, id, res.NewStreak, false)
+		PublishStreakRestored(r.Context(), h.RDB, peers, id, res.NewStreak)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"restored":             res.Restored,
-		"pending":              res.Pending,
-		"peer_was_waiting":     res.PeerWasWaiting,
 		"new_streak":           res.NewStreak,
 		"remaining_this_month": res.RemainingThisMonth,
 		"err_code":             res.ErrCode,

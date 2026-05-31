@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"strconv"
 	"strings"
 	"time"
 
@@ -86,6 +87,9 @@ const (
 	// MessageKindStreakLost : ligne système posée par le cron quand un
 	// streak ≥ 2 s'est terminé. Payload = {"days": <perdu>}.
 	MessageKindStreakLost = "system_streak_lost"
+	// MessageKindStreakRestored : ligne système posée quand un ami restaure
+	// un streak perdu. Payload = {"days": <restauré>}.
+	MessageKindStreakRestored = "system_streak_restored"
 )
 
 type Store struct {
@@ -448,6 +452,32 @@ func (s *Store) RestoreStreak(ctx context.Context, friendID, userID int64, now t
 		return RestoreResult{}, fmt.Errorf("friends: restore commit: %w", err)
 	}
 	return res, nil
+}
+
+// InsertStreakRestoredMessage : pose la ligne système "streak restauré"
+// dans le chat (kind=system_streak_restored, payload {"days":N}) et bumpe
+// last_message_at. Le sender est l'ami qui a déclenché la restauration —
+// l'autre côté reçoit ainsi une notif (l'inbox skip le sender). Renvoie le
+// message pour permettre au handler de le pousser en live aux peers.
+func (s *Store) InsertStreakRestoredMessage(ctx context.Context, friendID, senderID int64, days int) (Message, error) {
+	body := "🔥 Streak de " + strconv.Itoa(days) + " jours restauré"
+	payload := `{"days":` + strconv.Itoa(days) + `}`
+	var m Message
+	if err := s.pool.QueryRow(ctx, `
+		INSERT INTO friend_messages (friend_id, sender_id, body, kind, payload)
+		VALUES ($1, $2, $3, $4, $5::jsonb)
+		RETURNING id, friend_id, sender_id, body, sent_at, kind, COALESCE(payload::text, '')
+	`, friendID, senderID, body, MessageKindStreakRestored, payload).Scan(
+		&m.ID, &m.FriendID, &m.SenderID, &m.Body, &m.SentAt, &m.Kind, &m.Payload,
+	); err != nil {
+		return Message{}, fmt.Errorf("friends: insert restored msg: %w", err)
+	}
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE friends SET last_message_at = $2 WHERE id = $1`, friendID, m.SentAt,
+	); err != nil {
+		return Message{}, fmt.Errorf("friends: bump last_message_at: %w", err)
+	}
+	return m, nil
 }
 
 // QuotaForUser : nombre de restaurations restantes pour ce mois UTC.

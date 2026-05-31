@@ -46,6 +46,7 @@ export const en: Messages = {
     systemPeerLeft: ({ nick }) => `${nick} left the conversation`,
     systemPeerLeftAnon: "The other person left the conversation",
     systemStreakLost: ({ days }) => `🔥 ${days}-day streak lost`,
+    systemStreakRestored: ({ days }) => `🔥 ${days}-day streak restored`,
     placeholder: "Your message…",
     sendLabel: "Send",
     next: "Next",

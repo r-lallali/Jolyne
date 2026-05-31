@@ -227,20 +227,21 @@ export function InboxProvider() {
           });
         }
       } else if (ev.type === "streak_restored") {
-        // Resync la liste pour reprendre les nouveaux compteurs partout.
-        loadFriends();
-        if (isTalkingTo(ev.friend_id)) {
-          return;
+        // Rallume la flamme instantanément (header de conv + liste d'amis)
+        // et resync les compteurs. Pas de toast ici : la ligne système
+        // "streak restauré" postée dans le chat génère déjà une notif
+        // (frame `msg`), exactement comme la perte.
+        setLiveStreak(ev.friend_id, ev.streak, false);
+        const cached = friendsRef.current.get(ev.friend_id);
+        if (cached) {
+          friendsRef.current.set(ev.friend_id, {
+            ...cached,
+            streak: ev.streak,
+            streak_at_risk: false,
+            lost_streak: 0,
+          });
         }
-        const f = friendsRef.current.get(ev.friend_id);
-        pushToast({
-          friendId: ev.friend_id,
-          senderId: 0,
-          peerName: f?.peer_name ?? "—",
-          peerPhotoId: f?.peer_photo_id,
-          preview: "Streak restauré 🔥",
-          sentAt: new Date().toISOString(),
-        });
+        loadFriends();
       } else if (ev.type === "friends_changed") {
         // Un ami a été ajouté/retiré côté serveur : re-fetch la liste pour
         // mettre à jour le cache, et reconnect le WS afin que le backend

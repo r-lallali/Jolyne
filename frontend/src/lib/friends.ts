@@ -148,8 +148,6 @@ export async function reportFriend(id: number, reason: string): Promise<void> {
 
 export interface RestoreStreakResult {
   restored: boolean;
-  pending: boolean;
-  peer_was_waiting: boolean;
   new_streak: number;
   remaining_this_month: number;
   err_code: string;

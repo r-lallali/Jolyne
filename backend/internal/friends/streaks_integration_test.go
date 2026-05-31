@@ -195,28 +195,24 @@ func TestStreak_LostAfterGapAndRestore(t *testing.T) {
 		t.Fatalf("seed lost: %v", err)
 	}
 
-	// Tentative de restore — caller demande, on est en pending (peer pas encore).
+	// Restauration unilatérale : un seul ami suffit, le streak repart
+	// immédiatement sans attendre l'autre.
 	res, err := store.RestoreStreak(context.Background(), fid, uA, time.Now())
 	if err != nil {
 		t.Fatalf("restore A: %v", err)
 	}
-	if !res.Pending {
-		t.Fatalf("première demande doit être pending: %+v", res)
+	if !res.Restored {
+		t.Fatalf("restore unilatéral attendu, got %+v", res)
 	}
 	if res.ErrCode != "" {
 		t.Fatalf("err inattendu: %q", res.ErrCode)
 	}
-
-	// Le peer demande à son tour → consensus, streak restauré.
-	res, err = store.RestoreStreak(context.Background(), fid, uB, time.Now())
-	if err != nil {
-		t.Fatalf("restore B: %v", err)
-	}
-	if !res.Restored {
-		t.Fatalf("consensus: restore attendu, got %+v", res)
-	}
 	if res.NewStreak != 3 {
 		t.Fatalf("NewStreak = 3 attendu, got %d", res.NewStreak)
+	}
+	// L'initiateur a consommé 1 de ses 3 jetons mensuels.
+	if res.RemainingThisMonth != friends.RestoreMonthlyQuota-1 {
+		t.Fatalf("remaining = %d attendu, got %d", friends.RestoreMonthlyQuota-1, res.RemainingThisMonth)
 	}
 
 	cur, _ := readStreakRow(t, pool, fid)

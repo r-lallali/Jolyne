@@ -60,6 +60,8 @@ export interface Messages {
     systemPeerLeftAnon: string;
     // Ligne système permanente dans le chat ami quand un streak se termine.
     systemStreakLost: FormatString<{ days: number }>;
+    // Ligne système permanente quand un ami restaure un streak perdu.
+    systemStreakRestored: FormatString<{ days: number }>;
     placeholder: string;
     sendLabel: string;
     next: string;

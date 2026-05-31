@@ -4,19 +4,17 @@ import { useEffect, useState } from "react";
 import { restoreStreak, type RestoreStreakResult } from "@/lib/friends";
 
 // StreakRestoreModal : confirme la restauration d'un streak perdu.
-// 3 jetons par mois et par user, consommés uniquement quand les deux
-// côtés ont posé leur demande dans une fenêtre de 7 jours.
+// Restauration unilatérale : un seul des deux amis décide, le streak repart
+// immédiatement. 3 jetons par mois et par user — seul l'initiateur consomme.
 //
 // États possibles affichés :
-//   - initial : "Restaurer X jours ?" + bouton confirmer
-//   - pending : "En attente de [peer]" — demande posée, on attend
+//   - initial : "Restaurer X 🔥 ?" + bouton confirmer
 //   - done    : "Streak restauré 🔥" — affiché brièvement puis ferme
 //   - error   : message selon err_code (quota, fenêtre expirée, etc.)
 
 type State =
   | { kind: "initial" }
   | { kind: "loading" }
-  | { kind: "pending"; result: RestoreStreakResult }
   | { kind: "done"; result: RestoreStreakResult }
   | { kind: "error"; message: string };
 
@@ -81,8 +79,6 @@ export function StreakRestoreModal({
         setState({ kind: "done", result });
         onRestored?.(result.new_streak);
         setTimeout(onClose, 1800);
-      } else if (result.pending) {
-        setState({ kind: "pending", result });
       }
     } catch {
       setState({ kind: "error", message: "Erreur réseau, réessaie." });
@@ -110,25 +106,6 @@ export function StreakRestoreModal({
               Vous repartez à {state.result.new_streak} jours.
             </p>
           </>
-        ) : state.kind === "pending" ? (
-          <>
-            <p className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
-              En attente de {peerName}
-            </p>
-            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-              Ta demande est posée. Quand {peerName} validera de son côté
-              (dans les 7 jours), le streak repartira à {lostStreak} jours.
-              Il te reste {state.result.remaining_this_month} restauration
-              {state.result.remaining_this_month === 1 ? "" : "s"} ce mois.
-            </p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-5 w-full rounded-xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
-            >
-              Fermer
-            </button>
-          </>
         ) : state.kind === "error" ? (
           <>
             <p className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
@@ -148,13 +125,12 @@ export function StreakRestoreModal({
         ) : (
           <>
             <p className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
-              Restaurer le streak ?
+              Restaurer {lostStreak} <span aria-hidden>🔥</span> ?
             </p>
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
               Vous aviez {lostStreak} jours d&apos;affilée avec {peerName}.
-              Si {peerName} accepte aussi dans les 7 jours, le streak
-              repartira à {lostStreak}. Cela consomme 1 restauration de
-              chaque côté (3 par mois).
+              Le streak repart immédiatement à {lostStreak} jours. Cela
+              consomme 1 de tes 3 restaurations du mois.
             </p>
             <div className="mt-5 flex flex-col gap-2">
               <button
@@ -163,7 +139,7 @@ export function StreakRestoreModal({
                 disabled={state.kind === "loading"}
                 className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-900"
               >
-                {state.kind === "loading" ? "Envoi…" : "Demander la restauration"}
+                {state.kind === "loading" ? "Restauration…" : "Restaurer"}
               </button>
               <button
                 type="button"

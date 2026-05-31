@@ -45,6 +45,7 @@ export const es: Messages = {
     systemPeerLeft: ({ nick }) => `${nick} salió de la conversación`,
     systemPeerLeftAnon: "La otra persona salió de la conversación",
     systemStreakLost: ({ days }) => `🔥 Racha de ${days} días perdida`,
+    systemStreakRestored: ({ days }) => `🔥 Racha de ${days} días restaurada`,
     placeholder: "Tu mensaje…",
     sendLabel: "Enviar",
     next: "Siguiente",
