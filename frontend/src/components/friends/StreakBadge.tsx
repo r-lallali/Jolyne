@@ -5,48 +5,24 @@ import { motion } from "framer-motion";
 // StreakBadge : emoji + compteur, sans fond coloré. N'affiche rien tant
 // que streak < 2.
 // Variantes :
-//   - normal      : 🔥 N
-//   - at-risk     : ⌛ N (pulse léger pour signaler le risque)
-//   - lost (clickable) : 💔 N, ouvre la modal restauration
+//   - normal  : 🔥 N
+//   - at-risk : ⌛ N (pulse léger pour signaler le risque)
 //
-// Si onRestoreClick est fourni + lostStreak > 0, on prend la priorité
-// "lost" sur la flamme normale (visuel de récupération possible).
+// La restauration d'un streak perdu n'est plus exposée ici (pas de badge
+// 💔 à côté du nom) : elle passe par le StreakLostBanner dans le flux du
+// chat.
 
 interface Props {
   streak: number;
   atRisk: boolean;
-  lostStreak?: number;
-  onRestoreClick?: () => void;
   size?: "sm" | "md";
 }
 
-export function StreakBadge({
-  streak,
-  atRisk,
-  lostStreak = 0,
-  onRestoreClick,
-  size = "sm",
-}: Props) {
-  const lost = streak === 0 && lostStreak >= 2 && !!onRestoreClick;
-  const show = streak >= 2 || lost;
-  if (!show) return null;
+export function StreakBadge({ streak, atRisk, size = "sm" }: Props) {
+  if (streak < 2) return null;
 
   const text = size === "md" ? "text-sm" : "text-xs";
   const gap = size === "md" ? "gap-1" : "gap-0.5";
-
-  if (lost) {
-    return (
-      <button
-        type="button"
-        onClick={onRestoreClick}
-        title="Restaurer ce streak"
-        className={`inline-flex items-center ${gap} ${text} font-semibold text-neutral-500 transition-opacity hover:opacity-80 dark:text-neutral-400`}
-      >
-        <span aria-hidden>💔</span>
-        <span>{lostStreak}</span>
-      </button>
-    );
-  }
 
   return (
     <motion.span
