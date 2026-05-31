@@ -362,8 +362,6 @@ export function FriendConversation({
             <StreakBadge
               streak={liveStreak?.streak ?? profile.streak ?? 0}
               atRisk={liveStreak?.at_risk ?? profile.streak_at_risk ?? false}
-              lostStreak={profile.lost_streak}
-              onRestoreClick={() => setRestoreOpen(true)}
               size="md"
             />
           )}

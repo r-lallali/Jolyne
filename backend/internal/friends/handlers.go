@@ -310,13 +310,14 @@ func (h *Handlers) HandleRestoreStreak(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "auth required", http.StatusUnauthorized)
 		return
 	}
-	id, err := parseIDSuffix(r.URL.Path, "/api/friends/")
+	// Path = /api/friends/{id}/streak/restore — on extrait le segment {id}
+	// (parseIDFromPath, pas parseIDSuffix qui prendrait tout le reste du
+	// path et échouerait sur le ParseInt → 400).
+	id, err := parseIDFromPath(r.URL.Path)
 	if err != nil {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	// /api/friends/{id}/streak/restore — on a déjà parsé l'id, on attend
-	// que le reste du path matche le suffixe attendu.
 	if !strings.HasSuffix(r.URL.Path, "/streak/restore") {
 		http.NotFound(w, r)
 		return

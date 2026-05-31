@@ -313,7 +313,6 @@ function FriendRow({
             <StreakBadge
               streak={friend.streak}
               atRisk={friend.streak_at_risk}
-              lostStreak={friend.lost_streak}
               size="md"
             />
             {muted && (
