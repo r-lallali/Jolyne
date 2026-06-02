@@ -652,3 +652,26 @@ func PublishFriendSystemMessage(rdb *redis.Client) friends.StreakLossPublisher {
 		_ = rdb.Publish(ctx, friendChannel(friendID), raw).Err()
 	}
 }
+
+// PublishFriendStreak retourne un publisher qui pousse un frame `streak` sur
+// le channel d'une amitié — utilisé par le handler de restauration pour
+// rallumer la flamme dans le header de conversation des deux amis connectés,
+// par le même chemin que les bumps de streak après un message.
+func PublishFriendStreak(rdb *redis.Client) friends.StreakFramePublisher {
+	if rdb == nil {
+		return nil
+	}
+	return func(ctx context.Context, friendID int64, streak int, atRisk bool) {
+		env := friendEnvelope{
+			Kind:         friendKindStreak,
+			FromConn:     "restore",
+			Streak:       streak,
+			StreakAtRisk: atRisk,
+		}
+		raw, err := json.Marshal(env)
+		if err != nil {
+			return
+		}
+		_ = rdb.Publish(ctx, friendChannel(friendID), raw).Err()
+	}
+}

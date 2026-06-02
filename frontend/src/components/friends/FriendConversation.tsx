@@ -609,8 +609,12 @@ export function FriendConversation({
         peerName={profile?.display_name ?? "—"}
         onClose={() => setRestoreOpen(false)}
         onRestored={(newStreak) => {
-          // Optimistic — le profil sera re-fetché par le push live, mais
-          // on met à jour localement pour que la flamme apparaisse direct.
+          // Rallume la flamme tout de suite côté initiateur. Le store live
+          // est la source de vérité du header (`liveStreak?.streak ??
+          // profile.streak`) : sans ce setLiveStreak, la valeur live posée à
+          // la perte (0) masquerait `profile.streak` via le `??` (0 n'est ni
+          // null ni undefined) et la flamme resterait éteinte.
+          setLiveStreak(friendId, newStreak, false);
           setProfile((prev) =>
             prev
               ? { ...prev, streak: newStreak, lost_streak: 0, lost_at: undefined }

@@ -308,12 +308,13 @@ func run() error {
 		// même Friends.Store que wsDeps pour cohérence (deux instances
 		// fonctionneraient mais autant éviter).
 		svc.friends = &friends.Handlers{
-			Store:              wsDeps.Friends,
-			Profile:            profileStore,
-			Reports:            reportSvc,
-			RDB:                rdb,
-			SystemMsgPublisher: ws.PublishFriendSystemMessage(rdb),
-			Log:                log,
+			Store:                wsDeps.Friends,
+			Profile:              profileStore,
+			Reports:              reportSvc,
+			RDB:                  rdb,
+			SystemMsgPublisher:   ws.PublishFriendSystemMessage(rdb),
+			StreakFramePublisher: ws.PublishFriendStreak(rdb),
+			Log:                  log,
 		}
 		log.Info("friends endpoints ready")
 

@@ -31,8 +31,17 @@ type Handlers struct {
 	// (ws.PublishFriendSystemMessage). nil = no-op : la persistance suffit,
 	// le front récupérera la ligne à la prochaine ouverture de la conv.
 	SystemMsgPublisher StreakLossPublisher
-	Log                *slog.Logger
+	// StreakFramePublisher pousse un frame `streak` sur le channel friend
+	// (le même chemin que les bumps de message) pour rallumer la flamme dans
+	// le header de conversation des DEUX amis connectés en temps réel.
+	// Injecté au wire (ws.PublishFriendStreak). nil = no-op.
+	StreakFramePublisher StreakFramePublisher
+	Log                  *slog.Logger
 }
+
+// StreakFramePublisher : signature du bridge vers le package ws pour pousser
+// un frame `streak` (streak courant + at_risk) sur le channel d'une amitié.
+type StreakFramePublisher func(ctx context.Context, friendID int64, streak int, atRisk bool)
 
 func (h *Handlers) log() *slog.Logger {
 	if h.Log != nil {
@@ -352,9 +361,14 @@ func (h *Handlers) HandleRestoreStreak(w http.ResponseWriter, r *http.Request) {
 			h.SystemMsgPublisher(r.Context(), id, m.ID, m.SenderID, m.Body, m.Kind, m.Payload,
 				m.SentAt.UTC().Format(time.RFC3339))
 		}
-		// Rallume la flamme instantanément partout (liste d'amis + header de
-		// conv des deux côtés) via le frame `streak_update`, et déclenche un
-		// resync de la liste via `streak_restored`.
+		// Rallume la flamme dans le header de conversation des deux côtés via
+		// un frame `streak` sur le channel friend (même chemin instantané que
+		// les bumps de message — fonctionne que la conv soit ouverte ou non).
+		if h.StreakFramePublisher != nil {
+			h.StreakFramePublisher(r.Context(), id, res.NewStreak, false)
+		}
+		// Et la liste d'amis via le frame `streak_update`, plus un resync des
+		// compteurs via `streak_restored`.
 		PublishStreakUpdate(r.Context(), h.RDB, peers, id, res.NewStreak, false)
 		PublishStreakRestored(r.Context(), h.RDB, peers, id, res.NewStreak)
 	}
