@@ -59,15 +59,27 @@ func routes(s services) http.Handler {
 		mux.Handle("/api/grammar", publicCORS(s.publicCORS)(s.grammar))
 	}
 
-	// Billing Premium (Stripe). checkout/portal exigent l'auth user ; webhook
-	// est public mais authentifié par la signature Stripe (corps brut lu dans
-	// le handler — surtout pas de middleware qui consomme le body avant).
-	if s.billing != nil && s.users != nil {
+	// Billing Premium (Stripe). Routes montées dès qu'on a l'auth user : si
+	// Stripe n'est pas configuré, le handler renvoie 503 (AVEC CORS) au lieu
+	// d'un 404 muet — sinon le navigateur voit une erreur CORS trompeuse. Même
+	// approche que les routes notifications/push. checkout/portal exigent
+	// l'auth ; webhook est public mais authentifié par la signature Stripe
+	// (corps brut lu dans le handler — aucun middleware ne consomme le body).
+	if s.users != nil {
 		auth := s.users.RequireAuth
 		cors := publicCORS(s.publicCORS)
-		mux.Handle("/api/billing/checkout", cors(auth(methodOnly("POST", http.HandlerFunc(s.billing.HandleCheckout)))))
-		mux.Handle("/api/billing/portal", cors(auth(methodOnly("POST", http.HandlerFunc(s.billing.HandlePortal)))))
-		mux.Handle("/api/billing/webhook", methodOnly("POST", http.HandlerFunc(s.billing.HandleWebhook)))
+		guard := func(h func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request) {
+				if s.billing == nil {
+					http.Error(w, "billing disabled", http.StatusServiceUnavailable)
+					return
+				}
+				h(w, r)
+			}
+		}
+		mux.Handle("/api/billing/checkout", cors(auth(methodOnly("POST", guard(func(w http.ResponseWriter, r *http.Request) { s.billing.HandleCheckout(w, r) })))))
+		mux.Handle("/api/billing/portal", cors(auth(methodOnly("POST", guard(func(w http.ResponseWriter, r *http.Request) { s.billing.HandlePortal(w, r) })))))
+		mux.Handle("/api/billing/webhook", methodOnly("POST", guard(func(w http.ResponseWriter, r *http.Request) { s.billing.HandleWebhook(w, r) })))
 	}
 
 	if s.users != nil {
