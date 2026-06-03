@@ -74,6 +74,8 @@ export const de: Messages = {
     loading: "Übersetze…",
     unavailable: "Dienst nicht verfügbar",
     genericError: "Fehler",
+    limitReached: "Du hast dein Übersetzungslimit für heute erreicht.",
+    limitCta: "Premium holen",
   },
   grammar: {
     suggestionsCount: ({ count }) =>
@@ -113,9 +115,9 @@ export const de: Messages = {
     queueTimeoutTitle: "Gerade niemand verfügbar.",
     queueTimeoutHint:
       "Wenige Personen sind in diesem Sprachpaar online. Versuche es in Kürze erneut.",
-    quotaExceededTitle: "Du hast deine 10 täglichen „Weiter“ aufgebraucht.",
+    quotaExceededTitle: "Du hast deine 10 Partner für heute erreicht.",
     quotaExceededHint:
-      "Komm morgen wieder. Premium hebt dieses Limit auf (bald).",
+      "Komm morgen wieder oder hol dir Premium für grenzenloses Chatten.",
     invalidPseudoTitle: "Dieser Nickname ist nicht erlaubt.",
     invalidPseudoHint:
       "Wähle einen Nicknamen zwischen 3 und 20 Zeichen, ohne anstößige Begriffe.",
@@ -264,5 +266,32 @@ export const de: Messages = {
     keepConversation: "Behalten",
     deleteConversation: "Unterhaltung löschen",
     deleteConfirm: "Diese Unterhaltung endgültig löschen?",
+  },
+  premium: {
+    sheetTitle: "Hol dir Jolyne Premium",
+    reasonSwipe: "Du hast deine 10 Partner für heute erreicht.",
+    reasonTranslate: "Du hast deine 10 Übersetzungen für heute erreicht.",
+    reasonBot: "Du hast dein Nachrichtenlimit beim KI-Tutor für heute erreicht.",
+    perksTitle: "Mit Premium, ganz ohne Limit:",
+    perkSwipe: "Triff so viele Partner, wie du willst",
+    perkTranslate: "Unbegrenzte Übersetzungen",
+    perkBot: "Chatte endlos mit dem KI-Tutor",
+    upgradeCta: "Premium holen",
+    loginRequired: "Erstelle ein Konto oder melde dich an, um Premium zu holen.",
+    loginCta: "Anmelden",
+    later: "Später",
+    redirecting: "Weiterleitung…",
+    accountTitle: "Abonnement",
+    statusFreeTitle: "Kostenloser Plan",
+    statusFreeHint:
+      "10 Partner, 10 Übersetzungen und 50 KI-Tutor-Nachrichten pro Tag.",
+    statusPremiumTitle: "Premium ✨",
+    statusPremiumHint: ({ date }) => `Aktiv bis ${date}.`,
+    manageCta: "Abonnement verwalten",
+    successTitle: "Willkommen bei Premium ✨",
+    successHint: "Dein Abo ist aktiv. Keine Limits mehr — viel Spaß!",
+    cancelTitle: "Zahlung abgebrochen",
+    cancelHint: "Es wurde nichts berechnet. Du kannst es jederzeit erneut versuchen.",
+    backCta: "Zurück zu Jolyne",
   },
 };

@@ -73,6 +73,8 @@ export const es: Messages = {
     loading: "Traduciendo…",
     unavailable: "Servicio no disponible",
     genericError: "Error",
+    limitReached: "Has alcanzado el límite de traducciones de hoy.",
+    limitCta: "Hazte Premium",
   },
   grammar: {
     suggestionsCount: ({ count }) =>
@@ -112,9 +114,9 @@ export const es: Messages = {
     queueTimeoutTitle: "Nadie disponible por ahora.",
     queueTimeoutHint:
       "Hay poca gente conectada en este par de idiomas. Inténtalo de nuevo en unos instantes.",
-    quotaExceededTitle: "Has usado tus 10 «siguientes» del día.",
+    quotaExceededTitle: "Has alcanzado tus 10 compañeros del día.",
     quotaExceededHint:
-      "Vuelve mañana. Premium quita este límite (próximamente).",
+      "Vuelve mañana o hazte Premium para hablar sin límites.",
     invalidPseudoTitle: "Este nombre no se acepta.",
     invalidPseudoHint:
       "Elige un nombre entre 3 y 20 caracteres, sin términos groseros.",
@@ -263,5 +265,32 @@ export const es: Messages = {
     keepConversation: "Conservar",
     deleteConversation: "Eliminar conversación",
     deleteConfirm: "¿Eliminar definitivamente esta conversación?",
+  },
+  premium: {
+    sheetTitle: "Pásate a Jolyne Premium",
+    reasonSwipe: "Has alcanzado tus 10 compañeros del día.",
+    reasonTranslate: "Has alcanzado tus 10 traducciones del día.",
+    reasonBot: "Has alcanzado tu límite de mensajes con el profe IA hoy.",
+    perksTitle: "Con Premium, sin ningún límite:",
+    perkSwipe: "Conoce a tantos compañeros como quieras",
+    perkTranslate: "Traducciones ilimitadas",
+    perkBot: "Habla sin fin con el profe IA",
+    upgradeCta: "Hazte Premium",
+    loginRequired: "Crea una cuenta o inicia sesión para hacerte Premium.",
+    loginCta: "Iniciar sesión",
+    later: "Más tarde",
+    redirecting: "Redirigiendo…",
+    accountTitle: "Suscripción",
+    statusFreeTitle: "Plan gratuito",
+    statusFreeHint:
+      "10 compañeros, 10 traducciones y 50 mensajes al profe IA por día.",
+    statusPremiumTitle: "Premium ✨",
+    statusPremiumHint: ({ date }) => `Activo hasta el ${date}.`,
+    manageCta: "Gestionar suscripción",
+    successTitle: "Bienvenido a Premium ✨",
+    successHint: "Tu suscripción está activa. ¡Sin límites, disfruta!",
+    cancelTitle: "Pago cancelado",
+    cancelHint: "No se te cobró nada. Puedes volver a intentarlo cuando quieras.",
+    backCta: "Volver a Jolyne",
   },
 };

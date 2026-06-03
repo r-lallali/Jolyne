@@ -88,6 +88,8 @@ export interface Messages {
     loading: string;
     unavailable: string;
     genericError: string;
+    limitReached: string; // quota quotidien atteint
+    limitCta: string; // bouton "Premium" dans le popover
   };
   grammar: {
     suggestionsCount: FormatString<{ count: number }>;
@@ -276,5 +278,34 @@ export interface Messages {
     keepConversation: string;
     deleteConversation: string;
     deleteConfirm: string;
+  };
+  premium: {
+    // Modale paywall
+    sheetTitle: string;
+    reasonSwipe: string;
+    reasonTranslate: string;
+    reasonBot: string;
+    perksTitle: string;
+    perkSwipe: string;
+    perkTranslate: string;
+    perkBot: string;
+    upgradeCta: string;
+    loginRequired: string;
+    loginCta: string;
+    later: string;
+    redirecting: string;
+    // Section /account
+    accountTitle: string;
+    statusFreeTitle: string;
+    statusFreeHint: string;
+    statusPremiumTitle: string;
+    statusPremiumHint: FormatString<{ date: string }>;
+    manageCta: string;
+    // Pages retour Stripe
+    successTitle: string;
+    successHint: string;
+    cancelTitle: string;
+    cancelHint: string;
+    backCta: string;
   };
 }

@@ -138,6 +138,14 @@ export function LegalContent() {
               badge — clique sur « Suivant » pour ré-essayer un match
               humain.
             </li>
+            <li>
+              <strong>Abonnement Premium :</strong> le paiement est traité
+              par Stripe (Stripe Payments Europe). Jolyne ne voit ni ne stocke
+              jamais tes données bancaires — seuls un identifiant client Stripe,
+              le statut de ton abonnement et sa date de fin sont conservés pour
+              débloquer les fonctionnalités Premium. Tu peux gérer ou résilier
+              ton abonnement à tout moment depuis ton compte.
+            </li>
           </ul>
           <p className="mt-3">
             <strong>Droit à l&apos;effacement</strong> : tu peux demander la
