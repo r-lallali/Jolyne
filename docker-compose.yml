@@ -72,6 +72,14 @@ services:
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5}
       BOT_MAX_CONCURRENT: ${BOT_MAX_CONCURRENT:-20}
       BOT_TRIGGER_DELAY_SEC: ${BOT_TRIGGER_DELAY_SEC:-10}
+      # Stripe (abonnement Premium). Vide → /api/billing/* renvoie 503.
+      # Renseigne SECRET_KEY + PRICE_ID + WEBHOOK_SECRET dans Dokploy → Env.
+      # Success/Cancel/Return dérivées de PUBLIC_APP_URL si non posées.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_ID: ${STRIPE_PRICE_ID:-}
+      STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-}
+      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-}
     depends_on:
       redis:
         condition: service_healthy
