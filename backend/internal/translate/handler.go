@@ -1,10 +1,13 @@
 package translate
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ralys/jolyne/backend/internal/quota"
 )
 
 // Limite de payload défensive. La traduction côté UI cible un mot ou une
@@ -28,9 +31,16 @@ type translateResp struct {
 }
 
 // Handler expose POST /api/translate. Body JSON {text, source, target}.
-// Aucun quota au lancement (cf. décision actée — on en remettra un plus tard).
+// Quota Free = 10 traductions/jour par identité (userID si connecté, sinon
+// fingerprint via l'en-tête X-Device-FP). Premium = illimité.
 type Handler struct {
 	Client *Client
+	Quota  *quota.Engine
+	// ResolveUserID résout le cookie de session → userID (0 si anonyme).
+	// IsPremium dit si ce user a un abonnement actif. Tous deux optionnels :
+	// nil → comportement anonyme / non-premium.
+	ResolveUserID func(r *http.Request) int64
+	IsPremium     func(ctx context.Context, userID int64) bool
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -68,10 +78,34 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Quota : on bloque AVANT l'appel upstream si la limite est atteinte, et on
+	// ne décompte un crédit qu'en cas de succès (pas sur un 502 LibreTranslate).
+	userID := int64(0)
+	if h.ResolveUserID != nil {
+		userID = h.ResolveUserID(r)
+	}
+	premium := userID > 0 && h.IsPremium != nil && h.IsPremium(r.Context(), userID)
+	quotaID := quota.Identity(userID, strings.TrimSpace(r.Header.Get("X-Device-FP")))
+	if !premium && h.Quota != nil && quotaID != "" {
+		if used, err := h.Quota.Used(r.Context(), quota.KindTranslate, quotaID); err == nil &&
+			used >= quota.FreeTranslateDaily {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]string{"code": "quota_exceeded"})
+			return
+		}
+	}
+
 	translated, err := h.Client.Translate(r.Context(), body.Text, body.Source, body.Target)
 	if err != nil {
 		http.Error(w, "translation unavailable", http.StatusBadGateway)
 		return
+	}
+
+	// Succès → on décompte (max=0 : simple incrément, le plafond a déjà été
+	// vérifié au pré-check ci-dessus).
+	if !premium && h.Quota != nil && quotaID != "" {
+		_, _ = h.Quota.CheckAndIncrement(r.Context(), quota.KindTranslate, quotaID, 0)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

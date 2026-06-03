@@ -75,6 +75,16 @@ type Config struct {
 	BotMaxConcurrent   int
 	BotTriggerDelaySec int
 
+	// Stripe (abonnement Premium). Billing actif seulement si SecretKey +
+	// PriceID présents (sinon /api/billing/* renvoie 503). WebhookSecret
+	// requis pour vérifier la signature des webhooks. Success/CancelURL
+	// dérivées de PublicAppURL si vides.
+	StripeSecretKey     string
+	StripeWebhookSecret string
+	StripePriceID       string // price_... de l'abonnement Premium
+	StripeSuccessURL    string
+	StripeCancelURL     string
+
 	ShutdownGrace time.Duration
 }
 
@@ -116,6 +126,11 @@ func Load() (Config, error) {
 		AnthropicModel:       getEnv("ANTHROPIC_MODEL", "claude-haiku-4-5"),
 		BotMaxConcurrent:     getEnvInt("BOT_MAX_CONCURRENT", 20),
 		BotTriggerDelaySec:   getEnvInt("BOT_TRIGGER_DELAY_SEC", 10),
+		StripeSecretKey:      os.Getenv("STRIPE_SECRET_KEY"),
+		StripeWebhookSecret:  os.Getenv("STRIPE_WEBHOOK_SECRET"),
+		StripePriceID:        os.Getenv("STRIPE_PRICE_ID"),
+		StripeSuccessURL:     os.Getenv("STRIPE_SUCCESS_URL"),
+		StripeCancelURL:      os.Getenv("STRIPE_CANCEL_URL"),
 		ShutdownGrace:        getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
 	}
 	if err := cfg.validate(); err != nil {

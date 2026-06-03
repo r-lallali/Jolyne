@@ -253,15 +253,16 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				}
 				conn.Send(ServerFrame{Type: ServerReported})
 				// Après signalement on quitte la conv proprement et on
-				// re-queue — comme un Next, sans consommer le quota.
+				// re-queue. Le crédit swipe n'est décompté qu'au prochain match
+				// (1 par nouveau partenaire), pas sur cette sortie.
 				return chatPeerLeft
 			case ClientNext:
 				if !canNext() {
 					continue
 				}
-				// Si le peer est déjà parti, on traite comme chatPeerLeft
-				// (re-queue gratuit, pas de quota). Sinon c'est un Next
-				// volontaire qui coûte un slot quotidien.
+				// Si le peer est déjà parti, on traite comme chatPeerLeft.
+				// Dans les deux cas le crédit swipe est décompté au prochain
+				// match (1 par nouveau partenaire humain), pas ici.
 				if peerGone {
 					return chatPeerLeft
 				}

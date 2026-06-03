@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ralys/jolyne/backend/internal/admin"
+	"github.com/ralys/jolyne/backend/internal/billing"
 	"github.com/ralys/jolyne/backend/internal/friends"
 	"github.com/ralys/jolyne/backend/internal/grammar"
 	"github.com/ralys/jolyne/backend/internal/matcher"
@@ -31,6 +32,7 @@ type services struct {
 	admin           *admin.Handlers   // nil si back-office désactivé
 	translate       *translate.Handler
 	grammar         *grammar.Handler
+	billing         *billing.Handlers // nil si Stripe non configuré
 	users           *users.Handlers   // nil si auth utilisateur désactivée
 	profile         *profile.Handlers // nil si auth utilisateur désactivée
 	friends         *friends.Handlers // nil si auth utilisateur désactivée
@@ -55,6 +57,17 @@ func routes(s services) http.Handler {
 	}
 	if s.grammar != nil {
 		mux.Handle("/api/grammar", publicCORS(s.publicCORS)(s.grammar))
+	}
+
+	// Billing Premium (Stripe). checkout/portal exigent l'auth user ; webhook
+	// est public mais authentifié par la signature Stripe (corps brut lu dans
+	// le handler — surtout pas de middleware qui consomme le body avant).
+	if s.billing != nil && s.users != nil {
+		auth := s.users.RequireAuth
+		cors := publicCORS(s.publicCORS)
+		mux.Handle("/api/billing/checkout", cors(auth(methodOnly("POST", http.HandlerFunc(s.billing.HandleCheckout)))))
+		mux.Handle("/api/billing/portal", cors(auth(methodOnly("POST", http.HandlerFunc(s.billing.HandlePortal)))))
+		mux.Handle("/api/billing/webhook", methodOnly("POST", http.HandlerFunc(s.billing.HandleWebhook)))
 	}
 
 	if s.users != nil {

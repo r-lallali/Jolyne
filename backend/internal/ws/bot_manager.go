@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"errors"
 	"html"
 	"log/slog"
 	"math/rand"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/ralys/jolyne/backend/internal/claudeapi"
 	"github.com/ralys/jolyne/backend/internal/matcher"
+	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/session"
 )
 
@@ -36,6 +38,7 @@ type BotManager struct {
 	matcher *matcher.Matcher
 	hub     *Hub
 	claude  *claudeapi.Client
+	quota   *quota.Engine
 	log     *slog.Logger
 
 	triggerDelay  time.Duration
@@ -51,6 +54,7 @@ type BotManagerConfig struct {
 	Matcher       *matcher.Matcher
 	Hub           *Hub
 	Claude        *claudeapi.Client
+	Quota         *quota.Engine
 	Log           *slog.Logger
 	TriggerDelay  time.Duration
 	MaxConcurrent int
@@ -68,6 +72,7 @@ func NewBotManager(cfg BotManagerConfig) *BotManager {
 		matcher:       cfg.Matcher,
 		hub:           cfg.Hub,
 		claude:        cfg.Claude,
+		quota:         cfg.Quota,
 		log:           cfg.Log,
 		triggerDelay:  cfg.TriggerDelay,
 		maxConcurrent: cfg.MaxConcurrent,
@@ -193,6 +198,9 @@ func (m *BotManager) runBot(ctx context.Context, roomID, botPeerID string, userS
 	// la conversation.
 	time.Sleep(1200 * time.Millisecond)
 
+	// Identité de quota prof IA : userID si connecté, sinon fingerprint.
+	botQuotaID := quota.Identity(userSess.UserID, userSess.Fingerprint)
+
 	history := make([]claudeapi.Message, 0, maxBotHistoryTurns*2)
 	greeting, err := m.callClaude(ctx, room, p.System, history, "", userSess.Wants)
 	if err == nil && greeting != "" {
@@ -217,6 +225,21 @@ func (m *BotManager) runBot(ctx context.Context, roomID, botPeerID string, userS
 				if msgCount >= maxBotMessages {
 					m.sendBotMessage(ctx, room, goodbyeMsg(userSess.Wants))
 					return
+				}
+				// Quota quotidien prof IA (Free = 50 msg/j ; Premium illimité).
+				// On compte chaque message du user auquel on répond — pas le
+				// greeting. Dépassement → adieu + upsell Premium.
+				if userSess.Plan != session.PlanPremium && m.quota != nil {
+					_, qerr := m.quota.CheckAndIncrement(ctx, quota.KindBot, botQuotaID, quota.FreeBotDaily)
+					if errors.Is(qerr, quota.ErrQuotaExceeded) {
+						m.sendBotMessage(ctx, room, botDailyLimitMsg(userSess.Wants))
+						return
+					}
+					if qerr != nil && m.log != nil {
+						// Redis indisponible : on log et on laisse passer plutôt
+						// que de casser la conversation.
+						m.log.Warn("bot quota incr", "err", qerr)
+					}
 				}
 				// CLAUDE.md règle d'or #2 : le body est arrivé HTML-escaped
 				// via moderation.SanitizeAndCheck côté sender. On le

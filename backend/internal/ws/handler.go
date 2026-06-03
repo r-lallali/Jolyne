@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -66,6 +67,9 @@ type Deps struct {
 	// Auth user (optionnelle, pour résoudre le cookie au handshake et
 	// remplir Session.UserID si valide). nil = WS toujours anonyme.
 	UserAuth *UserAuth
+	// ResolvePlan (optionnel) : résout le plan réel d'un user authentifié
+	// (Premium si abonnement actif). nil → tout le monde reste Free.
+	ResolvePlan func(ctx context.Context, userID int64) session.Plan
 	// Friends (optionnel). Si présent, le prompt ami 10-min est éligible
 	// quand les deux peers sont authentifiés.
 	Friends *friends.Store
@@ -130,6 +134,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		session.PlanFree,
 	)
 	sess.UserID = userID
+	// Résout le plan réel : Premium si abonnement actif. Anonyme = Free.
+	if userID > 0 && h.d.ResolvePlan != nil {
+		sess.Plan = h.d.ResolvePlan(r.Context(), userID)
+	}
 
 	// Check ban actif AVANT registration / matching. Sur match, le client
 	// reçoit une frame error code=banned avec la durée restante puis la WS

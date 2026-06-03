@@ -326,11 +326,27 @@ func (h *Handlers) writeUser(w http.ResponseWriter, user User) {
 
 func userPayload(u User) map[string]any {
 	verified := u.EmailVerifiedAt != nil
-	return map[string]any{
+	// is_premium : droit effectif (statut actif/essai + période non expirée).
+	premium := false
+	if u.SubscriptionStatus != nil &&
+		(*u.SubscriptionStatus == "active" || *u.SubscriptionStatus == "trialing") {
+		premium = u.CurrentPeriodEnd == nil || u.CurrentPeriodEnd.After(time.Now())
+	}
+	plan := "free"
+	if premium {
+		plan = "premium"
+	}
+	payload := map[string]any{
 		"id":             u.ID,
 		"email":          u.Email,
 		"email_verified": verified,
+		"plan":           plan,
+		"is_premium":     premium,
 	}
+	if u.CurrentPeriodEnd != nil {
+		payload["premium_until"] = u.CurrentPeriodEnd.UTC().Format(time.RFC3339)
+	}
+	return payload
 }
 
 func readToken(r *http.Request) string {
