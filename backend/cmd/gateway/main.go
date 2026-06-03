@@ -32,7 +32,9 @@ import (
 	"github.com/ralys/jolyne/backend/internal/push"
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/redisx"
+	"github.com/ralys/jolyne/backend/internal/billing"
 	"github.com/ralys/jolyne/backend/internal/reports"
+	"github.com/ralys/jolyne/backend/internal/session"
 	"github.com/ralys/jolyne/backend/internal/translate"
 	"github.com/ralys/jolyne/backend/internal/users"
 	"github.com/ralys/jolyne/backend/internal/ws"
@@ -162,6 +164,11 @@ func run() error {
 		Blocking: blocking.New(rdb),
 		Log:      log,
 	}
+	// Le quota traduction partage le même moteur Redis. Branché même sans auth
+	// user : les anonymes sont décomptés par fingerprint (en-tête X-Device-FP).
+	if svc.translate != nil {
+		svc.translate.Quota = wsDeps.Quota
+	}
 	if svc.pg != nil {
 		wsDeps.Friends = friends.NewStore(svc.pg)
 	}
@@ -246,8 +253,9 @@ func run() error {
 			Folder:    cfg.CloudinaryFolder,
 		}
 		profileStore := profile.NewStore(svc.pg)
+		usersStore := users.NewStore(svc.pg)
 		svc.users = &users.Handlers{
-			Store:         users.NewStore(svc.pg),
+			Store:         usersStore,
 			Profile:       profileStore,
 			Mailer:        ml,
 			SessionSecret: userSessionSecret,
@@ -263,6 +271,68 @@ func run() error {
 			"mailer", ml != nil,
 			"cookie_domain", cfg.UserCookieDomain,
 			"public_url", cfg.PublicAppURL)
+
+		// Résolveur de plan : Premium si abonnement Stripe actif. Partagé par
+		// le WS (swipe quota) et le handler translate.
+		isPremium := func(ctx context.Context, userID int64) bool {
+			ok, err := usersStore.IsPremium(ctx, userID)
+			if err != nil {
+				log.Warn("is premium check", "err", err)
+				return false
+			}
+			return ok
+		}
+		wsDeps.ResolvePlan = func(ctx context.Context, userID int64) session.Plan {
+			if isPremium(ctx, userID) {
+				return session.PlanPremium
+			}
+			return session.PlanFree
+		}
+		// Le handler translate résout le user via le cookie de session pour
+		// appliquer le quota par compte (ou le bypass Premium).
+		if svc.translate != nil && userSessionSecret != nil {
+			svc.translate.IsPremium = isPremium
+			svc.translate.ResolveUserID = func(r *http.Request) int64 {
+				c, err := r.Cookie(users.SessionCookieName)
+				if err != nil {
+					return 0
+				}
+				s, err := users.VerifySession(c.Value, userSessionSecret)
+				if err != nil {
+					return 0
+				}
+				return s.UserID
+			}
+		}
+
+		// Billing Premium (Stripe). Actif seulement si la clé secrète + le
+		// price sont configurés. Success/Cancel/Return dérivés de PublicAppURL.
+		if cfg.StripeSecretKey != "" && cfg.StripePriceID != "" {
+			successURL := cfg.StripeSuccessURL
+			if successURL == "" {
+				successURL = cfg.PublicAppURL + "/premium/success"
+			}
+			cancelURL := cfg.StripeCancelURL
+			if cancelURL == "" {
+				cancelURL = cfg.PublicAppURL + "/premium/cancel"
+			}
+			svc.billing = &billing.Handlers{
+				Stripe: billing.New(billing.Config{
+					SecretKey:     cfg.StripeSecretKey,
+					WebhookSecret: cfg.StripeWebhookSecret,
+					PriceID:       cfg.StripePriceID,
+					SuccessURL:    successURL,
+					CancelURL:     cancelURL,
+				}),
+				Users:     usersStore,
+				Events:    billing.NewEventStore(svc.pg),
+				ReturnURL: cfg.PublicAppURL + "/account",
+				Log:       log,
+			}
+			log.Info("billing endpoints ready", "price", cfg.StripePriceID)
+		} else {
+			log.Info("billing désactivé — STRIPE_SECRET_KEY / STRIPE_PRICE_ID manquant")
+		}
 
 		profileVerifier := profile.NewVerifier(profileStore, cld, log)
 		svc.profile = &profile.Handlers{
@@ -288,6 +358,7 @@ func run() error {
 				Matcher:       wsDeps.Matcher,
 				Hub:           wsDeps.Hub,
 				Claude:        claudeClient,
+				Quota:         wsDeps.Quota,
 				Log:           log,
 				TriggerDelay:  time.Duration(cfg.BotTriggerDelaySec) * time.Second,
 				MaxConcurrent: cfg.BotMaxConcurrent,

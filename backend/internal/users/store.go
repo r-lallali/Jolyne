@@ -36,6 +36,14 @@ type User struct {
 	LastSeenAt      *time.Time
 	EmailVerifiedAt *time.Time
 	HasPassword     bool
+
+	// Abonnement Premium (miroir de Stripe, posé par le webhook). Plan est
+	// le cache dérivé lisible ('free'|'premium') ; IsPremium recalcule le
+	// droit réel à partir du statut + de la fin de période.
+	Plan               string
+	SubscriptionStatus *string
+	CurrentPeriodEnd   *time.Time
+	StripeCustomerID   *string
 }
 
 type Store struct {
@@ -66,10 +74,12 @@ func (s *Store) Create(ctx context.Context, email, passwordHash string) (User, e
 	const q = `
 		INSERT INTO users (email, password_hash)
 		VALUES ($1, $2)
-		RETURNING id, email, created_at, last_seen_at, email_verified_at`
+		RETURNING id, email, created_at, last_seen_at, email_verified_at,
+		          plan, subscription_status, current_period_end, stripe_customer_id`
 	var u User
 	err := s.pool.QueryRow(ctx, q, email, passwordHash).Scan(
 		&u.ID, &u.Email, &u.CreatedAt, &u.LastSeenAt, &u.EmailVerifiedAt,
+		&u.Plan, &u.SubscriptionStatus, &u.CurrentPeriodEnd, &u.StripeCustomerID,
 	)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -88,12 +98,14 @@ func (s *Store) Login(ctx context.Context, email, password string) (User, error)
 	email = normalizeEmail(email)
 	const q = `
 		SELECT id, email, created_at, last_seen_at, email_verified_at,
-		       COALESCE(password_hash, '')
+		       COALESCE(password_hash, ''),
+		       plan, subscription_status, current_period_end, stripe_customer_id
 		FROM users WHERE email = $1`
 	var u User
 	var hash string
 	err := s.pool.QueryRow(ctx, q, email).Scan(
 		&u.ID, &u.Email, &u.CreatedAt, &u.LastSeenAt, &u.EmailVerifiedAt, &hash,
+		&u.Plan, &u.SubscriptionStatus, &u.CurrentPeriodEnd, &u.StripeCustomerID,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -114,11 +126,13 @@ func (s *Store) Login(ctx context.Context, email, password string) (User, error)
 func (s *Store) GetByID(ctx context.Context, id int64) (User, error) {
 	const q = `
 		SELECT id, email, created_at, last_seen_at, email_verified_at,
-		       password_hash IS NOT NULL
+		       password_hash IS NOT NULL,
+		       plan, subscription_status, current_period_end, stripe_customer_id
 		FROM users WHERE id = $1`
 	var u User
 	if err := s.pool.QueryRow(ctx, q, id).Scan(
 		&u.ID, &u.Email, &u.CreatedAt, &u.LastSeenAt, &u.EmailVerifiedAt, &u.HasPassword,
+		&u.Plan, &u.SubscriptionStatus, &u.CurrentPeriodEnd, &u.StripeCustomerID,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrNotFound
@@ -135,11 +149,13 @@ func (s *Store) GetByEmail(ctx context.Context, email string) (User, error) {
 	email = normalizeEmail(email)
 	const q = `
 		SELECT id, email, created_at, last_seen_at, email_verified_at,
-		       password_hash IS NOT NULL
+		       password_hash IS NOT NULL,
+		       plan, subscription_status, current_period_end, stripe_customer_id
 		FROM users WHERE email = $1`
 	var u User
 	if err := s.pool.QueryRow(ctx, q, email).Scan(
 		&u.ID, &u.Email, &u.CreatedAt, &u.LastSeenAt, &u.EmailVerifiedAt, &u.HasPassword,
+		&u.Plan, &u.SubscriptionStatus, &u.CurrentPeriodEnd, &u.StripeCustomerID,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrNotFound
@@ -175,6 +191,56 @@ func (s *Store) TouchLastSeen(ctx context.Context, id int64) error {
 	_, err := s.pool.Exec(ctx, `UPDATE users SET last_seen_at = now() WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("users: touch last seen: %w", err)
+	}
+	return nil
+}
+
+// IsPremium : droit Premium effectif = abonnement actif/essai ET période non
+// expirée. Recalculé depuis les colonnes miroir (jamais d'appel Stripe ici).
+// Un user inconnu ou sans abonnement est Free (false, sans erreur).
+func (s *Store) IsPremium(ctx context.Context, userID int64) (bool, error) {
+	const q = `
+		SELECT COALESCE(subscription_status IN ('active','trialing'), false)
+		   AND (current_period_end IS NULL OR current_period_end > now())
+		FROM users WHERE id = $1`
+	var premium bool
+	if err := s.pool.QueryRow(ctx, q, userID).Scan(&premium); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("users: is premium: %w", err)
+	}
+	return premium, nil
+}
+
+// SetCustomerID : lie un customer Stripe au user (posé au 1er checkout).
+func (s *Store) SetCustomerID(ctx context.Context, userID int64, customerID string) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE users SET stripe_customer_id = $1 WHERE id = $2`,
+		customerID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("users: set customer id: %w", err)
+	}
+	return nil
+}
+
+// SetSubscription : miroite l'état d'abonnement Stripe sur la ligne user,
+// identifiée par son customer Stripe. Dérive `plan` du statut. Appelé par le
+// webhook — l'effet est idempotent (même état entrant = même ligne finale).
+func (s *Store) SetSubscription(ctx context.Context, customerID, status string, periodEnd *time.Time) error {
+	plan := "free"
+	if status == "active" || status == "trialing" {
+		plan = "premium"
+	}
+	_, err := s.pool.Exec(ctx,
+		`UPDATE users
+		    SET subscription_status = $1, current_period_end = $2, plan = $3
+		  WHERE stripe_customer_id = $4`,
+		status, periodEnd, plan, customerID,
+	)
+	if err != nil {
+		return fmt.Errorf("users: set subscription: %w", err)
 	}
 	return nil
 }

@@ -3,7 +3,12 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { translateText, TranslateError } from "@/lib/translate";
+import {
+  translateText,
+  TranslateError,
+  TranslateQuotaError,
+} from "@/lib/translate";
+import { usePaywallStore } from "@/stores/paywallStore";
 
 export interface TranslationRequest {
   text: string;
@@ -22,13 +27,15 @@ interface Props {
 type State =
   | { kind: "loading" }
   | { kind: "ok"; translated: string }
-  | { kind: "err"; message: string };
+  | { kind: "err"; message: string }
+  | { kind: "limit" };
 
 // Petit tooltip flottant premium ancré à la sélection.
 // Traduit AUTOMATIQUEMENT le texte au chargement ou changement de requête.
 export function TranslationPopover({ request, onClose }: Props) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const t = useT();
+  const showPaywall = usePaywallStore((s) => s.show);
 
   // Fermeture sur clic extérieur ou Escape.
   useEffect(() => {
@@ -69,7 +76,10 @@ export function TranslationPopover({ request, onClose }: Props) {
           setState({ kind: "ok", translated });
         }
       } catch (e) {
-        if (active) {
+        if (!active) return;
+        if (e instanceof TranslateQuotaError) {
+          setState({ kind: "limit" });
+        } else {
           const msg =
             e instanceof TranslateError
               ? t.translate.unavailable
@@ -174,6 +184,24 @@ export function TranslationPopover({ request, onClose }: Props) {
             <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-neutral-900 dark:text-neutral-50">
               {state.translated}
             </p>
+          </div>
+        )}
+
+        {state.kind === "limit" && (
+          <div className="flex flex-col gap-2 py-0.5">
+            <p className="font-medium text-neutral-700 dark:text-neutral-300">
+              {t.translate.limitReached}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                showPaywall("translate");
+                onClose();
+              }}
+              className="w-full rounded-lg bg-neutral-900 px-3 py-1.5 text-[11px] font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
+            >
+              {t.translate.limitCta}
+            </button>
           </div>
         )}
 

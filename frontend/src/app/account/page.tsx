@@ -16,7 +16,9 @@ import {
   reorderPhotos,
   updateAccount,
 } from "@/lib/account";
+import { openPortal } from "@/lib/billing";
 import { useT } from "@/lib/i18n";
+import { usePaywallStore } from "@/stores/paywallStore";
 import { useUserStore } from "@/stores/userStore";
 
 const MAX_PHOTOS = 6;
@@ -264,6 +266,13 @@ export default function AccountPage() {
         )}
       </motion.div>
 
+      <motion.div variants={sectionVariants}>
+        <PremiumSection
+          isPremium={user.is_premium}
+          premiumUntil={user.premium_until}
+        />
+      </motion.div>
+
       <motion.section variants={sectionVariants} className="mt-8">
         <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
           {t.account.photos}
@@ -491,6 +500,79 @@ function UnsavedChangesModal({
         </div>
       </div>
     </div>
+  );
+}
+
+// PremiumSection : carte d'état de l'abonnement. Free → CTA paywall ;
+// Premium → date de fin + bouton Customer Portal (gérer / annuler).
+function PremiumSection({
+  isPremium,
+  premiumUntil,
+}: {
+  isPremium: boolean;
+  premiumUntil?: string;
+}) {
+  const t = useT();
+  const showPaywall = usePaywallStore((s) => s.show);
+  const [busy, setBusy] = useState(false);
+
+  const manage = async () => {
+    setBusy(true);
+    try {
+      await openPortal(); // redirige vers Stripe (ne revient pas)
+    } catch {
+      setBusy(false);
+    }
+  };
+
+  const until = premiumUntil
+    ? new Date(premiumUntil).toLocaleDateString()
+    : "";
+
+  return (
+    <section className="mt-8">
+      <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+        {t.premium.accountTitle}
+      </h2>
+      <div className="mt-3 rounded-2xl border border-neutral-200 p-4 dark:border-neutral-800">
+        {isPremium ? (
+          <>
+            <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+              {t.premium.statusPremiumTitle}
+            </p>
+            {until && (
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                {t.premium.statusPremiumHint({ date: until })}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={manage}
+              disabled={busy}
+              className="mt-4 w-full rounded-xl bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 disabled:opacity-50 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            >
+              {busy ? t.premium.redirecting : t.premium.manageCta}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+              {t.premium.statusFreeTitle}
+            </p>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              {t.premium.statusFreeHint}
+            </p>
+            <button
+              type="button"
+              onClick={() => showPaywall("swipe")}
+              className="mt-4 w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
+            >
+              {t.premium.upgradeCta}
+            </button>
+          </>
+        )}
+      </div>
+    </section>
   );
 }
 

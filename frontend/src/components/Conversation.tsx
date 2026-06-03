@@ -11,6 +11,7 @@ import { SetupView } from "@/components/setup/SetupView";
 import { useMatch } from "@/hooks/useMatch";
 import { useT, type Messages } from "@/lib/i18n";
 import { useChatStore } from "@/stores/chatStore";
+import { usePaywallStore } from "@/stores/paywallStore";
 import { useUserStore } from "@/stores/userStore";
 
 export function Conversation() {
@@ -252,6 +253,7 @@ interface ErrorProps {
 
 function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
   const t = useT();
+  const showPaywall = usePaywallStore((s) => s.show);
   const fatal =
     code === "quota_exceeded" ||
     code === "invalid_pseudo" ||
@@ -265,6 +267,15 @@ function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
         {hintForCode(code, message, t)}
       </p>
       <div className="flex gap-3">
+        {code === "quota_exceeded" && (
+          <button
+            type="button"
+            onClick={() => showPaywall("swipe")}
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-100 transition-opacity hover:opacity-90 dark:bg-neutral-100 dark:text-neutral-900"
+          >
+            {t.premium.upgradeCta}
+          </button>
+        )}
         {!fatal && (
           <button
             type="button"

@@ -6,6 +6,10 @@ export interface AuthUser {
   id: number;
   email: string;
   email_verified: boolean;
+  // Abonnement Premium (renvoyé par /api/auth/me). is_premium = droit effectif.
+  plan: "free" | "premium";
+  is_premium: boolean;
+  premium_until?: string; // ISO 8601, présent si un abonnement existe
 }
 
 export class AuthError extends Error {

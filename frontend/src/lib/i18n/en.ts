@@ -74,6 +74,8 @@ export const en: Messages = {
     loading: "Translating…",
     unavailable: "Service unavailable",
     genericError: "Error",
+    limitReached: "You've hit today's translation limit.",
+    limitCta: "Go Premium",
   },
   grammar: {
     suggestionsCount: ({ count }) =>
@@ -113,8 +115,9 @@ export const en: Messages = {
     queueTimeoutTitle: "Nobody around right now.",
     queueTimeoutHint:
       "Few people are online on this language pair. Try again in a moment.",
-    quotaExceededTitle: "You've used your 10 daily \"next\".",
-    quotaExceededHint: "Come back tomorrow. Premium removes this limit (soon).",
+    quotaExceededTitle: "You've reached your 10 partners for today.",
+    quotaExceededHint:
+      "Come back tomorrow, or go Premium to chat without limits.",
     invalidPseudoTitle: "This nickname isn't accepted.",
     invalidPseudoHint:
       "Pick a nickname between 3 and 20 characters, no rude words.",
@@ -263,5 +266,32 @@ export const en: Messages = {
     keepConversation: "Keep",
     deleteConversation: "Delete conversation",
     deleteConfirm: "Permanently delete this conversation?",
+  },
+  premium: {
+    sheetTitle: "Go Jolyne Premium",
+    reasonSwipe: "You've reached your 10 partners for today.",
+    reasonTranslate: "You've reached your 10 translations for today.",
+    reasonBot: "You've reached your AI tutor message limit for today.",
+    perksTitle: "With Premium, no limits at all:",
+    perkSwipe: "Meet as many partners as you want",
+    perkTranslate: "Unlimited translations",
+    perkBot: "Chat endlessly with the AI tutor",
+    upgradeCta: "Go Premium",
+    loginRequired: "Create an account or log in to go Premium.",
+    loginCta: "Log in",
+    later: "Later",
+    redirecting: "Redirecting…",
+    accountTitle: "Subscription",
+    statusFreeTitle: "Free plan",
+    statusFreeHint:
+      "10 partners, 10 translations and 50 AI tutor messages per day.",
+    statusPremiumTitle: "Premium ✨",
+    statusPremiumHint: ({ date }) => `Active until ${date}.`,
+    manageCta: "Manage subscription",
+    successTitle: "Welcome to Premium ✨",
+    successHint: "Your subscription is active. No more limits — enjoy!",
+    cancelTitle: "Payment cancelled",
+    cancelHint: "You were not charged. You can try again anytime.",
+    backCta: "Back to Jolyne",
   },
 };

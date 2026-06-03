@@ -18,6 +18,15 @@ var botGoodbye = map[string]string{
 	"de": "Ich muss los, aber das war schön! Bis bald 👋",
 }
 
+// Message d'adieu quand le quota quotidien de messages au prof IA est épuisé.
+// Invite à passer Premium pour continuer sans limite.
+var botDailyLimit = map[string]string{
+	"fr": "On a bien papoté aujourd'hui ! Tu as atteint ta limite quotidienne de messages avec moi. Repasse demain, ou passe Premium pour discuter sans limite 💛",
+	"en": "We've chatted a lot today! You've hit your daily message limit with me. Come back tomorrow, or go Premium to chat without limits 💛",
+	"es": "¡Hemos hablado mucho hoy! Has alcanzado tu límite diario de mensajes conmigo. Vuelve mañana o hazte Premium para hablar sin límites 💛",
+	"de": "Wir haben heute viel geplaudert! Du hast dein tägliches Nachrichtenlimit mit mir erreicht. Komm morgen wieder oder hol dir Premium für grenzenloses Chatten 💛",
+}
+
 func fallbackReply(lang string) string {
 	if s, ok := botFallbacks[lang]; ok {
 		return s
@@ -30,4 +39,11 @@ func goodbyeMsg(lang string) string {
 		return s
 	}
 	return botGoodbye["en"]
+}
+
+func botDailyLimitMsg(lang string) string {
+	if s, ok := botDailyLimit[lang]; ok {
+		return s
+	}
+	return botDailyLimit["en"]
 }

@@ -21,6 +21,9 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 	speaks, wants := matcher.LangCode(sess.Speaks), matcher.LangCode(sess.Wants)
 	var lastPeer string
 
+	// Identité de quota : userID si connecté, sinon fingerprint device.
+	quotaID := quota.Identity(sess.UserID, sess.Fingerprint)
+
 	// Throttle anti-farming sur Next : 1 par seconde max et par session
 	// (PLAN.md §4 Phase 1, §6 Contraintes). Variable de scope runSession
 	// pour persister à travers les itérations du loop (entre deux chats).
@@ -35,6 +38,19 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 	}
 
 	for {
+		// Quota swipe : 1 crédit par nouveau partenaire humain (Free = 10/j,
+		// Premium illimité). Pré-check AVANT de mobiliser un peer pour bloquer
+		// net au 11e et présenter le paywall sans gâcher de match.
+		if sess.Plan != session.PlanPremium {
+			used, err := h.d.Quota.Used(ctx, quota.KindNext, quotaID)
+			if err != nil {
+				h.d.Log.Warn("quota used check", "err", err)
+			} else if used >= quota.FreeNextDaily {
+				conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeQuotaExceeded})
+				return
+			}
+		}
+
 		out, err := h.d.Matcher.TryMatch(ctx, speaks, wants, sess.ID, lastPeer)
 		if err != nil {
 			h.d.Log.Error("matcher error", "err", err)
@@ -132,6 +148,22 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 			}
 		}
 
+		// Décompte 1 crédit dès qu'un partenaire HUMAIN est sécurisé. Le bot
+		// prof IA ne consomme rien (il est limité séparément, 50 msg/j).
+		if sess.Plan != session.PlanPremium && !peerIsBot {
+			_, err := h.d.Quota.CheckAndIncrement(ctx, quota.KindNext, quotaID, quota.FreeNextDaily)
+			if errors.Is(err, quota.ErrQuotaExceeded) {
+				// Limite atteinte entre le pré-check et ici : relâche le peer
+				// (il re-queue via Left) puis présente le paywall.
+				ghostMatch(ctx, h.d.RDB, roomID, sess.ID)
+				conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeQuotaExceeded})
+				return
+			}
+			if err != nil {
+				h.d.Log.Error("quota incr", "err", err)
+			}
+		}
+
 		exit := h.runChat(ctx, conn, sess, chatPeer{
 			ID:          peerID,
 			Nick:        peerNick,
@@ -143,17 +175,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		if exit == chatDisconnect {
 			return
 		}
-		if exit == chatNext {
-			used, err := h.d.Quota.CheckAndIncrementNext(ctx, sess.Fingerprint, quota.FreeNextDaily)
-			if errors.Is(err, quota.ErrQuotaExceeded) {
-				conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeQuotaExceeded})
-				return
-			}
-			if err != nil {
-				h.d.Log.Error("quota error", "err", err, "used", used)
-				conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal})
-				return
-			}
-		}
+		// exit == chatNext : on reboucle. Le prochain partenaire humain
+		// reconsommera un crédit au moment du match (pré-check en tête de loop).
 	}
 }

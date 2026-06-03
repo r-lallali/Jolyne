@@ -4,6 +4,7 @@ import { AuthBootstrap } from "@/components/auth/AuthBootstrap";
 import { AuthTopRight } from "@/components/auth/AuthTopRight";
 import { ChatWordmark } from "@/components/ChatWordmark";
 import { InboxProvider } from "@/components/notifications/InboxProvider";
+import { PaywallModal } from "@/components/premium/PaywallModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
@@ -51,6 +52,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <AuthBootstrap />
         <InboxProvider />
+        <PaywallModal />
         <ChatWordmark />
         <div className="fixed right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 flex items-center gap-2 sm:right-4 sm:top-4">
           <AuthTopRight />
