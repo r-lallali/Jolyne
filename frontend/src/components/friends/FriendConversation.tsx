@@ -544,8 +544,6 @@ export function FriendConversation({
             (profile.lost_streak ?? 0) >= 2 &&
             (profile.streak ?? 0) === 0 && (
               <StreakLostBanner
-                lostStreak={profile.lost_streak ?? 0}
-                peerName={profile.display_name || "—"}
                 restoresRemaining={profile.restores_remaining_this_month}
                 onRestore={() => setRestoreOpen(true)}
               />

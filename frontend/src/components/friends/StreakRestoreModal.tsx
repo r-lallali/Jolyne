@@ -5,7 +5,8 @@ import { restoreStreak, type RestoreStreakResult } from "@/lib/friends";
 
 // StreakRestoreModal : confirme la restauration d'un streak perdu.
 // Restauration unilatérale : un seul des deux amis décide, le streak repart
-// immédiatement. 3 jetons par mois et par user — seul l'initiateur consomme.
+// immédiatement. 3 jetons par mois et par conversation (compteur partagé
+// entre les deux amis, peu importe lequel restaure).
 //
 // États possibles affichés :
 //   - initial : "Restaurer X 🔥 ?" + bouton confirmer
@@ -130,7 +131,7 @@ export function StreakRestoreModal({
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
               Vous aviez {lostStreak} jours d&apos;affilée avec {peerName}.
               Le streak repart immédiatement à {lostStreak} jours. Cela
-              consomme 1 de tes 3 restaurations du mois.
+              consomme 1 des 3 restaurations du mois de cette conversation.
             </p>
             <div className="mt-5 flex flex-col gap-2">
               <button

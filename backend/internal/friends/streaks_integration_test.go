@@ -267,3 +267,57 @@ func TestStreak_RestoreWindowExpired(t *testing.T) {
 		t.Fatalf("err_code = window_expired attendu, got %q", res.ErrCode)
 	}
 }
+
+// seedLostStreak repositionne un streak perdu restaurable (≥ 2, daté d'il y a
+// 3 jours) pour pouvoir enchaîner plusieurs restaurations dans un même test.
+func seedLostStreak(t *testing.T, pool *pgxpool.Pool, fid int64, value int) {
+	t.Helper()
+	if _, err := pool.Exec(context.Background(),
+		`UPDATE friend_streaks
+		 SET current_streak = $2,
+		     last_streak_day = (now() AT TIME ZONE 'UTC')::date - 3,
+		     lost_streak = NULL, lost_at = NULL
+		 WHERE friend_id = $1`, fid, value); err != nil {
+		t.Fatalf("seed lost streak: %v", err)
+	}
+}
+
+// TestStreak_RestoreSharedQuotaPerConversation : le quota de 3/mois est
+// PARTAGÉ par conversation — peu importe lequel des deux amis restaure, le
+// même compteur est consommé, et la 4e tentative est refusée.
+func TestStreak_RestoreSharedQuotaPerConversation(t *testing.T) {
+	pool := newPool(t)
+	store := friends.NewStore(pool)
+	uA := makeUser(t, pool, "a")
+	uB := makeUser(t, pool, "b")
+	fid := makeFriend(t, store, uA, uB)
+
+	// Crée la ligne friend_streaks.
+	_, _, _ = store.AppendMessageWithStreak(context.Background(), fid, uA, "x")
+	_, _, _ = store.AppendMessageWithStreak(context.Background(), fid, uB, "y")
+
+	// 3 restaurations, alternées A/B/A : elles puisent dans le même compteur.
+	for i, caller := range []int64{uA, uB, uA} {
+		seedLostStreak(t, pool, fid, 4)
+		res, err := store.RestoreStreak(context.Background(), fid, caller, time.Now())
+		if err != nil {
+			t.Fatalf("restore %d: %v", i+1, err)
+		}
+		if !res.Restored {
+			t.Fatalf("restore %d devrait réussir: %+v", i+1, res)
+		}
+		if want := friends.RestoreMonthlyQuota - (i + 1); res.RemainingThisMonth != want {
+			t.Fatalf("restore %d: remaining = %d attendu, got %d", i+1, want, res.RemainingThisMonth)
+		}
+	}
+
+	// 4e tentative (par B) → quota de la conversation épuisé.
+	seedLostStreak(t, pool, fid, 4)
+	res, err := store.RestoreStreak(context.Background(), fid, uB, time.Now())
+	if err != nil {
+		t.Fatalf("restore 4: %v", err)
+	}
+	if res.Restored || res.ErrCode != "quota_exhausted" {
+		t.Fatalf("4e restauration: quota_exhausted attendu, got %+v", res)
+	}
+}

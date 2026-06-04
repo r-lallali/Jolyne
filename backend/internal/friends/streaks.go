@@ -234,11 +234,15 @@ func RestoreStreak(ctx context.Context, tx pgx.Tx, friendID, userID int64, now t
 		lastStreakDay *time.Time
 		lostStreak    *int
 		lostAt        *time.Time
+		restoresUsed  int
+		restoresMonth string
 	)
 	if err := tx.QueryRow(ctx,
-		`SELECT current_streak, last_streak_day, lost_streak, lost_at
+		`SELECT current_streak, last_streak_day, lost_streak, lost_at,
+		        restores_used, restores_month
 		 FROM friend_streaks WHERE friend_id = $1`, friendID,
-	).Scan(&currentStreak, &lastStreakDay, &lostStreak, &lostAt); err != nil {
+	).Scan(&currentStreak, &lastStreakDay, &lostStreak, &lostAt,
+		&restoresUsed, &restoresMonth); err != nil {
 		return RestoreResult{}, fmt.Errorf("restore: read row: %w", err)
 	}
 
@@ -272,33 +276,22 @@ func RestoreStreak(ctx context.Context, tx pgx.Tx, friendID, userID int64, now t
 		return RestoreResult{ErrCode: "window_expired"}, nil
 	}
 
-	// 5. Compteur mensuel du caller — reset si le mois courant a changé.
+	// 5. Compteur mensuel de la CONVERSATION (partagé entre les deux amis) —
+	//    reset si le mois courant a changé. 3 restaurations / mois / friendship,
+	//    peu importe lequel des deux les déclenche.
 	currentMonth := monthKeyUTC(now)
-	var (
-		used  int
-		month string
-	)
-	if err := tx.QueryRow(ctx,
-		`SELECT streak_restores_used, streak_restores_month
-		 FROM users WHERE id = $1`, userID,
-	).Scan(&used, &month); err != nil {
-		return RestoreResult{}, fmt.Errorf("restore: read user quota: %w", err)
-	}
-	if month != currentMonth {
+	used := restoresUsed
+	if restoresMonth != currentMonth {
 		used = 0
 	}
 	if used >= RestoreMonthlyQuota {
 		return RestoreResult{ErrCode: "quota_exhausted", RemainingThisMonth: 0}, nil
 	}
 
-	// 6. Restauration unilatérale immédiate : consomme 1 jeton chez le
-	//    caller et remet le streak à sa valeur perdue, daté d'aujourd'hui.
-	//    Les anciennes colonnes de demande mutuelle sont remises à NULL (au
-	//    cas où elles traîneraient d'une version antérieure).
-	if err := bumpUserQuota(ctx, tx, userID, used, currentMonth); err != nil {
-		return RestoreResult{}, err
-	}
-
+	// 6. Restauration unilatérale immédiate : consomme 1 jeton sur le compteur
+	//    de la conversation et remet le streak à sa valeur perdue, daté
+	//    d'aujourd'hui. Les anciennes colonnes de demande mutuelle sont
+	//    remises à NULL (au cas où elles traîneraient d'une version antérieure).
 	restored := *lostStreak
 	if _, err := tx.Exec(ctx,
 		`UPDATE friend_streaks
@@ -306,9 +299,10 @@ func RestoreStreak(ctx context.Context, tx pgx.Tx, friendID, userID int64, now t
 		     lost_streak = NULL, lost_at = NULL,
 		     restore_req_a_at = NULL, restore_req_b_at = NULL,
 		     lost_notified_at = NULL,
+		     restores_used = $4, restores_month = $5,
 		     updated_at = now()
 		 WHERE friend_id = $1`,
-		friendID, restored, todayDate,
+		friendID, restored, todayDate, used+1, currentMonth,
 	); err != nil {
 		return RestoreResult{}, fmt.Errorf("restore: apply: %w", err)
 	}
@@ -318,18 +312,6 @@ func RestoreStreak(ctx context.Context, tx pgx.Tx, friendID, userID int64, now t
 		NewStreak:          restored,
 		RemainingThisMonth: RestoreMonthlyQuota - (used + 1),
 	}, nil
-}
-
-// bumpUserQuota : incrémente le compteur mensuel d'un user. `prevUsed` est
-// la valeur déjà lue (et remise à 0 si le mois a changé) par l'appelant.
-func bumpUserQuota(ctx context.Context, tx pgx.Tx, userID int64, prevUsed int, currentMonth string) error {
-	if _, err := tx.Exec(ctx,
-		`UPDATE users SET streak_restores_used = $2, streak_restores_month = $3 WHERE id = $1`,
-		userID, prevUsed+1, currentMonth,
-	); err != nil {
-		return fmt.Errorf("restore: write quota: %w", err)
-	}
-	return nil
 }
 
 func daysBetweenUTC(d time.Time, now time.Time) int {

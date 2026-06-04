@@ -480,13 +480,15 @@ func (s *Store) InsertStreakRestoredMessage(ctx context.Context, friendID, sende
 	return m, nil
 }
 
-// QuotaForUser : nombre de restaurations restantes pour ce mois UTC.
-func (s *Store) QuotaForUser(ctx context.Context, userID int64, now time.Time) int {
+// QuotaForFriend : nombre de restaurations restantes ce mois UTC pour CETTE
+// conversation. Compteur partagé entre les deux amis (3 / mois / friendship).
+// Pas de ligne friend_streaks encore (jamais de streak) → quota plein.
+func (s *Store) QuotaForFriend(ctx context.Context, friendID int64, now time.Time) int {
 	var used int
 	var month string
 	if err := s.pool.QueryRow(ctx,
-		`SELECT streak_restores_used, streak_restores_month FROM users WHERE id = $1`,
-		userID,
+		`SELECT restores_used, restores_month FROM friend_streaks WHERE friend_id = $1`,
+		friendID,
 	).Scan(&used, &month); err != nil {
 		return RestoreMonthlyQuota
 	}

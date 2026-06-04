@@ -3,27 +3,20 @@
 import { motion } from "framer-motion";
 
 // StreakLostBanner : ligne système affichée dans le flux du chat quand
-// le streak vient d'être perdu. Offre la restauration mutuelle (3 par
-// mois). Le bouton ouvre la modale StreakRestoreModal du parent — pas
-// d'action directe ici, on délègue.
+// le streak vient d'être perdu. Offre la restauration unilatérale (3 par
+// mois et par conversation, compteur partagé entre les deux amis). Le
+// bouton ouvre la modale StreakRestoreModal du parent — on délègue.
 //
 // Affichée tant que profile.lost_streak > 0 et profile.streak === 0.
 // Disparaît automatiquement quand la restauration aboutit (le parent
 // reset lost_streak via onRestored du modal).
 
 interface Props {
-  lostStreak: number;
-  peerName: string;
   restoresRemaining?: number;
   onRestore: () => void;
 }
 
-export function StreakLostBanner({
-  lostStreak,
-  peerName,
-  restoresRemaining,
-  onRestore,
-}: Props) {
+export function StreakLostBanner({ restoresRemaining, onRestore }: Props) {
   const exhausted = restoresRemaining === 0;
   return (
     <motion.div
@@ -37,9 +30,9 @@ export function StreakLostBanner({
       <p className="px-3 text-center text-[11px] italic text-neutral-400 dark:text-neutral-500">
         {typeof restoresRemaining === "number"
           ? exhausted
-            ? "Tu as utilisé tes 3 restaurations ce mois-ci."
-            : `Il te reste ${restoresRemaining} restauration${restoresRemaining > 1 ? "s" : ""} ce mois. Si ${peerName} accepte aussi, le streak repart à ${lostStreak}.`
-          : "Vous pouvez restaurer ce streak (3 fois par mois, accord mutuel)."}
+            ? "Les 3 restaurations de cette conversation ont été utilisées ce mois-ci."
+            : `Il reste ${restoresRemaining} restauration${restoresRemaining > 1 ? "s" : ""} ce mois pour cette conversation.`
+          : "Vous pouvez restaurer ce streak (3 fois par mois pour cette conversation)."}
       </p>
       <button
         type="button"

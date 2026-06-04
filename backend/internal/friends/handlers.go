@@ -302,7 +302,7 @@ func (h *Handlers) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 		"streak_at_risk":                atRisk,
 		"lost_streak":                   lostStreak,
 		"lost_at":                       formatLostAt(lostAt),
-		"restores_remaining_this_month": h.Store.QuotaForUser(ctx, user.ID, time.Now()),
+		"restores_remaining_this_month": h.Store.QuotaForFriend(ctx, f.ID, time.Now()),
 	})
 }
 
