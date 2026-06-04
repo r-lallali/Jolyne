@@ -52,6 +52,17 @@ export default function AccountPage() {
   ]);
   const router = useRouter();
   const [unsavedOpen, setUnsavedOpen] = useState(false);
+  // Page de retour : on revient là d'où l'user a ouvert /account (chat
+  // anonyme `/` ou liste des conversations `/chats`). Capturée dans
+  // sessionStorage par le lien du menu compte ; défaut `/`.
+  const [returnTo, setReturnTo] = useState("/");
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("jolyne:accountReturnTo");
+    if (stored && stored.startsWith("/") && !stored.startsWith("//")) {
+      setReturnTo(stored);
+    }
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -146,8 +157,8 @@ export default function AccountPage() {
     setSavingState("busy");
     try {
       await persist();
-      setSavingState("saved");
-      setTimeout(() => setSavingState("idle"), 1500);
+      // Enregistrement OK → on renvoie l'user sur la page d'où il vient.
+      router.push(returnTo);
     } catch {
       setSavingState("idle");
     }
@@ -158,7 +169,7 @@ export default function AccountPage() {
       setUnsavedOpen(true);
       return;
     }
-    router.push("/");
+    router.push(returnTo);
   };
 
   const saveAndLeave = async () => {
@@ -169,12 +180,12 @@ export default function AccountPage() {
       // — ici on tente simplement de naviguer après une tentative.
     }
     setUnsavedOpen(false);
-    router.push("/");
+    router.push(returnTo);
   };
 
   const discardAndLeave = () => {
     setUnsavedOpen(false);
-    router.push("/");
+    router.push(returnTo);
   };
 
   const photoDrag = usePhotoDrag({

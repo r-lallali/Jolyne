@@ -61,7 +61,14 @@ export function AuthTopRight() {
           <div className="absolute right-0 top-11 z-50 min-w-[200px] overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-950">
             <Link
               href="/account"
-              onClick={() => setMenuOpen(false)}
+              onClick={() => {
+                setMenuOpen(false);
+                // Mémorise la page courante pour y revenir après save / back
+                // sur /account (chat anonyme `/` ou liste `/chats`).
+                if (pathname && pathname !== "/account") {
+                  sessionStorage.setItem("jolyne:accountReturnTo", pathname);
+                }
+              }}
               className="block w-full px-3 py-2 text-left text-xs text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
             >
               {t.auth.accountCta}
