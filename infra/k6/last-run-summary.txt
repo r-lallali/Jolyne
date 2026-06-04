@@ -1,0 +1,31 @@
+
+==================================================================
+  JOLYNE — RAPPORT DE CHARGE  (1000 conversations simultanées)
+==================================================================
+  Cible            : wss://api.jolyne.ralys.ovh
+  VU max           : 2000  (~1000 conversations au pic)
+  Profil           : ramp 40s / hold 60s / down 10s
+------------------------------------------------------------------
+  WEBSOCKET / MATCHING
+    Connexions ouvertes ....... 4795
+    Handshakes 101 OK ......... 100.00 %
+    Conversations appairées ... 4790
+    Queue timeouts (30s) ...... 0
+    peer_left reçus ........... 1153
+    Erreurs WS (toutes) ....... 91
+
+  TIME TO MATCH (open -> matched), ms
+    p50 15  p90 1820  p95 2520  max 10008
+
+  LATENCE MESSAGE (client -> serveur -> peer), ms
+    msgs envoyés 116352  reçus 65942
+    p50 13  p90 16  p95 18  p99 n/a  max 53
+
+  REST SOUS CHARGE (ms)
+    rest_ok ................... 100.00 %
+    latence p50 15  p95 19  max 55
+
+  RÉSEAU
+    data reçue ................ 26.98 MB
+    data envoyée .............. 14.22 MB
+==================================================================
