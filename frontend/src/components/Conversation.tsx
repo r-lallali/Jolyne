@@ -14,6 +14,13 @@ import { useChatStore } from "@/stores/chatStore";
 import { usePaywallStore } from "@/stores/paywallStore";
 import { useUserStore } from "@/stores/userStore";
 
+// Mode actif de la home conservé en mémoire (module-level) le temps de la
+// session JS : survit aux navigations SPA — typiquement l'aller-retour vers
+// /account remonte Conversation, qui repart alors sur le dernier mode choisi
+// (chat anonyme ou conversations amis). Un vrai rechargement de page
+// ré-évalue le module → retour au défaut "anon", comportement attendu.
+let lastHomeMode: Mode = "anon";
+
 export function Conversation() {
   const status = useChatStore((s) => s.status);
   const errorCode = useChatStore((s) => s.errorCode);
@@ -23,9 +30,9 @@ export function Conversation() {
   const authedUser = useUserStore((s) => s.user);
   const hydrated = useUserStore((s) => s.hydrated);
   // Mode = onglet actif (anon = chat anonyme, friends = conversations
-  // privées). Local au composant, non persisté : un refresh ramène toujours
-  // sur le chat anonyme — c'est la home par défaut.
-  const [mode, setMode] = useState<Mode>("anon");
+  // privées). Initialisé sur le dernier mode mémorisé (cf. lastHomeMode) :
+  // un refresh ramène sur "anon", un aller-retour /account conserve le mode.
+  const [mode, setMode] = useState<Mode>(lastHomeMode);
   // Direction du slide entre les deux modes : 1 = anon → friends (le
   // nouveau panneau entre depuis la droite), -1 = friends → anon (depuis
   // la gauche). Mémorisé pour qu'AnimatePresence puisse en faire usage
@@ -35,6 +42,7 @@ export function Conversation() {
     if (next === mode) return;
     setSlideDir(next === "friends" ? 1 : -1);
     setMode(next);
+    lastHomeMode = next;
   };
 
   // Référence stable pour switchMode afin d'éviter la stale closure dans l'effet tactile

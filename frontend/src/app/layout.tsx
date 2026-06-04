@@ -7,6 +7,7 @@ import { HtmlLangSync } from "@/components/HtmlLangSync";
 import { InboxProvider } from "@/components/notifications/InboxProvider";
 import { PaywallModal } from "@/components/premium/PaywallModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { FlashToast } from "@/components/ui/FlashToast";
 import "./globals.css";
 
 const inter = Inter({
@@ -55,6 +56,7 @@ export default function RootLayout({
         <AuthBootstrap />
         <InboxProvider />
         <PaywallModal />
+        <FlashToast />
         <ChatWordmark />
         <div className="fixed right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 flex items-center gap-2 sm:right-4 sm:top-4">
           <AuthTopRight />

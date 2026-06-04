@@ -18,6 +18,7 @@ import {
 } from "@/lib/account";
 import { openPortal } from "@/lib/billing";
 import { useT } from "@/lib/i18n";
+import { useFlashStore } from "@/stores/flashStore";
 import { usePaywallStore } from "@/stores/paywallStore";
 import { useUserStore } from "@/stores/userStore";
 
@@ -35,6 +36,7 @@ export default function AccountPage() {
   const t = useT();
   const user = useUserStore((s) => s.user);
   const hydrated = useUserStore((s) => s.hydrated);
+  const showFlash = useFlashStore((s) => s.show);
 
   const [account, setAccount] = useState<AccountDTO | null>(null);
   const [cloudName, setCloudName] = useState<string>("");
@@ -150,6 +152,8 @@ export default function AccountPage() {
       prompts,
     });
     setAccount(updated);
+    // Confirmation verte affichée sur la page d'arrivée après le retour.
+    showFlash(t.account.saved);
   };
 
   const save = async (e: React.FormEvent) => {
