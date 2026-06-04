@@ -296,6 +296,7 @@ export interface Messages {
     redirecting: string;
     // Section /account
     accountTitle: string;
+    priceMonthly: string;
     statusFreeTitle: string;
     statusFreeHint: string;
     statusPremiumTitle: string;

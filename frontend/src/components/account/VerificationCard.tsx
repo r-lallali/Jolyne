@@ -162,13 +162,13 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
 
   if (isVerified) {
     return (
-      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5 text-neutral-900 dark:text-neutral-50 backdrop-blur-sm">
+      <div className="rounded-2xl border border-emerald-700/25 bg-emerald-700/5 p-4 text-neutral-900 dark:text-neutral-50">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-full bg-emerald-500 text-neutral-50 shadow-md shadow-emerald-500/20">
-            <CheckIcon className="size-5" />
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-neutral-50">
+            <CheckIcon className="size-4" />
           </div>
           <div>
-            <h3 className="font-semibold text-neutral-900 dark:text-emerald-400">Compte Certifié</h3>
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-emerald-500">Compte Certifié</h3>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
               Votre identité a été vérifiée automatiquement par reconnaissance faciale.
             </p>
@@ -184,7 +184,7 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
         <div className="flex-1">
           <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
             Badge de Vérification
-            <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400">
+            <span className="rounded-full bg-emerald-700/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-500">
               Instantané
             </span>
           </h3>
@@ -196,14 +196,14 @@ export function VerificationCard({ isVerified, hasProfilePhoto, onVerified }: Pr
           {!hasProfilePhoto ? (
             <button
               disabled
-              className="w-full rounded-xl bg-neutral-100 px-4 py-2.5 text-xs font-semibold text-neutral-400 dark:bg-neutral-900 dark:text-neutral-500"
+              className="inline-flex items-center rounded-xl bg-neutral-100 px-4 py-2.5 text-xs font-semibold text-neutral-400 dark:bg-neutral-900 dark:text-neutral-500"
             >
               {"Ajouter une photo d'abord"}
             </button>
           ) : (
             <button
               onClick={startCamera}
-              className="w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-xs font-semibold text-neutral-50 shadow-md shadow-neutral-900/10 hover:opacity-95 transition-all dark:bg-neutral-50 dark:text-neutral-900 dark:shadow-neutral-50/5"
+              className="inline-flex items-center rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-semibold text-neutral-50 transition-opacity hover:opacity-90"
             >
               Vérifier mon profil
             </button>

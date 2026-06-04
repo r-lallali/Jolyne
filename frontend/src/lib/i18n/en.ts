@@ -282,6 +282,7 @@ export const en: Messages = {
     later: "Later",
     redirecting: "Redirecting…",
     accountTitle: "Subscription",
+    priceMonthly: "€10 / month",
     statusFreeTitle: "Free plan",
     statusFreeHint:
       "10 partners, 10 translations and 50 AI tutor messages per day.",

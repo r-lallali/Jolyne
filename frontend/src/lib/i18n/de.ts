@@ -282,6 +282,7 @@ export const de: Messages = {
     later: "Später",
     redirecting: "Weiterleitung…",
     accountTitle: "Abonnement",
+    priceMonthly: "10 € / Monat",
     statusFreeTitle: "Kostenloser Plan",
     statusFreeHint:
       "10 Partner, 10 Übersetzungen und 50 KI-Tutor-Nachrichten pro Tag.",

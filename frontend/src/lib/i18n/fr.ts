@@ -284,6 +284,7 @@ export const fr: Messages = {
     later: "Plus tard",
     redirecting: "Redirection…",
     accountTitle: "Abonnement",
+    priceMonthly: "10 € / mois",
     statusFreeTitle: "Plan gratuit",
     statusFreeHint:
       "10 partenaires, 10 traductions et 50 messages au prof IA par jour.",

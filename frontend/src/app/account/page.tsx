@@ -562,13 +562,18 @@ function PremiumSection({
             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
               {t.premium.statusFreeHint}
             </p>
-            <button
-              type="button"
-              onClick={() => showPaywall("swipe")}
-              className="mt-4 w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
-            >
-              {t.premium.upgradeCta}
-            </button>
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => showPaywall("swipe")}
+                className="inline-flex items-center rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
+              >
+                {t.premium.upgradeCta}
+              </button>
+              <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                {t.premium.priceMonthly}
+              </span>
+            </div>
           </>
         )}
       </div>
