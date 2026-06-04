@@ -3,7 +3,17 @@
 // l'enregistrer dans `index.ts`. Tous les dicos doivent rester strictement
 // alignés sur ce type — le compilateur garantit qu'aucune clé ne manque.
 
-export type UILang = "fr" | "en" | "es" | "de";
+export type UILang =
+  | "fr"
+  | "en"
+  | "es"
+  | "de"
+  | "pt"
+  | "it"
+  | "zh"
+  | "ja"
+  | "ko"
+  | "ar";
 
 // Texte avec interpolation : on stocke une fonction de format. Garder le
 // nombre de placeholders minimal — les vars sont passées par objet, ce qui
@@ -146,6 +156,12 @@ export interface Messages {
     en: string;
     es: string;
     de: string;
+    pt: string;
+    it: string;
+    zh: string;
+    ja: string;
+    ko: string;
+    ar: string;
   };
   auth: {
     loginCta: string;

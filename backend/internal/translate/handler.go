@@ -14,10 +14,11 @@ import (
 // phrase courte sélectionnée par le user — pas un roman.
 const maxTextRunes = 500
 
-// Liste des langues supportées au lancement (cf. PLAN.md §8 : 4 paires
-// FR↔EN, ES↔EN, DE↔EN, FR↔ES). On accepte aussi `auto` pour la source.
+// Liste des langues supportées. On accepte aussi `auto` pour la source.
 var allowedLangs = map[string]struct{}{
-	"auto": {}, "fr": {}, "en": {}, "es": {}, "de": {},
+	"auto": {},
+	"fr":   {}, "en": {}, "es": {}, "de": {}, "pt": {}, "it": {},
+	"zh": {}, "ja": {}, "ko": {}, "ar": {},
 }
 
 type translateReq struct {

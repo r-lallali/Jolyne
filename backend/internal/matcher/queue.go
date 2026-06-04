@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-// LangCode est un code ISO 639-1 minuscule. Phase 1 supporte 4 paires :
-// FR↔EN, ES↔EN, DE↔EN, FR↔ES (cf. PLAN.md §8).
+// LangCode est un code ISO 639-1 minuscule. Toutes les paires de langues
+// distinctes parmi allLangs sont ouvertes.
 type LangCode string
 
 const (
@@ -14,13 +14,33 @@ const (
 	EN LangCode = "en"
 	ES LangCode = "es"
 	DE LangCode = "de"
+	PT LangCode = "pt"
+	IT LangCode = "it"
+	ZH LangCode = "zh"
+	JA LangCode = "ja"
+	KO LangCode = "ko"
+	AR LangCode = "ar"
 )
 
-var allowedPairs = map[string]struct{}{
-	"fr|en": {}, "en|fr": {},
-	"es|en": {}, "en|es": {},
-	"de|en": {}, "en|de": {},
-	"fr|es": {}, "es|fr": {},
+// allLangs : ordre de référence des langues supportées. Source unique pour
+// la validation et la génération des paires ouvertes.
+var allLangs = []LangCode{FR, EN, ES, DE, PT, IT, ZH, JA, KO, AR}
+
+// allowedPairs contient toutes les paires (speaks, wants) de langues
+// distinctes. Généré depuis allLangs pour rester aligné quand on ajoute
+// une langue.
+var allowedPairs = buildAllowedPairs()
+
+func buildAllowedPairs() map[string]struct{} {
+	m := make(map[string]struct{}, len(allLangs)*(len(allLangs)-1))
+	for _, s := range allLangs {
+		for _, w := range allLangs {
+			if s != w {
+				m[string(s)+"|"+string(w)] = struct{}{}
+			}
+		}
+	}
+	return m
 }
 
 var (
@@ -43,9 +63,10 @@ func ValidatePair(speaks, wants LangCode) error {
 }
 
 func isValidLang(l LangCode) bool {
-	switch l {
-	case FR, EN, ES, DE:
-		return true
+	for _, x := range allLangs {
+		if x == l {
+			return true
+		}
 	}
 	return false
 }

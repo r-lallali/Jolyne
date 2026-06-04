@@ -11,7 +11,9 @@ const maxTextRunes = 2000
 
 // Codes BCP-47 acceptés. On accepte le code court (ex: "fr") en plus du
 // long (ex: "fr-FR") pour coller au format `lang` qu'envoie le frontend
-// quand l'utilisateur choisit sa langue.
+// quand l'utilisateur choisit sa langue. Les langues non gérées par
+// LanguageTool (ex: le coréen) sont volontairement absentes : la requête
+// retourne alors 400 et le frontend dégrade en « vérification indisponible ».
 var langAliases = map[string]string{
 	"fr":    "fr",
 	"fr-fr": "fr-FR",
@@ -21,6 +23,15 @@ var langAliases = map[string]string{
 	"es":    "es",
 	"de":    "de-DE",
 	"de-de": "de-DE",
+	"pt":    "pt-PT",
+	"pt-pt": "pt-PT",
+	"pt-br": "pt-BR",
+	"it":    "it",
+	"ar":    "ar",
+	"zh":    "zh-CN",
+	"zh-cn": "zh-CN",
+	"ja":    "ja-JP",
+	"ja-jp": "ja-JP",
 }
 
 type checkReq struct {

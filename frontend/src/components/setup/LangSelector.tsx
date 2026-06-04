@@ -1,9 +1,7 @@
 "use client";
 
-import { LANG_FLAG, LANG_LABEL, type LangCode } from "@/lib/langs";
+import { ALL_LANGS, LANG_FLAG, LANG_LABEL, type LangCode } from "@/lib/langs";
 import { cn } from "@/lib/cn";
-
-const ALL_LANGS: LangCode[] = ["fr", "en", "es", "de"];
 
 interface Props {
   value: LangCode | null;
@@ -11,12 +9,12 @@ interface Props {
   /**
    * Langue(s) à griser. Accepte un code unique ou une liste.
    */
-  exclude?: LangCode | LangCode[] | null;
+  exclude?: LangCode | readonly LangCode[] | null;
 }
 
 export function LangSelector({ value, onChange, exclude }: Props) {
   const excludeSet = new Set<LangCode>(
-    exclude == null ? [] : Array.isArray(exclude) ? exclude : [exclude],
+    exclude == null ? [] : typeof exclude === "string" ? [exclude] : exclude,
   );
   return (
     <div className="grid grid-cols-2 gap-2">

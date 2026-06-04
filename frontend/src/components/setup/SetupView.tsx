@@ -12,11 +12,14 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { useUserStore } from "@/stores/userStore";
 import { fetchAccount } from "@/lib/account";
 import { useT } from "@/lib/i18n";
-import { allowedWantsFor, isPairAllowed, type LangCode } from "@/lib/langs";
+import {
+  ALL_LANGS,
+  allowedWantsFor,
+  isPairAllowed,
+  type LangCode,
+} from "@/lib/langs";
 import { containsProfanity } from "@/lib/profanity";
 import { fetchQueueSize } from "@/lib/queueSize";
-
-const ALL_LANGS: LangCode[] = ["fr", "en", "es", "de"];
 
 type Step = "pseudo" | "config";
 
@@ -103,7 +106,7 @@ export function SetupView() {
   // Langues à griser dans le picker "wants" : tant que speaks n'est pas
   // choisi on grise tout ; sinon on grise speaks + toutes les langues qui
   // ne forment pas une paire ouverte avec speaks (voir PLAN.md §8).
-  const wantsExclude: LangCode[] = speaks
+  const wantsExclude: readonly LangCode[] = speaks
     ? ALL_LANGS.filter((c) => !isPairAllowed(speaks, c))
     : ALL_LANGS;
 

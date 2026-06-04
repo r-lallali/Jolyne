@@ -19,17 +19,40 @@ import { de } from "@/lib/i18n/de";
 import { en } from "@/lib/i18n/en";
 import { es } from "@/lib/i18n/es";
 import { fr } from "@/lib/i18n/fr";
+import { pt } from "@/lib/i18n/pt";
+import { it } from "@/lib/i18n/it";
+import { zh } from "@/lib/i18n/zh";
+import { ja } from "@/lib/i18n/ja";
+import { ko } from "@/lib/i18n/ko";
+import { ar } from "@/lib/i18n/ar";
 import type { Messages, UILang } from "@/lib/i18n/types";
 
 export type { Messages, UILang } from "@/lib/i18n/types";
 
-export const SUPPORTED_LANGS: readonly UILang[] = ["fr", "en", "es", "de"];
+export const SUPPORTED_LANGS: readonly UILang[] = [
+  "fr",
+  "en",
+  "es",
+  "de",
+  "pt",
+  "it",
+  "zh",
+  "ja",
+  "ko",
+  "ar",
+];
 
 const DICTS: Record<UILang, Messages> = {
   fr,
   en,
   es,
   de,
+  pt,
+  it,
+  zh,
+  ja,
+  ko,
+  ar,
 };
 
 const FALLBACK: Messages = en;

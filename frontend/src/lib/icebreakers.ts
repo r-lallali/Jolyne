@@ -26,4 +26,34 @@ export const ICEBREAKERS: Record<LangCode, readonly string[]> = {
     "Hi! Wie lange lernst du schon?",
     "Was hat dich zum Üben gebracht?",
   ],
+  pt: [
+    "Olá! De onde és?",
+    "Oi! Há quanto tempo estás a aprender?",
+    "O que te levou a praticar?",
+  ],
+  it: [
+    "Ciao! Di dove sei?",
+    "Ciao! Da quanto tempo studi?",
+    "Cosa ti ha spinto a fare pratica?",
+  ],
+  zh: [
+    "你好！你来自哪里？",
+    "嗨！你学了多久了？",
+    "是什么让你想练习的？",
+  ],
+  ja: [
+    "こんにちは！どこの出身ですか？",
+    "やあ！どれくらい勉強していますか？",
+    "練習を始めたきっかけは何ですか？",
+  ],
+  ko: [
+    "안녕하세요! 어디에서 왔어요?",
+    "안녕! 얼마나 오래 배웠어요?",
+    "연습을 시작한 계기가 뭐예요?",
+  ],
+  ar: [
+    "مرحبًا! من أين أنت؟",
+    "أهلًا! منذ متى تتعلّم؟",
+    "ما الذي دفعك إلى التدرّب؟",
+  ],
 };

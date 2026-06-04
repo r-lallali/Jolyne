@@ -137,6 +137,12 @@ export const es: Messages = {
     en: "English",
     es: "Español",
     de: "Deutsch",
+    pt: "Português",
+    it: "Italiano",
+    zh: "中文",
+    ja: "日本語",
+    ko: "한국어",
+    ar: "العربية",
   },
   auth: {
     loginCta: "Iniciar sesión",

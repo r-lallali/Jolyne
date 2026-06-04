@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { AuthBootstrap } from "@/components/auth/AuthBootstrap";
 import { AuthTopRight } from "@/components/auth/AuthTopRight";
 import { ChatWordmark } from "@/components/ChatWordmark";
+import { HtmlLangSync } from "@/components/HtmlLangSync";
 import { InboxProvider } from "@/components/notifications/InboxProvider";
 import { PaywallModal } from "@/components/premium/PaywallModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -48,8 +49,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={inter.variable}>
+    <html lang="fr" dir="ltr" className={inter.variable}>
       <body className="font-sans antialiased">
+        <HtmlLangSync />
         <AuthBootstrap />
         <InboxProvider />
         <PaywallModal />

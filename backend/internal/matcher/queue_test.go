@@ -19,10 +19,15 @@ func TestValidatePair(t *testing.T) {
 		{"en→de", EN, DE, nil},
 		{"fr→es", FR, ES, nil},
 		{"es→fr", ES, FR, nil},
-		{"fr→de non ouverte", FR, DE, ErrPairNotOpen},
-		{"es→de non ouverte", ES, DE, ErrPairNotOpen},
+		// Toutes les paires de langues distinctes sont désormais ouvertes.
+		{"fr→de", FR, DE, nil},
+		{"es→de", ES, DE, nil},
+		{"zh→ja", ZH, JA, nil},
+		{"ar→en", AR, EN, nil},
+		{"ko→pt", KO, PT, nil},
+		{"it→fr", IT, FR, nil},
 		{"même langue", FR, FR, ErrSameLang},
-		{"code inconnu", "it", EN, ErrInvalidLang},
+		{"code inconnu", "xx", EN, ErrInvalidLang},
 		{"chaîne vide", "", EN, ErrInvalidLang},
 	}
 	for _, tc := range cases {

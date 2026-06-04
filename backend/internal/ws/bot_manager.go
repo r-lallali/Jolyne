@@ -330,6 +330,18 @@ func greetingSeed(lang string) string {
 		return "Inicia la conversación: saluda cálidamente al estudiante, preséntate en una frase y hazle una pregunta abierta para romper el hielo."
 	case "de":
 		return "Beginne das Gespräch: Begrüße den Lernenden herzlich, stelle dich in einem Satz vor und stelle eine offene Frage, um das Eis zu brechen."
+	case "pt":
+		return "Inicia a conversa: cumprimenta calorosamente o aluno, apresenta-te numa frase e faz-lhe uma pergunta aberta para quebrar o gelo."
+	case "it":
+		return "Inizia la conversazione: saluta calorosamente lo studente, presentati in una frase e fagli una domanda aperta per rompere il ghiaccio."
+	case "zh":
+		return "开始对话：热情地问候学习者，用一句话介绍自己，并提一个开放式问题来打破僵局。"
+	case "ja":
+		return "会話を始めてください：学習者に温かくあいさつし、一文で自己紹介をして、打ち解けるための自由に答えられる質問をしてください。"
+	case "ko":
+		return "대화를 시작하세요: 학습자에게 따뜻하게 인사하고, 한 문장으로 자신을 소개한 뒤, 분위기를 풀 수 있는 열린 질문을 하나 던지세요."
+	case "ar":
+		return "ابدئي المحادثة: حيّي المتعلّم بحرارة، وعرّفي بنفسك في جملة واحدة، واطرحي عليه سؤالًا مفتوحًا لكسر الجمود."
 	default:
 		return "Start the conversation: warmly greet the learner, briefly introduce yourself in one sentence, and ask an open question to break the ice."
 	}
