@@ -70,6 +70,22 @@ export function Conversation() {
     prevStatus.current = status;
   }, [status]);
 
+  // Étape courante du setup, lue depuis le hash (#config = choix des langues
+  // + âge ; vide = écran pseudo). Sert à masquer les barres de switch sur la
+  // seule étape config. Re-synchronisé aussi sur changement de status car le
+  // reset d'URL ci-dessus (replaceState) ne déclenche pas `hashchange` —
+  // déclaré après cet effet pour lire le hash déjà nettoyé.
+  const [isConfigStep, setIsConfigStep] = useState(false);
+  useEffect(() => {
+    const sync = () =>
+      setIsConfigStep(
+        typeof window !== "undefined" && window.location.hash === "#config",
+      );
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, [status]);
+
   let view: React.ReactNode;
   let key: string;
   if (status === "idle") {
@@ -103,10 +119,12 @@ export function Conversation() {
   // pseudo→config) au premier mount. On accepte un léger fade-in sur la
   // 1re vue.
   const showTabs = hydrated && !!authedUser;
-  // Les deux barres de switch anon/amis sont masquées sur l'écran de choix
-  // des langues (setup = mode anon + status idle) : il reste épuré. Le swipe
-  // continue d'y fonctionner (showTabs inchangé) pour rejoindre les amis.
-  const showModeTabs = showTabs && !(mode === "anon" && status === "idle");
+  // Les deux barres de switch anon/amis sont masquées sur la seule étape de
+  // choix des langues + âge (setup = mode anon + status idle + hash #config).
+  // L'écran de base (choix du pseudo) les garde pour accéder aux
+  // conversations. Le swipe reste actif partout (showTabs inchangé).
+  const showModeTabs =
+    showTabs && !(mode === "anon" && status === "idle" && isConfigStep);
   // En mode "friends", on remplace tout le contenu chat anonyme par la vue
   // amis. Les barres restent visibles au-dessus pour permettre de revenir.
 
