@@ -54,6 +54,12 @@ export default function AccountPage() {
   ]);
   const router = useRouter();
   const [unsavedOpen, setUnsavedOpen] = useState(false);
+  // Drapeau "départ volontaire" : passé à true avant toute navigation
+  // programmée (save / back / discard). Neutralise le history.back() du
+  // garde-fou dirty (cf. effet ci-dessous) qui, sinon, entre en concurrence
+  // avec router.push et peut annuler la navigation (bouton bloqué en
+  // "Enregistrement…", l'user reste sur /account).
+  const leavingRef = useRef(false);
   // Page de retour : on revient là d'où l'user a ouvert /account (chat
   // anonyme `/` ou liste des conversations `/chats`). Capturée dans
   // sessionStorage par le lien du menu compte ; défaut `/`.
@@ -136,9 +142,11 @@ export default function AccountPage() {
     window.addEventListener("popstate", onPop);
     return () => {
       window.removeEventListener("popstate", onPop);
-      // Consomme l'entrée leurre au unmount si elle est toujours là —
-      // évite de la laisser dans l'historique si l'user save et navigate.
-      if (window.history.state?.jolyne === "account-dirty") {
+      // Consomme l'entrée leurre au unmount si elle est toujours là — sauf
+      // si on part volontairement : dans ce cas router.push gère déjà la
+      // navigation et un history.back() ici la concurrencerait (course qui
+      // bloque le bouton et garde l'user sur /account).
+      if (!leavingRef.current && window.history.state?.jolyne === "account-dirty") {
         window.history.back();
       }
     };
@@ -159,11 +167,16 @@ export default function AccountPage() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingState("busy");
+    // Posé avant persist() : setAccount() y fait passer isDirty à false, ce
+    // qui déclenche le cleanup du garde-fou dirty avant qu'on atteigne
+    // router.push. leavingRef doit donc déjà être à true à ce moment-là.
+    leavingRef.current = true;
     try {
       await persist();
       // Enregistrement OK → on renvoie l'user sur la page d'où il vient.
       router.push(returnTo);
     } catch {
+      leavingRef.current = false;
       setSavingState("idle");
     }
   };
@@ -173,10 +186,12 @@ export default function AccountPage() {
       setUnsavedOpen(true);
       return;
     }
+    leavingRef.current = true;
     router.push(returnTo);
   };
 
   const saveAndLeave = async () => {
+    leavingRef.current = true;
     try {
       await persist();
     } catch {
@@ -188,6 +203,7 @@ export default function AccountPage() {
   };
 
   const discardAndLeave = () => {
+    leavingRef.current = true;
     setUnsavedOpen(false);
     router.push(returnTo);
   };
