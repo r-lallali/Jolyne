@@ -103,8 +103,12 @@ export function Conversation() {
   // pseudo→config) au premier mount. On accepte un léger fade-in sur la
   // 1re vue.
   const showTabs = hydrated && !!authedUser;
+  // Les deux barres de switch anon/amis sont masquées sur l'écran de choix
+  // des langues (setup = mode anon + status idle) : il reste épuré. Le swipe
+  // continue d'y fonctionner (showTabs inchangé) pour rejoindre les amis.
+  const showModeTabs = showTabs && !(mode === "anon" && status === "idle");
   // En mode "friends", on remplace tout le contenu chat anonyme par la vue
-  // amis. Le ModeTabs reste visible au-dessus pour permettre de revenir.
+  // amis. Les barres restent visibles au-dessus pour permettre de revenir.
 
   // Swipe horizontal pour switcher entre anon ↔ friends. Listeners
   // attachés sur document (touchstart / touchend) via useEffect pour
@@ -202,7 +206,7 @@ export function Conversation() {
 
   return (
     <>
-      {showTabs && (
+      {showModeTabs && (
         <ModeTabs mode={mode} onChange={switchMode} />
       )}
       <div
