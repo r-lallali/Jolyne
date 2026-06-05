@@ -306,7 +306,7 @@ function FriendRow({
               {peerName}
             </p>
             {friend.peer_verified && (
-              <span className="shrink-0 text-emerald-500 dark:text-emerald-400" title="Profil Vérifié">
+              <span className="shrink-0 text-blue-500 dark:text-blue-400" title="Profil Vérifié">
                 <VerifiedBadge className="size-3.5" />
               </span>
             )}

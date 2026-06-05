@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 // que streak < 2.
 // Variantes :
 //   - normal  : 🔥 N
-//   - at-risk : ⌛ N (pulse léger pour signaler le risque)
+//   - at-risk : ⌛ N (sablier statique pour signaler le risque)
 //
 // La restauration d'un streak perdu n'est plus exposée ici (pas de badge
 // 💔 à côté du nom) : elle passe par le StreakLostBanner dans le flux du
@@ -30,7 +30,7 @@ export function StreakBadge({ streak, atRisk, size = "sm" }: Props) {
       initial={{ scale: 0.7, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 380, damping: 22 }}
-      className={`inline-flex items-center ${gap} ${text} font-semibold text-neutral-700 dark:text-neutral-200 ${atRisk ? "animate-pulse" : ""}`}
+      className={`inline-flex items-center ${gap} ${text} font-semibold text-neutral-700 dark:text-neutral-200`}
       aria-label={atRisk ? `Streak ${streak} en péril` : `Streak ${streak}`}
     >
       <span aria-hidden>{atRisk ? "⌛" : "🔥"}</span>

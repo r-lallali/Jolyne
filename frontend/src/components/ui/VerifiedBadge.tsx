@@ -7,7 +7,7 @@ interface Props {
 export function VerifiedBadge({ className }: Props) {
   return (
     <svg
-      className={cn("size-4 text-emerald-500 dark:text-emerald-400 fill-current inline-block select-none", className)}
+      className={cn("size-4 text-blue-500 dark:text-blue-400 fill-current inline-block select-none", className)}
       viewBox="0 0 24 24"
       aria-label="Profil Vérifié"
     >
