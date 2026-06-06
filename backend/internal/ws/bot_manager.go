@@ -288,7 +288,15 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 	history := make([]claudeapi.Message, 0, maxBotHistoryTurns*2)
 	greeting, err := m.callClaude(ctx, room, p.System, history, "", userSess.Wants)
 	if err == nil && greeting != "" {
-		history = append(history, claudeapi.Message{Role: "assistant", Content: greeting})
+		// On consigne l'amorce (tour `user`) AVANT le greeting (`assistant`) :
+		// l'historique doit commencer par un `user`, sinon le 1er vrai message
+		// du user formerait [assistant, user] → 400 côté API et le bot ne
+		// répondrait plus. (Le garde-fou dans claudeapi.Reply couvre aussi ce
+		// cas, ceci préserve en plus le contexte du greeting.)
+		history = append(history,
+			claudeapi.Message{Role: "user", Content: greetingSeed(userSess.Wants)},
+			claudeapi.Message{Role: "assistant", Content: greeting},
+		)
 		m.sendBotMessage(ctx, room, greeting)
 	} else {
 		// Claude muet / en erreur : on ouvre quand même avec un greeting

@@ -116,6 +116,15 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 	msgs = append(msgs, history...)
 	msgs = append(msgs, Message{Role: "user", Content: userMsg})
 
+	// L'API Anthropic exige que le 1er message soit de rôle "user". Un
+	// historique ouvrant sur un tour "assistant" (typiquement le greeting du
+	// bot, qui parle en premier) provoque un 400 — donc, sans ce garde-fou,
+	// le bot répondrait en erreur à TOUS les messages suivants. On rogne les
+	// tours de tête jusqu'au premier "user".
+	for len(msgs) > 0 && msgs[0].Role != "user" {
+		msgs = msgs[1:]
+	}
+
 	reqBody, err := json.Marshal(messagesRequest{
 		Model:     c.model,
 		MaxTokens: defaultMaxTokens,
