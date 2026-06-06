@@ -98,6 +98,9 @@ export interface Messages {
     botIntroTitle: string;
     botIntroHint: string;
     botIntroDismiss: string;
+    // Bouton de l'encart "personnes en file" pendant un chat bot de repli :
+    // bascule vers un partenaire humain.
+    switchToHuman: string;
   };
   translate: {
     label: string;

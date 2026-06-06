@@ -70,6 +70,7 @@ export const ar: Messages = {
     botIntroHint:
       "لم يكن أحد متاحًا، لذا وصلناك بمدرّس ذكاء اصطناعي — يتحدث اللغة التي تريد التدرّب عليها، ويصحّح أخطاءك، ويقترح مواضيع.",
     botIntroDismiss: "لنبدأ",
+    switchToHuman: "تحدّث مع شخص",
   },
   translate: {
     label: "ترجمة",

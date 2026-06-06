@@ -69,6 +69,7 @@ export const ko: Messages = {
     botIntroHint:
       "지금은 연결할 사람이 없어서 AI 튜터에게 연결했어요 — 연습하려는 언어로 대화하고, 실수를 고쳐 주고, 화제를 제안해요.",
     botIntroDismiss: "시작하기",
+    switchToHuman: "사람과 대화하기",
   },
   translate: {
     label: "번역",

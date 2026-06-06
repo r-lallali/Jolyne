@@ -76,6 +76,7 @@ export const fr: Messages = {
     botIntroHint:
       "Personne n'était dispo, alors on te connecte à un prof IA — il parle dans la langue que tu veux pratiquer, corrige tes fautes, et te propose des sujets.",
     botIntroDismiss: "C'est parti",
+    switchToHuman: "Discuter avec quelqu'un",
   },
   translate: {
     label: "Traduire",

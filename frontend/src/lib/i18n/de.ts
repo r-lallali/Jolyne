@@ -73,6 +73,7 @@ export const de: Messages = {
     botIntroHint:
       "Niemand war verfügbar, daher verbinden wir dich mit einer KI-Lehrkraft — spricht die Sprache, die du üben willst, korrigiert deine Fehler und schlägt Themen vor.",
     botIntroDismiss: "Los geht's",
+    switchToHuman: "Mit jemandem chatten",
   },
   translate: {
     label: "Übersetzen",

@@ -70,6 +70,7 @@ export const ja: Messages = {
     botIntroHint:
       "対応できる人がいなかったので、AIチューターにつなぎました——あなたが練習したい言語で話し、間違いを直し、話題を提案してくれます。",
     botIntroDismiss: "はじめる",
+    switchToHuman: "誰かと話す",
   },
   translate: {
     label: "翻訳",

@@ -74,6 +74,7 @@ export const pt: Messages = {
     botIntroHint:
       "Não havia ninguém disponível, por isso ligámos-te a um tutor IA — fala a língua que queres praticar, corrige os teus erros e sugere temas.",
     botIntroDismiss: "Vamos a isso",
+    switchToHuman: "Falar com alguém",
   },
   translate: {
     label: "Traduzir",

@@ -73,6 +73,7 @@ export const en: Messages = {
     botIntroHint:
       "No one was available, so we connected you to an AI tutor — speaks the language you want to practice, corrects your mistakes, and suggests topics.",
     botIntroDismiss: "Let's go",
+    switchToHuman: "Chat with someone",
   },
   translate: {
     label: "Translate",

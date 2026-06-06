@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { BackGuardModal } from "@/components/chat/BackGuardModal";
 import { BotIntroToast } from "@/components/chat/BotIntroToast";
+import { BotQueueWatch } from "@/components/chat/BotQueueWatch";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { CorrectionModal } from "@/components/chat/CorrectionModal";
 import { MessageInput } from "@/components/chat/MessageInput";
@@ -15,6 +16,7 @@ import { fetchCloudName } from "@/lib/account";
 import { useT } from "@/lib/i18n";
 import { isPromptKey } from "@/lib/prompts";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
+import { useSessionStore } from "@/stores/sessionStore";
 
 // Cooldown anti-zap : on bloque le bouton Suivant pendant 3s après un
 // nouveau match. Évite qu'un user fasse "matched → next" sans laisser à
@@ -32,6 +34,10 @@ export function ChatView() {
   const peerProfile = useChatStore((s) => s.peerProfile);
   const peerIsBot = useChatStore((s) => s.peerIsBot);
   const matchedAt = useChatStore((s) => s.matchedAt);
+  // botMode = le user a explicitement choisi le prof IA. On ne propose le
+  // basculement vers un humain QUE sur un bot de repli (botMode off) — en
+  // mode prof IA voulu, "Suivant" relancerait un bot, pas un humain.
+  const botMode = useSessionStore((s) => s.botMode);
   const [cloudName, setCloudName] = useState("");
   useEffect(() => {
     fetchCloudName().then(setCloudName).catch(() => {});
@@ -181,6 +187,9 @@ export function ChatView() {
           peerIsBot={peerIsBot}
         />
         <BotIntroToast show={peerIsBot && status === "matched"} />
+        {peerIsBot && !botMode && status === "matched" && (
+          <BotQueueWatch onSwitch={next} />
+        )}
         {peerProfile &&
           peerProfile.prompts.some((p) => p.prompt && p.answer) && (
             <PeerPromptStrip prompts={peerProfile.prompts} />

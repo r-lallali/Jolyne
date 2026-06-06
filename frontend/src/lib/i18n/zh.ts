@@ -69,6 +69,7 @@ export const zh: Messages = {
     botIntroHint:
       "暂时没有人在线，所以我们为你接入了一位 AI 老师——用你想练习的语言交流，纠正你的错误，并提供话题。",
     botIntroDismiss: "开始吧",
+    switchToHuman: "和真人聊天",
   },
   translate: {
     label: "翻译",
