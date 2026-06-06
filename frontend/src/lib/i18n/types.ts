@@ -109,6 +109,7 @@ export interface Messages {
     genericError: string;
     limitReached: string; // quota quotidien atteint
     limitCta: string; // bouton "Premium" dans le popover
+    remaining: FormatString<{ count: number }>; // compteur traductions restantes
   };
   grammar: {
     suggestionsCount: FormatString<{ count: number }>;

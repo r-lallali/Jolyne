@@ -234,7 +234,8 @@ async function safeTranslate(
   target: string,
 ): Promise<string | null> {
   try {
-    return await translateText(text, source, target);
+    const { translated } = await translateText(text, source, target);
+    return translated;
   } catch {
     return null;
   }

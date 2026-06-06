@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { BackGuardModal } from "@/components/chat/BackGuardModal";
 import { BotIntroToast } from "@/components/chat/BotIntroToast";
 import { BotQueueWatch } from "@/components/chat/BotQueueWatch";
+import { BotQuotaCounter } from "@/components/chat/BotQuotaCounter";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { CorrectionModal } from "@/components/chat/CorrectionModal";
 import { MessageInput } from "@/components/chat/MessageInput";
@@ -187,6 +188,7 @@ export function ChatView() {
           peerIsBot={peerIsBot}
         />
         <BotIntroToast show={peerIsBot && status === "matched"} />
+        {peerIsBot && status === "matched" && <BotQuotaCounter />}
         {peerIsBot && !botMode && status === "matched" && (
           <BotQueueWatch onSwitch={next} />
         )}

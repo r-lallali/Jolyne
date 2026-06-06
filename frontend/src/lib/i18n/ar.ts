@@ -79,6 +79,7 @@ export const ar: Messages = {
     genericError: "خطأ",
     limitReached: "لقد بلغت حد الترجمات لهذا اليوم.",
     limitCta: "اشترك في Premium",
+    remaining: ({ count }) => `بقيت ${count} ترجمة اليوم`,
   },
   grammar: {
     suggestionsCount: ({ count }) => `${count} اقتراح`,

@@ -79,6 +79,7 @@ export const ja: Messages = {
     genericError: "エラー",
     limitReached: "本日の翻訳回数の上限に達しました。",
     limitCta: "Premiumにする",
+    remaining: ({ count }) => `今日はあと${count}回翻訳できます`,
   },
   grammar: {
     suggestionsCount: ({ count }) => `${count}件の提案`,

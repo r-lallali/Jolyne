@@ -19,6 +19,7 @@ export interface QuotaState {
   plan: "free" | "premium";
   bot: QuotaUsage;
   swipe: QuotaUsage;
+  translate: QuotaUsage;
 }
 
 export async function fetchQuota(signal?: AbortSignal): Promise<QuotaState> {

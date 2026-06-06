@@ -82,6 +82,7 @@ export const en: Messages = {
     genericError: "Error",
     limitReached: "You've hit today's translation limit.",
     limitCta: "Go Premium",
+    remaining: ({ count }) => `${count} translations left today`,
   },
   grammar: {
     suggestionsCount: ({ count }) =>

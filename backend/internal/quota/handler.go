@@ -29,9 +29,10 @@ type usageDTO struct {
 }
 
 type stateDTO struct {
-	Plan  string   `json:"plan"` // "free" | "premium"
-	Bot   usageDTO `json:"bot"`
-	Swipe usageDTO `json:"swipe"`
+	Plan      string   `json:"plan"` // "free" | "premium"
+	Bot       usageDTO `json:"bot"`
+	Swipe     usageDTO `json:"swipe"`
+	Translate usageDTO `json:"translate"`
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -55,11 +56,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp := stateDTO{Plan: "free"}
 	if premium {
 		resp.Plan = "premium"
-		resp.Bot = usageDTO{Limit: 0, Remaining: -1}
-		resp.Swipe = usageDTO{Limit: 0, Remaining: -1}
+		unlimited := usageDTO{Limit: 0, Remaining: -1}
+		resp.Bot = unlimited
+		resp.Swipe = unlimited
+		resp.Translate = unlimited
 	} else {
 		resp.Bot = h.usageFor(r.Context(), KindBot, id, FreeBotDaily)
 		resp.Swipe = h.usageFor(r.Context(), KindNext, id, FreeNextDaily)
+		resp.Translate = h.usageFor(r.Context(), KindTranslate, id, FreeTranslateDaily)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

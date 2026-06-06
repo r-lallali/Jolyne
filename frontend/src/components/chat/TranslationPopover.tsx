@@ -26,7 +26,7 @@ interface Props {
 
 type State =
   | { kind: "loading" }
-  | { kind: "ok"; translated: string }
+  | { kind: "ok"; translated: string; remaining: number }
   | { kind: "err"; message: string }
   | { kind: "limit" };
 
@@ -67,13 +67,13 @@ export function TranslationPopover({ request, onClose }: Props) {
 
     const performTranslation = async () => {
       try {
-        const translated = await translateText(
+        const { translated, remaining } = await translateText(
           request.text,
           request.source,
           request.target,
         );
         if (active) {
-          setState({ kind: "ok", translated });
+          setState({ kind: "ok", translated, remaining });
         }
       } catch (e) {
         if (!active) return;
@@ -184,6 +184,11 @@ export function TranslationPopover({ request, onClose }: Props) {
             <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-neutral-900 dark:text-neutral-50">
               {state.translated}
             </p>
+            {state.remaining >= 0 && (
+              <p className="mt-2 text-[10px] text-neutral-400 dark:text-neutral-500">
+                {t.translate.remaining({ count: state.remaining })}
+              </p>
+            )}
           </div>
         )}
 

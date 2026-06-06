@@ -14,11 +14,17 @@ export class TranslateError extends Error {}
 // Quota quotidien atteint (HTTP 429) — l'appelant propose le paywall Premium.
 export class TranslateQuotaError extends TranslateError {}
 
+export interface TranslateResult {
+  translated: string;
+  // Traductions restantes aujourd'hui (Free). -1 = illimité (Premium).
+  remaining: number;
+}
+
 export async function translateText(
   text: string,
   source: string,
   target: string,
-): Promise<string> {
+): Promise<TranslateResult> {
   const fp = await getFingerprint().catch(() => "");
   const res = await fetch(`${BASE}/api/translate`, {
     method: "POST",
@@ -28,6 +34,6 @@ export async function translateText(
   });
   if (res.status === 429) throw new TranslateQuotaError("translate: quota");
   if (!res.ok) throw new TranslateError(`translate: ${res.status}`);
-  const data = (await res.json()) as { translated: string };
-  return data.translated;
+  const data = (await res.json()) as { translated: string; remaining?: number };
+  return { translated: data.translated, remaining: data.remaining ?? -1 };
 }

@@ -78,6 +78,7 @@ export const ko: Messages = {
     genericError: "오류",
     limitReached: "오늘의 번역 한도에 도달했어요.",
     limitCta: "프리미엄 전환",
+    remaining: ({ count }) => `오늘 ${count}회 번역 남음`,
   },
   grammar: {
     suggestionsCount: ({ count }) => `제안 ${count}개`,

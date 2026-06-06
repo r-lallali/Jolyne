@@ -78,6 +78,7 @@ export const zh: Messages = {
     genericError: "出错了",
     limitReached: "你已达到今天的翻译次数上限。",
     limitCta: "升级 Premium",
+    remaining: ({ count }) => `今天还剩 ${count} 次翻译`,
   },
   grammar: {
     suggestionsCount: ({ count }) => `${count} 条建议`,

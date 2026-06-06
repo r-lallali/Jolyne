@@ -29,6 +29,9 @@ type translateReq struct {
 
 type translateResp struct {
 	Translated string `json:"translated"`
+	// Traductions restantes aujourd'hui (Free). -1 = illimité (Premium).
+	// Permet au popover d'afficher un compteur sans appel /api/quota séparé.
+	Remaining int64 `json:"remaining"`
 }
 
 // Handler expose POST /api/translate. Body JSON {text, source, target}.
@@ -104,11 +107,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Succès → on décompte (max=0 : simple incrément, le plafond a déjà été
-	// vérifié au pré-check ci-dessus).
+	// vérifié au pré-check ci-dessus). Le restant renvoyé alimente le compteur
+	// côté popover. Premium = illimité (-1).
+	remaining := int64(-1)
 	if !premium && h.Quota != nil && quotaID != "" {
-		_, _ = h.Quota.CheckAndIncrement(r.Context(), quota.KindTranslate, quotaID, 0)
+		used, _ := h.Quota.CheckAndIncrement(r.Context(), quota.KindTranslate, quotaID, 0)
+		remaining = quota.FreeTranslateDaily - used
+		if remaining < 0 {
+			remaining = 0
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(translateResp{Translated: translated})
+	_ = json.NewEncoder(w).Encode(translateResp{Translated: translated, Remaining: remaining})
 }
