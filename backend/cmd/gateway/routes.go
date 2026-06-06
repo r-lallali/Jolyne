@@ -17,6 +17,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/push"
+	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/translate"
 	"github.com/ralys/jolyne/backend/internal/users"
 	"github.com/ralys/jolyne/backend/internal/ws"
@@ -32,6 +33,7 @@ type services struct {
 	admin           *admin.Handlers   // nil si back-office désactivé
 	translate       *translate.Handler
 	grammar         *grammar.Handler
+	quota           *quota.Handler    // état des compteurs (toujours présent)
 	billing         *billing.Handlers // nil si Stripe non configuré
 	users           *users.Handlers   // nil si auth utilisateur désactivée
 	profile         *profile.Handlers // nil si auth utilisateur désactivée
@@ -51,6 +53,9 @@ func routes(s services) http.Handler {
 		mux.Handle("GET /ws/inbox", s.wsInboxHandler)
 	}
 	mux.Handle("/api/queue-size", publicCORS(s.publicCORS)(http.HandlerFunc(queueSize(s.rdb))))
+	if s.quota != nil {
+		mux.Handle("/api/quota", publicCORS(s.publicCORS)(methodOnly("GET", s.quota)))
+	}
 
 	if s.translate != nil {
 		mux.Handle("/api/translate", publicCORS(s.publicCORS)(s.translate))

@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { AgeGate } from "@/components/AgeGate";
+import { AiTeacherToggle } from "@/components/setup/AiTeacherToggle";
 import { LangSelector } from "@/components/setup/LangSelector";
 import { PseudoInput } from "@/components/setup/PseudoInput";
 import { UILangPicker } from "@/components/setup/UILangPicker";
@@ -20,6 +21,8 @@ import {
 } from "@/lib/langs";
 import { containsProfanity } from "@/lib/profanity";
 import { fetchQueueSize } from "@/lib/queueSize";
+import { fetchQuota, type QuotaState } from "@/lib/quota";
+import { usePaywallStore } from "@/stores/paywallStore";
 
 type Step = "pseudo" | "config";
 
@@ -39,9 +42,11 @@ export function SetupView() {
   const speaks = mounted ? store.speaks : null;
   const wants = mounted ? store.wants : null;
   const ageAccepted = mounted ? store.ageAccepted : false;
+  const botMode = mounted ? store.botMode : false;
   const setPseudoRaw = store.setPseudo;
   const setLangs = store.setLangs;
   const acceptAge = store.acceptAge;
+  const setBotMode = store.setBotMode;
 
   // Si l'user est connecté + a un display_name dans son profil, on propose
   // celui-ci comme suggestion italique (en place du placeholder). État
@@ -80,7 +85,15 @@ export function SetupView() {
   // sélectionnée. null = pas encore connu ; -1 = endpoint indisponible.
   const [queueCount, setQueueCount] = useState<number | null>(null);
   useEffect(() => {
-    if (step !== "config" || !speaks || !wants || !isPairAllowed(speaks, wants)) {
+    // En mode prof IA on ne match pas d'humain : le compteur d'attente n'a
+    // aucun sens, on coupe le polling.
+    if (
+      step !== "config" ||
+      botMode ||
+      !speaks ||
+      !wants ||
+      !isPairAllowed(speaks, wants)
+    ) {
       setQueueCount(null);
       return;
     }
@@ -101,7 +114,38 @@ export function SetupView() {
       ctrl.abort();
       clearInterval(id);
     };
-  }, [step, speaks, wants]);
+  }, [step, speaks, wants, botMode]);
+
+  // Quota prof IA : on charge l'état des compteurs en arrivant sur l'étape
+  // config, pour afficher les messages restants sous l'option et la griser si
+  // la limite est atteinte. Fail-soft : si l'appel échoue, on n'affiche
+  // simplement pas de compteur (option laissée active). Premium = illimité.
+  const showPaywall = usePaywallStore((s) => s.show);
+  const [quota, setQuota] = useState<QuotaState | null>(null);
+  useEffect(() => {
+    if (step !== "config") return;
+    let alive = true;
+    const ctrl = new AbortController();
+    fetchQuota(ctrl.signal)
+      .then((q) => alive && setQuota(q))
+      .catch(() => alive && setQuota(null));
+    return () => {
+      alive = false;
+      ctrl.abort();
+    };
+  }, [step]);
+
+  const isPremium = quota?.plan === "premium";
+  // Restant à afficher : null pour Premium (illimité) ou tant que non chargé.
+  const botRemaining = quota && !isPremium ? quota.bot.remaining : null;
+  const botExhausted = botRemaining !== null && botRemaining <= 0;
+
+  // Si la limite est atteinte alors que le mode prof IA était coché (ex. quota
+  // épuisé dans l'onglet pendant la session), on le décoche pour ne pas lancer
+  // une recherche vouée au paywall.
+  useEffect(() => {
+    if (botExhausted && botMode) setBotMode(false);
+  }, [botExhausted, botMode, setBotMode]);
 
   // Langues à griser dans le picker "wants" : tant que speaks n'est pas
   // choisi on grise tout ; sinon on grise speaks + toutes les langues qui
@@ -252,6 +296,14 @@ export function SetupView() {
                       exclude={wantsExclude}
                     />
                   </div>
+
+                  <AiTeacherToggle
+                    value={botMode}
+                    onChange={setBotMode}
+                    disabled={botExhausted}
+                    onDisabledClick={() => showPaywall("bot")}
+                    remaining={botRemaining}
+                  />
 
                   {queueCount !== null && queueCount >= 0 && (
                     <div className="flex flex-col items-center gap-1 pt-1">

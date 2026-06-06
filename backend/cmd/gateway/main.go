@@ -169,6 +169,10 @@ func run() error {
 	if svc.translate != nil {
 		svc.translate.Quota = wsDeps.Quota
 	}
+	// État des compteurs (GET /api/quota) : même moteur Redis. Monté même sans
+	// auth — les anonymes sont décomptés par fingerprint. ResolveUserID /
+	// IsPremium sont branchés plus bas si l'auth user est active.
+	svc.quota = &quota.Handler{Engine: wsDeps.Quota}
 	if svc.pg != nil {
 		wsDeps.Friends = friends.NewStore(svc.pg)
 	}
@@ -288,21 +292,27 @@ func run() error {
 			}
 			return session.PlanFree
 		}
-		// Le handler translate résout le user via le cookie de session pour
-		// appliquer le quota par compte (ou le bypass Premium).
-		if svc.translate != nil && userSessionSecret != nil {
-			svc.translate.IsPremium = isPremium
-			svc.translate.ResolveUserID = func(r *http.Request) int64 {
-				c, err := r.Cookie(users.SessionCookieName)
-				if err != nil {
-					return 0
-				}
-				s, err := users.VerifySession(c.Value, userSessionSecret)
-				if err != nil {
-					return 0
-				}
-				return s.UserID
+		// Résout le user via le cookie de session, pour appliquer le quota par
+		// compte (ou le bypass Premium). Partagé par les handlers translate et
+		// quota (état des compteurs).
+		resolveUserID := func(r *http.Request) int64 {
+			c, err := r.Cookie(users.SessionCookieName)
+			if err != nil {
+				return 0
 			}
+			s, err := users.VerifySession(c.Value, userSessionSecret)
+			if err != nil {
+				return 0
+			}
+			return s.UserID
+		}
+		if svc.translate != nil {
+			svc.translate.IsPremium = isPremium
+			svc.translate.ResolveUserID = resolveUserID
+		}
+		if svc.quota != nil {
+			svc.quota.IsPremium = isPremium
+			svc.quota.ResolveUserID = resolveUserID
 		}
 
 		// Billing Premium (Stripe). Actif seulement si la clé secrète + le

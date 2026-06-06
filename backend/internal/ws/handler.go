@@ -159,7 +159,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer h.d.Hub.Unregister(sess.ID)
 
 	go conn.Run(r.Context())
-	h.runSession(r.Context(), conn, sess, wakeup)
+	h.runSession(r.Context(), conn, sess, wakeup, params.botMode)
 }
 
 // banMessage formate une raison utilisateur-visible (sans détails internes).

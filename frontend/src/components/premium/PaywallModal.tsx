@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LoginSheet } from "@/components/auth/LoginSheet";
+import { PlanComparison } from "@/components/premium/PlanComparison";
 import { startCheckout } from "@/lib/billing";
 import { useT } from "@/lib/i18n";
 import { usePaywallStore } from "@/stores/paywallStore";
@@ -90,15 +91,8 @@ export function PaywallModal() {
                 {reason}
               </p>
 
-              <div className="mt-5 rounded-2xl bg-neutral-50 p-4 dark:bg-neutral-900">
-                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-                  {t.premium.perksTitle}
-                </p>
-                <ul className="mt-2 flex flex-col gap-1.5 text-sm text-neutral-700 dark:text-neutral-300">
-                  <Perk>{t.premium.perkSwipe}</Perk>
-                  <Perk>{t.premium.perkTranslate}</Perk>
-                  <Perk>{t.premium.perkBot}</Perk>
-                </ul>
+              <div className="mt-5">
+                <PlanComparison />
               </div>
 
               {!user && (
@@ -148,23 +142,5 @@ export function PaywallModal() {
           paywall affiche alors le bouton Checkout. */}
       <LoginSheet open={loginOpen} onClose={() => setLoginOpen(false)} />
     </>
-  );
-}
-
-function Perk({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-2">
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-        className="mt-0.5 size-3.5 shrink-0 text-emerald-500"
-        aria-hidden
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-      </svg>
-      <span>{children}</span>
-    </li>
   );
 }

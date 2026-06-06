@@ -39,6 +39,12 @@ export interface Messages {
     ageGate: string;
     legal: string;
     pseudoBlocked: string;
+    // Toggle "Prof IA" sur l'écran de setup : titre + sous-titre explicatif.
+    aiTeacher: string;
+    aiTeacherHint: string;
+    // Compteur Free de messages prof IA restants + libellé quand épuisé.
+    aiTeacherRemaining: FormatString<{ count: number }>;
+    aiTeacherExhausted: string;
     // Phrase courte qui suit le compteur "scoreboard" (pas le nombre).
     queueWaitingSuffix: FormatString<{ count: number }>;
   };
@@ -301,10 +307,6 @@ export interface Messages {
     reasonSwipe: string;
     reasonTranslate: string;
     reasonBot: string;
-    perksTitle: string;
-    perkSwipe: string;
-    perkTranslate: string;
-    perkBot: string;
     upgradeCta: string;
     loginRequired: string;
     loginCta: string;
@@ -313,11 +315,18 @@ export interface Messages {
     // Section /account
     accountTitle: string;
     priceMonthly: string;
-    statusFreeTitle: string;
-    statusFreeHint: string;
     statusPremiumTitle: string;
     statusPremiumHint: FormatString<{ date: string }>;
     manageCta: string;
+    // Tableau comparatif des offres
+    compareDaily: string;
+    planFree: string;
+    planPremium: string;
+    featurePartners: string;
+    featureTranslations: string;
+    featureBot: string;
+    unlimited: string;
+    currentPlanBadge: string;
     // Pages retour Stripe
     successTitle: string;
     successHint: string;

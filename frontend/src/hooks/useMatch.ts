@@ -67,7 +67,7 @@ export function useMatch() {
   }, [chat]);
 
   const start = useCallback(async () => {
-    const { pseudo, speaks, wants, ageAccepted } = session.getState();
+    const { pseudo, speaks, wants, ageAccepted, botMode } = session.getState();
     if (!speaks || !wants || !ageAccepted || pseudo.length < 3) return;
 
     activeConn?.close();
@@ -90,6 +90,9 @@ export function useMatch() {
         wants,
         fp,
         age: "ok",
+        // Mode prof IA direct : le backend saute le matching humain et lance
+        // un bot tout de suite. Param omis en mode normal.
+        ...(botMode ? { bot: "1" } : {}),
       },
       onStateChange: (s) => {
         const cur = chat.getState().status;

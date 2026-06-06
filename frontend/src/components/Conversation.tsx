@@ -284,10 +284,8 @@ interface ErrorProps {
 function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
   const t = useT();
   const showPaywall = usePaywallStore((s) => s.show);
-  const fatal =
-    code === "quota_exceeded" ||
-    code === "invalid_pseudo" ||
-    code === "banned";
+  const isQuota = code === "quota_exceeded" || code === "bot_quota_exceeded";
+  const fatal = isQuota || code === "invalid_pseudo" || code === "banned";
   return (
     <div className="flex h-dvh w-full flex-col items-center justify-center gap-6 px-6 text-center sm:h-[92vh]">
       <p className="text-lg font-medium text-neutral-900 dark:text-neutral-100">
@@ -297,10 +295,12 @@ function ErrorView({ code, message, onRetry, onBack }: ErrorProps) {
         {hintForCode(code, message, t)}
       </p>
       <div className="flex gap-3">
-        {code === "quota_exceeded" && (
+        {isQuota && (
           <button
             type="button"
-            onClick={() => showPaywall("swipe")}
+            onClick={() =>
+              showPaywall(code === "bot_quota_exceeded" ? "bot" : "swipe")
+            }
             className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-100 transition-opacity hover:opacity-90 dark:bg-neutral-100 dark:text-neutral-900"
           >
             {t.premium.upgradeCta}
@@ -333,6 +333,8 @@ function labelForCode(code: string | null, t: Messages): string {
       return t.errors.queueTimeoutTitle;
     case "quota_exceeded":
       return t.errors.quotaExceededTitle;
+    case "bot_quota_exceeded":
+      return t.premium.reasonBot;
     case "invalid_pseudo":
       return t.errors.invalidPseudoTitle;
     case "invalid_param":
@@ -356,6 +358,7 @@ function hintForCode(
     case "queue_timeout":
       return t.errors.queueTimeoutHint;
     case "quota_exceeded":
+    case "bot_quota_exceeded":
       return t.errors.quotaExceededHint;
     case "invalid_pseudo":
       return t.errors.invalidPseudoHint;

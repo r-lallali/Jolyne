@@ -141,6 +141,16 @@ func (m *BotManager) attemptSpawn(parent context.Context, userSess session.Sessi
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
+	// Quota prof IA épuisé (Free) : on n'arme pas un bot de repli qui
+	// dirait aussitôt « limite atteinte ». On laisse le user en queue —
+	// un match humain reste possible, sinon il sortira sur queue_timeout.
+	if userSess.Plan != session.PlanPremium && m.quota != nil {
+		id := quota.Identity(userSess.UserID, userSess.Fingerprint)
+		if used, err := m.quota.Used(ctx, quota.KindBot, id); err == nil && used >= quota.FreeBotDaily {
+			return
+		}
+	}
+
 	speaks := matcher.LangCode(userSess.Speaks)
 	wants := matcher.LangCode(userSess.Wants)
 	// Sort le user de sa queue. Si la session a déjà été matchée ou
@@ -156,22 +166,62 @@ func (m *BotManager) attemptSpawn(parent context.Context, userSess session.Sessi
 		return
 	}
 
+	m.startBot(ctx, userSess)
+}
+
+// SpawnNow : lance un bot prof IA immédiatement pour ce user, sans timer ni
+// passage par la queue de matching. Appelé quand le user a explicitement
+// choisi le mode "Prof IA" sur l'écran de setup. Le user n'étant inscrit
+// dans aucune queue, on saute le RemoveFromQueue d'attemptSpawn (pas de race
+// possible avec un peer humain).
+//
+// Bloquant : tient toute la durée de la conversation — à appeler dans sa
+// propre goroutine. Renvoie false SANS bloquer (et sans émettre de Wakeup)
+// si l'IA est désactivée ou la capacité est saturée, pour que le caller
+// puisse se rabattre sur le matching humain.
+func (m *BotManager) SpawnNow(parent context.Context, userSess session.Session) bool {
+	if !m.Enabled() {
+		return false
+	}
+	m.mu.Lock()
+	if m.activeBots >= m.maxConcurrent {
+		m.mu.Unlock()
+		return false
+	}
+	m.activeBots++
+	m.mu.Unlock()
+	defer func() {
+		m.mu.Lock()
+		m.activeBots--
+		m.mu.Unlock()
+	}()
+
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+
+	return m.startBot(ctx, userSess)
+}
+
+// startBot réveille le user (frame `ServerMatched` IsBot=true, émise par son
+// runChat) puis lance la boucle de conversation côté bot. Bloquant pour la
+// durée de la conversation. Renvoie false si le Wakeup échoue (user déjà
+// parti / canal plein) — dans ce cas le bot n'est pas lancé.
+func (m *BotManager) startBot(ctx context.Context, userSess session.Session) bool {
 	persona := personaFor(userSess.Wants)
 	roomID := uuid.NewString()
 	botPeerID := "bot:" + uuid.NewString()
 
-	// Réveille le user comme s'il avait matché un peer humain — la frame
-	// `ServerMatched` (envoyée par son runChat) portera IsBot=true.
 	if !m.hub.Wakeup(userSess.ID, WakeupEvent{
 		RoomID:   roomID,
 		PeerNick: persona.Name,
 		PeerID:   botPeerID,
 		IsBot:    true,
 	}) {
-		return
+		return false
 	}
 
 	m.runBot(ctx, roomID, botPeerID, userSess, persona)
+	return true
 }
 
 // runBot : boucle de chat côté bot. Subscribe à la room, envoie un

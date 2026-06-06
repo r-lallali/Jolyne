@@ -131,8 +131,39 @@ func (c *Conn) writer(ctx context.Context) {
 				return
 			}
 		case <-ctx.Done():
+			// Le contexte de la requête est annulé dès que ServeHTTP rend la
+			// main (runSession a return). Une dernière frame peut alors
+			// dormir dans Outbound — typiquement l'erreur terminale
+			// (quota_exceeded / queue_timeout) émise juste avant le return.
+			// Sans ce flush, la course annulation↔écriture la perd : le
+			// client ne reçoit jamais la raison, ne marque pas l'erreur comme
+			// fatale et se reconnecte en boucle (recherche infinie). Le reader
+			// reste bloqué dans ReadJSON, donc pas d'écriture concurrente sur
+			// le socket pendant le drain.
+			c.flushPending()
 			return
 		case <-c.done:
+			return
+		}
+	}
+}
+
+// flushPending vide le tampon Outbound sur le socket, sans bloquer. Appelé
+// uniquement par le writer (donc jamais d'écriture concurrente) au moment
+// d'un arrêt sur annulation de contexte — garantit la livraison des frames
+// déjà en file avant la fermeture.
+func (c *Conn) flushPending() {
+	for {
+		select {
+		case f, ok := <-c.Outbound:
+			if !ok {
+				return
+			}
+			_ = c.ws.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.ws.WriteJSON(f); err != nil {
+				return
+			}
+		default:
 			return
 		}
 	}

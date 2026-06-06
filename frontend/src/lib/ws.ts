@@ -61,6 +61,7 @@ const FATAL_CODES = new Set([
   "invalid_param",
   "invalid_pseudo",
   "quota_exceeded",
+  "bot_quota_exceeded",
   "banned",
 ]);
 

@@ -94,13 +94,14 @@ type ServerFrame struct {
 
 // Codes d'erreur applicatifs (envoyés dans ServerFrame.Code).
 const (
-	ErrCodeInvalidParam   = "invalid_param"
-	ErrCodeQueueTimeout   = "queue_timeout"
-	ErrCodeQuotaExceeded  = "quota_exceeded"
-	ErrCodeMessageBlocked = "message_blocked"
-	ErrCodeMessageTooLong = "message_too_long"
-	ErrCodeBanned         = "banned"
-	ErrCodeInternal       = "internal"
+	ErrCodeInvalidParam     = "invalid_param"
+	ErrCodeQueueTimeout     = "queue_timeout"
+	ErrCodeQuotaExceeded    = "quota_exceeded"     // swipe (nouveaux partenaires)
+	ErrCodeBotQuotaExceeded = "bot_quota_exceeded" // messages au prof IA
+	ErrCodeMessageBlocked   = "message_blocked"
+	ErrCodeMessageTooLong   = "message_too_long"
+	ErrCodeBanned           = "banned"
+	ErrCodeInternal         = "internal"
 )
 
 func (s ServerFrame) Marshal() ([]byte, error) { return json.Marshal(s) }

@@ -17,7 +17,7 @@ import (
 //
 // `lastPeer` conserve le sessionID du dernier peer matché. Passé à TryMatch
 // pour empêcher d'être ré-apparié immédiatement avec la même personne.
-func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Session, wakeup <-chan WakeupEvent) {
+func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Session, wakeup <-chan WakeupEvent, botMode bool) {
 	speaks, wants := matcher.LangCode(sess.Speaks), matcher.LangCode(sess.Wants)
 	var lastPeer string
 
@@ -38,6 +38,57 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 	}
 
 	for {
+		// Mode prof IA direct : le user a coché "Prof IA" sur l'écran de
+		// setup. On court-circuite le matching humain et on lance un bot tout
+		// de suite. Le bot consomme son propre quota (50 msg/j en Free) et ne
+		// touche pas au crédit swipe — d'où le `continue` qui re-boucle sans
+		// passer par le pré-check ci-dessous.
+		if botMode && h.d.Bot != nil && h.d.Bot.Enabled() {
+			// Pré-check quota prof IA (Free uniquement) AVANT de lancer le bot :
+			// inutile de réveiller un prof qui dira aussitôt « limite atteinte »
+			// puis repartira (ce qui bouclerait à chaque Next). On renvoie une
+			// erreur terminale dédiée → le front présente le paywall Premium.
+			if sess.Plan != session.PlanPremium {
+				used, err := h.d.Quota.Used(ctx, quota.KindBot, quotaID)
+				if err != nil {
+					h.d.Log.Warn("bot quota used check", "err", err)
+				} else if used >= quota.FreeBotDaily {
+					conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeBotQuotaExceeded})
+					return
+				}
+			}
+			// SpawnNow réveille notre session via Hub.Wakeup (IsBot=true) PUIS
+			// bloque le temps de la conversation côté bot — donc en goroutine.
+			// Il ne renvoie `false` (immédiatement, sans Wakeup) que si l'IA
+			// est saturée ; dans ce cas on se rabat sur le matching humain.
+			spawned := make(chan bool, 1)
+			go func() { spawned <- h.d.Bot.SpawnNow(ctx, sess) }()
+			select {
+			case ev, ok := <-wakeup:
+				if !ok {
+					return
+				}
+				exit := h.runChat(ctx, conn, sess, chatPeer{
+					ID:    ev.PeerID,
+					Nick:  ev.PeerNick,
+					IsBot: true,
+				}, ev.RoomID, canNext)
+				if exit == chatDisconnect {
+					return
+				}
+				// chatNext / chatPeerLeft : on re-boucle → nouveau prof IA.
+				continue
+			case <-spawned:
+				// Échec immédiat (capacité saturée) — aucun Wakeup émis. On
+				// laisse tomber dans le flow humain ci-dessous pour ne pas
+				// laisser le user coincé.
+			case <-ctx.Done():
+				return
+			case <-conn.Done():
+				return
+			}
+		}
+
 		// Quota swipe : 1 crédit par nouveau partenaire humain (Free = 10/j,
 		// Premium illimité). Pré-check AVANT de mobiliser un peer pour bloquer
 		// net au 11e et présenter le paywall sans gâcher de match.
