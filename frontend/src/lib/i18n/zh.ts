@@ -281,6 +281,8 @@ export const zh: Messages = {
     redirecting: "正在跳转…",
     accountTitle: "订阅",
     priceMonthly: "10 € / 月",
+    statusFreeTitle: "免费方案",
+    statusFreeHint: "每天 10 位伙伴、10 次翻译和 50 条 AI 老师消息。",
     statusPremiumTitle: "Premium ✨",
     statusPremiumHint: ({ date }) => `有效期至 ${date}。`,
     manageCta: "管理订阅",

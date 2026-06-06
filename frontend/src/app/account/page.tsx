@@ -8,7 +8,6 @@ import { usePhotoDrag } from "@/hooks/usePhotoDrag";
 import { BackButton } from "@/components/ui/BackButton";
 import { PromptSlot } from "@/components/account/PromptSlot";
 import { VerificationCard } from "@/components/account/VerificationCard";
-import { PlanComparison } from "@/components/premium/PlanComparison";
 import {
   AccountDTO,
   PromptDTO,
@@ -566,12 +565,14 @@ function PremiumSection({
       <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
         {t.premium.accountTitle}
       </h2>
-      <div className="mt-3">
-        <PlanComparison currentPlan={isPremium ? "premium" : "free"} />
+      <div className="mt-3 rounded-2xl border border-neutral-200 p-4 dark:border-neutral-800">
         {isPremium ? (
-          <div className="mt-4">
+          <>
+            <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+              {t.premium.statusPremiumTitle}
+            </p>
             {until && (
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                 {t.premium.statusPremiumHint({ date: until })}
               </p>
             )}
@@ -579,24 +580,32 @@ function PremiumSection({
               type="button"
               onClick={manage}
               disabled={busy}
-              className="mt-3 w-full rounded-xl bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 disabled:opacity-50 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              className="mt-4 w-full rounded-xl bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 disabled:opacity-50 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               {busy ? t.premium.redirecting : t.premium.manageCta}
             </button>
-          </div>
+          </>
         ) : (
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => showPaywall("swipe")}
-              className="inline-flex items-center rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
-            >
-              {t.premium.upgradeCta}
-            </button>
-            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
-              {t.premium.priceMonthly}
-            </span>
-          </div>
+          <>
+            <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+              {t.premium.statusFreeTitle}
+            </p>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              {t.premium.statusFreeHint}
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => showPaywall("swipe")}
+                className="inline-flex items-center rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
+              >
+                {t.premium.upgradeCta}
+              </button>
+              <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                {t.premium.priceMonthly}
+              </span>
+            </div>
+          </>
         )}
       </div>
     </section>

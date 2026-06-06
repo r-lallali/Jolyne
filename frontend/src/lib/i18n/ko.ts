@@ -285,6 +285,8 @@ export const ko: Messages = {
     redirecting: "이동 중…",
     accountTitle: "구독",
     priceMonthly: "10 € / 월",
+    statusFreeTitle: "무료 플랜",
+    statusFreeHint: "하루 상대 10명, 번역 10회, AI 튜터 메시지 50개.",
     statusPremiumTitle: "프리미엄 ✨",
     statusPremiumHint: ({ date }) => `${date}까지 이용 가능.`,
     manageCta: "구독 관리",

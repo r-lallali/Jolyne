@@ -286,6 +286,8 @@ export const ja: Messages = {
     redirecting: "リダイレクト中…",
     accountTitle: "サブスクリプション",
     priceMonthly: "10 € / 月",
+    statusFreeTitle: "無料プラン",
+    statusFreeHint: "1日に相手10人、翻訳10回、AIチューターへのメッセージ50通。",
     statusPremiumTitle: "Premium ✨",
     statusPremiumHint: ({ date }) => `${date}まで有効。`,
     manageCta: "サブスクリプションを管理",

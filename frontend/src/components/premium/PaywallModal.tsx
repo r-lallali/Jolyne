@@ -92,7 +92,7 @@ export function PaywallModal() {
               </p>
 
               <div className="mt-5">
-                <PlanComparison />
+                <PlanComparison currentPlan={user ? "free" : undefined} />
               </div>
 
               {!user && (

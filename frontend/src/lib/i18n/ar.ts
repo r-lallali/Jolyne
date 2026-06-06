@@ -286,6 +286,8 @@ export const ar: Messages = {
     redirecting: "جارٍ إعادة التوجيه…",
     accountTitle: "الاشتراك",
     priceMonthly: "10 € / شهر",
+    statusFreeTitle: "الخطة المجانية",
+    statusFreeHint: "10 شركاء و10 ترجمات و50 رسالة للمدرّس الذكي يوميًا.",
     statusPremiumTitle: "Premium ✨",
     statusPremiumHint: ({ date }) => `فعّال حتى ${date}.`,
     manageCta: "إدارة الاشتراك",

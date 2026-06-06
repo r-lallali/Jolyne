@@ -290,6 +290,9 @@ export const de: Messages = {
     redirecting: "Weiterleitung…",
     accountTitle: "Abonnement",
     priceMonthly: "10 € / Monat",
+    statusFreeTitle: "Kostenloser Plan",
+    statusFreeHint:
+      "10 Partner, 10 Übersetzungen und 50 KI-Tutor-Nachrichten pro Tag.",
     statusPremiumTitle: "Premium ✨",
     statusPremiumHint: ({ date }) => `Aktiv bis ${date}.`,
     manageCta: "Abonnement verwalten",

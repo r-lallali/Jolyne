@@ -315,6 +315,8 @@ export interface Messages {
     // Section /account
     accountTitle: string;
     priceMonthly: string;
+    statusFreeTitle: string;
+    statusFreeHint: string;
     statusPremiumTitle: string;
     statusPremiumHint: FormatString<{ date: string }>;
     manageCta: string;

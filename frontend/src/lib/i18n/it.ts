@@ -291,6 +291,9 @@ export const it: Messages = {
     redirecting: "Reindirizzamento…",
     accountTitle: "Abbonamento",
     priceMonthly: "10 € / mese",
+    statusFreeTitle: "Piano gratuito",
+    statusFreeHint:
+      "10 partner, 10 traduzioni e 50 messaggi al tutor IA al giorno.",
     statusPremiumTitle: "Premium ✨",
     statusPremiumHint: ({ date }) => `Attivo fino al ${date}.`,
     manageCta: "Gestisci abbonamento",
