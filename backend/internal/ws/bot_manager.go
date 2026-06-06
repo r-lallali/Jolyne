@@ -215,31 +215,37 @@ func (m *BotManager) startBot(ctx context.Context, userSess session.Session) boo
 	roomID := uuid.NewString()
 	botPeerID := "bot:" + uuid.NewString()
 
+	// On s'abonne à la room AVANT de réveiller le user : le bot est ainsi
+	// garanti présent quand le user publie son `join`, donc le greeting est
+	// toujours capté et n'est jamais publié dans le vide (le timer de repli
+	// dans runBot ne reste qu'un filet de sécurité).
+	room, err := openRoom(ctx, m.rdb, roomID, botPeerID)
+	if err != nil {
+		if m.log != nil {
+			m.log.Warn("bot open room", "err", err)
+		}
+		return false
+	}
+
 	if !m.hub.Wakeup(userSess.ID, WakeupEvent{
 		RoomID:   roomID,
 		PeerNick: persona.Name,
 		PeerID:   botPeerID,
 		IsBot:    true,
 	}) {
+		_ = room.Close()
 		return false
 	}
 
-	m.runBot(ctx, roomID, botPeerID, userSess, persona)
+	m.runBot(ctx, room, userSess, persona)
 	return true
 }
 
-// runBot : boucle de chat côté bot. Subscribe à la room, envoie un
-// greeting après un court délai, puis répond à chaque message du user
-// via Claude. S'arrête quand le user quitte (Left) ou que le quota
-// maxBotMessages est atteint.
-func (m *BotManager) runBot(ctx context.Context, roomID, botPeerID string, userSess session.Session, p botPersona) {
-	room, err := openRoom(ctx, m.rdb, roomID, botPeerID)
-	if err != nil {
-		if m.log != nil {
-			m.log.Warn("bot open room", "err", err)
-		}
-		return
-	}
+// runBot : boucle de chat côté bot. La room est déjà ouverte/abonnée par
+// startBot. Attend le `join` du user, envoie un greeting, puis répond à
+// chaque message via Claude. S'arrête quand le user quitte (Left) ou que le
+// quota maxBotMessages est atteint.
+func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Session, p botPersona) {
 	defer func() {
 		sendCtx, c := context.WithTimeout(context.Background(), time.Second)
 		_ = room.SendLeft(sendCtx)

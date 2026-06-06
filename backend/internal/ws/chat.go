@@ -55,10 +55,13 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 		_ = room.SendLeft(sendCtx)
 		_ = room.Close()
 	}()
-	// Annonce notre présence dans la room dès l'abonnement confirmé. Sert au
-	// bot prof IA, qui attend ce signal avant d'envoyer son greeting (sinon il
-	// publierait avant qu'on soit abonné → message perdu). Inoffensif côté
-	// peer humain (kind inconnu de la boucle ci-dessous → ignoré).
+	// Démarre le reader de la room AVANT d'annoncer notre présence : ainsi
+	// aucun message (greeting du bot prof IA compris) ne peut être émis avant
+	// qu'on ne soit prêt à le consommer. Puis on publie `join` — signal que le
+	// bot attend pour envoyer son greeting (sinon il publierait dans le vide,
+	// pub/sub ne bufferisant pas → prof IA muet). `join` est ignoré par un
+	// peer humain (kind absent du switch de la boucle).
+	peerCh := room.Channel()
 	_ = room.SendJoin(ctx)
 
 	conn.Send(ServerFrame{Type: ServerMatched, Room: roomID, PeerNick: peer.Nick, IsBot: peer.IsBot})
@@ -108,7 +111,6 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 	peerAccept := false
 	friendDone := false
 
-	peerCh := room.Channel()
 	for {
 		select {
 		case <-ctx.Done():
