@@ -69,7 +69,9 @@ type Config struct {
 
 	// Bot prof IA (Anthropic Claude). ANTHROPIC_API_KEY vide → bot
 	// désactivé, comportement chat anonyme identique à avant. Default
-	// model "claude-haiku-4-5" pour coût/latence optimaux.
+	// model "claude-haiku-4-5-20251001" (ID canonique avec date — l'alias
+	// sans date n'est pas garanti et un modèle inconnu fait échouer TOUS les
+	// appels en 404, donc bot muet / réponses de repli).
 	AnthropicAPIKey    string
 	AnthropicModel     string
 	BotMaxConcurrent   int
@@ -123,7 +125,7 @@ func Load() (Config, error) {
 		VAPIDPrivateKey:      os.Getenv("VAPID_PRIVATE_KEY"),
 		VAPIDSubject:         os.Getenv("VAPID_SUBJECT"),
 		AnthropicAPIKey:      os.Getenv("ANTHROPIC_API_KEY"),
-		AnthropicModel:       getEnv("ANTHROPIC_MODEL", "claude-haiku-4-5"),
+		AnthropicModel:       getEnv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
 		BotMaxConcurrent:     getEnvInt("BOT_MAX_CONCURRENT", 20),
 		BotTriggerDelaySec:   getEnvInt("BOT_TRIGGER_DELAY_SEC", 10),
 		StripeSecretKey:      os.Getenv("STRIPE_SECRET_KEY"),

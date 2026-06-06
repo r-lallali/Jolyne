@@ -301,7 +301,11 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 	} else {
 		// Claude muet / en erreur : on ouvre quand même avec un greeting
 		// canned pour que le prof IA ne reste JAMAIS silencieux après le
-		// match (sinon l'user croit qu'il « ne s'est pas lancé »).
+		// match (sinon l'user croit qu'il « ne s'est pas lancé »). On logge
+		// l'erreur — c'est LE signal d'un souci de clé/modèle Anthropic.
+		if err != nil && m.log != nil {
+			m.log.Warn("bot greeting fell back (claude call failed)", "err", err)
+		}
 		m.sendBotMessage(ctx, room, greetingFallbackMsg(userSess.Wants))
 	}
 	msgCount := 1
@@ -344,6 +348,11 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 				userMsg := html.UnescapeString(env.Body)
 				reply, err := m.callClaude(ctx, room, p.System, history, userMsg, userSess.Wants)
 				if err != nil {
+					// Réponse de repli + log : si ça arrive à CHAQUE message,
+					// c'est un souci de clé/modèle Anthropic (et non la room).
+					if m.log != nil {
+						m.log.Warn("bot reply fell back (claude call failed)", "err", err)
+					}
 					reply = fallbackReply(userSess.Wants)
 				}
 				history = appendHistory(history, claudeapi.Message{Role: "user", Content: userMsg})
