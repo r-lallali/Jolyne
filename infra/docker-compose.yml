@@ -73,7 +73,9 @@ services:
     image: libretranslate/libretranslate:latest
     restart: unless-stopped
     environment:
-      LT_LOAD_ONLY: "en,fr,es,de"
+      # Toutes les langues de l'app (sinon les paires ar/pt/it/zh/ja/ko
+      # échouent). Argos pivote par l'anglais → garder `en`.
+      LT_LOAD_ONLY: "en,fr,es,de,pt,it,zh,ja,ko,ar"
       LT_DISABLE_WEB_UI: "true"
     healthcheck:
       test:

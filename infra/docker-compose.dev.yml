@@ -74,14 +74,16 @@ services:
       retries: 5
 
   # LibreTranslate : self-host (PLAN.md §8 décisions). Premier boot lent
-  # (plusieurs minutes) car téléchargement des modèles FR/EN/ES/DE.
+  # (plusieurs minutes) car téléchargement des modèles des 10 langues.
+  # LT_LOAD_ONLY couvre toutes les langues de l'app (sinon ar/pt/it/zh/ja/ko
+  # échouent) ; Argos pivote par l'anglais → garder `en`.
   # Pas de volume persistant : volume nommé = root-owned, LT tourne en UID
   # 1032 → PermissionError. Modèles re-téléchargés à chaque container create.
   libretranslate:
     image: libretranslate/libretranslate:latest
     restart: unless-stopped
     environment:
-      LT_LOAD_ONLY: "en,fr,es,de"
+      LT_LOAD_ONLY: "en,fr,es,de,pt,it,zh,ja,ko,ar"
       LT_DISABLE_WEB_UI: "true"
     healthcheck:
       test:
