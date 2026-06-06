@@ -55,6 +55,12 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 		_ = room.SendLeft(sendCtx)
 		_ = room.Close()
 	}()
+	// Annonce notre présence dans la room dès l'abonnement confirmé. Sert au
+	// bot prof IA, qui attend ce signal avant d'envoyer son greeting (sinon il
+	// publierait avant qu'on soit abonné → message perdu). Inoffensif côté
+	// peer humain (kind inconnu de la boucle ci-dessous → ignoré).
+	_ = room.SendJoin(ctx)
+
 	conn.Send(ServerFrame{Type: ServerMatched, Room: roomID, PeerNick: peer.Nick, IsBot: peer.IsBot})
 
 	// Si le peer est authentifié + qu'on a accès au store profil, on

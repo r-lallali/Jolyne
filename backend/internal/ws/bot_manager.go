@@ -28,6 +28,16 @@ const (
 	// mémoire. Au-delà on tronque depuis le début (on garde toujours les
 	// plus récents). 20 paires = 40 messages.
 	maxBotHistoryTurns = 20
+
+	// botJoinWait : délai max d'attente du signal `join` du user avant
+	// d'envoyer le greeting quand même (fallback si le join a été raté — le
+	// user est alors abonné depuis longtemps). Garantit qu'on ne parle jamais
+	// dans le vide tout en restant réactif.
+	botJoinWait = 1500 * time.Millisecond
+
+	// botSettleDelay : petite pause après la présence confirmée, le temps que
+	// le client affiche son ServerMatched avant le premier message du bot.
+	botSettleDelay = 500 * time.Millisecond
 )
 
 // BotManager : arme un timer 10s par user mis en queue, et lance un bot
@@ -141,16 +151,10 @@ func (m *BotManager) attemptSpawn(parent context.Context, userSess session.Sessi
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
-	// Quota prof IA épuisé (Free) : on n'arme pas un bot de repli qui
-	// dirait aussitôt « limite atteinte ». On laisse le user en queue —
-	// un match humain reste possible, sinon il sortira sur queue_timeout.
-	if userSess.Plan != session.PlanPremium && m.quota != nil {
-		id := quota.Identity(userSess.UserID, userSess.Fingerprint)
-		if used, err := m.quota.Used(ctx, quota.KindBot, id); err == nil && used >= quota.FreeBotDaily {
-			return
-		}
-	}
-
+	// NB : on ne court-circuite PAS sur quota épuisé ici. Le bot doit
+	// toujours se lancer après le délai (sinon il « ne se lance pas » du
+	// point de vue user) ; runBot ouvre alors par le message de limite
+	// canned (sans appel Claude) puis prend congé. Voir runBot.
 	speaks := matcher.LangCode(userSess.Speaks)
 	wants := matcher.LangCode(userSess.Wants)
 	// Sort le user de sa queue. Si la session a déjà été matchée ou
@@ -243,23 +247,51 @@ func (m *BotManager) runBot(ctx context.Context, roomID, botPeerID string, userS
 		c()
 	}()
 
-	// Greeting : on laisse le client afficher d'abord son ServerMatched
-	// (~200ms), puis on envoie un premier message comme si on amorçait
-	// la conversation.
-	time.Sleep(1200 * time.Millisecond)
+	// Canal d'évènements de la room — ouvert AVANT le greeting pour capter le
+	// `join` du user. À n'appeler qu'UNE fois (chaque appel lance un reader).
+	events := room.Channel()
+
+	// On attend que le user ait rejoint la room avant de parler : sinon le
+	// greeting partirait avant son abonnement et serait perdu (pub/sub ne
+	// bufferise pas), d'où un prof IA muet. Fallback sur timeout si le `join`
+	// est raté.
+	if !m.waitForPeerJoin(ctx, events) {
+		return
+	}
+	// Petite pause pour laisser le client afficher son ServerMatched avant
+	// le premier message.
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(botSettleDelay):
+	}
 
 	// Identité de quota prof IA : userID si connecté, sinon fingerprint.
 	botQuotaID := quota.Identity(userSess.UserID, userSess.Fingerprint)
+
+	// Quota déjà épuisé (Free) : on ouvre directement par le message de
+	// limite (canned, pas d'appel Claude) puis on prend congé. Évite un chat
+	// muet (le prof IA « ne se lance pas ») et ne brûle pas de tokens.
+	if userSess.Plan != session.PlanPremium && m.quota != nil {
+		if used, qerr := m.quota.Used(ctx, quota.KindBot, botQuotaID); qerr == nil && used >= quota.FreeBotDaily {
+			m.sendBotMessage(ctx, room, botDailyLimitMsg(userSess.Wants))
+			return
+		}
+	}
 
 	history := make([]claudeapi.Message, 0, maxBotHistoryTurns*2)
 	greeting, err := m.callClaude(ctx, room, p.System, history, "", userSess.Wants)
 	if err == nil && greeting != "" {
 		history = append(history, claudeapi.Message{Role: "assistant", Content: greeting})
 		m.sendBotMessage(ctx, room, greeting)
+	} else {
+		// Claude muet / en erreur : on ouvre quand même avec un greeting
+		// canned pour que le prof IA ne reste JAMAIS silencieux après le
+		// match (sinon l'user croit qu'il « ne s'est pas lancé »).
+		m.sendBotMessage(ctx, room, greetingFallbackMsg(userSess.Wants))
 	}
 	msgCount := 1
 
-	events := room.Channel()
 	for {
 		select {
 		case <-ctx.Done():
@@ -304,6 +336,35 @@ func (m *BotManager) runBot(ctx context.Context, roomID, botPeerID string, userS
 				history = appendHistory(history, claudeapi.Message{Role: "assistant", Content: reply})
 				m.sendBotMessage(ctx, room, reply)
 				msgCount++
+			}
+		}
+	}
+}
+
+// waitForPeerJoin attend que le user soit présent dans la room avant que le
+// bot n'ouvre la conversation. Le user publie un `join` à l'ouverture de sa
+// room ; tant qu'on ne l'a pas vu (ou un autre signe de vie : msg/typing), un
+// greeting partirait potentiellement dans le vide. Renvoie false si le user
+// quitte ou si le contexte est annulé avant. Fallback sur botJoinWait au cas
+// où le `join` aurait été raté (le user est alors abonné depuis longtemps).
+func (m *BotManager) waitForPeerJoin(ctx context.Context, events <-chan roomEnvelope) bool {
+	timer := time.NewTimer(botJoinWait)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-timer.C:
+			return true
+		case env, ok := <-events:
+			if !ok {
+				return false
+			}
+			switch env.Kind {
+			case roomKindLeft:
+				return false
+			case roomKindJoin, roomKindMsg, roomKindTyping:
+				return true
 			}
 		}
 	}

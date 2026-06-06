@@ -19,6 +19,7 @@ const (
 	roomKindTyping       roomKind = "typing"
 	roomKindCorrection   roomKind = "correction"
 	roomKindFriendAccept roomKind = "friend_accept" // l'autre côté a accepté le prompt 10-min
+	roomKindJoin         roomKind = "join"          // signal de présence émis à l'ouverture de la room
 )
 
 type roomEnvelope struct {
@@ -98,6 +99,14 @@ func (r *Room) SendMsg(ctx context.Context, id, body string) error {
 // SendLeft signale au peer qu'on quitte la conversation (next / déconnexion).
 func (r *Room) SendLeft(ctx context.Context) error {
 	return r.publish(ctx, roomEnvelope{Kind: roomKindLeft})
+}
+
+// SendJoin annonce au peer qu'on vient de rejoindre la room (abonnement
+// confirmé). Le bot prof IA l'attend avant d'envoyer son greeting : sans ça
+// il publierait dans le vide (pub/sub ne bufferise pas pour un abonné en
+// retard) et le prof IA semblerait muet. Ignoré par un peer humain.
+func (r *Room) SendJoin(ctx context.Context) error {
+	return r.publish(ctx, roomEnvelope{Kind: roomKindJoin})
 }
 
 // SendTyping signale au peer qu'on est en train de taper. Best-effort —
