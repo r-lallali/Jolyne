@@ -20,9 +20,12 @@ import (
 )
 
 const (
-	defaultEndpoint  = "https://api.anthropic.com/v1/messages"
-	defaultAPIVer    = "2023-06-01"
-	defaultModel     = "claude-haiku-4-5"
+	defaultEndpoint = "https://api.anthropic.com/v1/messages"
+	defaultAPIVer   = "2023-06-01"
+	// ID canonique avec date — aligné sur le default de config.go et le
+	// docker-compose. Un alias/modèle inconnu fait échouer tout appel en 404
+	// (prof IA muet) ; on garde donc l'ID daté comme repli sûr.
+	defaultModel     = "claude-haiku-4-5-20251001"
 	defaultMaxTokens = 256
 	defaultTimeout   = 8 * time.Second
 )

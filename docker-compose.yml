@@ -66,10 +66,13 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
-      # Bot prof IA (Claude). Vide → bot désactivé. Default model
-      # claude-haiku-4-5 pour coût/latence ; ~$0.002 par réponse.
+      # Bot prof IA (Claude). Vide → bot désactivé (prof IA "ne se lance pas").
+      # Default model claude-haiku-4-5-20251001 (ID canonique avec date) pour
+      # coût/latence ; ~$0.002 par réponse. Doit rester aligné sur le default Go
+      # (config.go) : un alias/modèle inconnu fait échouer TOUS les appels en 404
+      # → prof IA muet / réponses de repli.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5-20251001}
       BOT_MAX_CONCURRENT: ${BOT_MAX_CONCURRENT:-20}
       BOT_TRIGGER_DELAY_SEC: ${BOT_TRIGGER_DELAY_SEC:-10}
       # Stripe (abonnement Premium). Vide → /api/billing/* renvoie 503.
