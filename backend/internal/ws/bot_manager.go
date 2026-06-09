@@ -26,8 +26,10 @@ const (
 
 	// maxBotHistoryTurns : nombre max de tours user+assistant gardés en
 	// mémoire. Au-delà on tronque depuis le début (on garde toujours les
-	// plus récents). 20 paires = 40 messages.
-	maxBotHistoryTurns = 20
+	// plus récents). 12 paires = 24 messages — assez pour tenir le fil d'un
+	// chat casual tout en bornant le coût d'input (l'historique est
+	// re-traité par l'API à chaque appel).
+	maxBotHistoryTurns = 12
 
 	// botJoinWait : délai max d'attente du signal `join` du user avant
 	// d'envoyer le greeting quand même (fallback si le join a été raté — le
@@ -286,28 +288,20 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 	}
 
 	history := make([]claudeapi.Message, 0, maxBotHistoryTurns*2)
-	greeting, err := m.callClaude(ctx, room, p.System, history, "", userSess.Wants)
-	if err == nil && greeting != "" {
-		// On consigne l'amorce (tour `user`) AVANT le greeting (`assistant`) :
-		// l'historique doit commencer par un `user`, sinon le 1er vrai message
-		// du user formerait [assistant, user] → 400 côté API et le bot ne
-		// répondrait plus. (Le garde-fou dans claudeapi.Reply couvre aussi ce
-		// cas, ceci préserve en plus le contexte du greeting.)
-		history = append(history,
-			claudeapi.Message{Role: "user", Content: greetingSeed(userSess.Wants)},
-			claudeapi.Message{Role: "assistant", Content: greeting},
-		)
-		m.sendBotMessage(ctx, room, greeting)
-	} else {
-		// Claude muet / en erreur : on ouvre quand même avec un greeting
-		// canned pour que le prof IA ne reste JAMAIS silencieux après le
-		// match (sinon l'user croit qu'il « ne s'est pas lancé »). On logge
-		// l'erreur — c'est LE signal d'un souci de clé/modèle Anthropic.
-		if err != nil && m.log != nil {
-			m.log.Warn("bot greeting fell back (claude call failed)", "err", err)
-		}
-		m.sendBotMessage(ctx, room, greetingFallbackMsg(userSess.Wants))
-	}
+	// Greeting de la persona (aucun appel Claude) : 1er message instantané,
+	// TOUJOURS identique pour cette langue (peu importe que le prof soit assigné
+	// par défaut ou choisi explicitement, connecté ou non), −1 appel par
+	// conversation, et zéro risque d'ouverture muette si l'API est en panne (404
+	// modèle / 5xx / timeout). On amorce l'historique avec un tour `user` (seed)
+	// AVANT le greeting (`assistant`) : l'historique doit commencer par un
+	// `user`, sinon le 1er vrai message formerait [assistant, user] → 400 et le
+	// bot ne répondrait plus. Le seed donne aussi à Claude le contexte de son
+	// ouverture pour la suite de l'échange.
+	history = append(history,
+		claudeapi.Message{Role: "user", Content: greetingSeed(userSess.Wants)},
+		claudeapi.Message{Role: "assistant", Content: p.Greeting},
+	)
+	m.sendBotMessage(ctx, room, p.Greeting)
 	msgCount := 1
 
 	for {
@@ -346,7 +340,7 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 				// déchiffre pour l'envoyer en clair à Claude — sans logguer
 				// le contenu.
 				userMsg := html.UnescapeString(env.Body)
-				reply, err := m.callClaude(ctx, room, p.System, history, userMsg, userSess.Wants)
+				reply, err := m.callClaude(ctx, room, p.System, history, userMsg)
 				if err != nil {
 					// Réponse de repli + log : si ça arrive à CHAQUE message,
 					// c'est un souci de clé/modèle Anthropic (et non la room).
@@ -393,10 +387,12 @@ func (m *BotManager) waitForPeerJoin(ctx context.Context, events <-chan roomEnve
 	}
 }
 
-// callClaude : envoie l'appel à Claude tout en émettant un signal "typing"
-// au peer pour que l'UI affiche les 3 points pendant la latence (~1s sur
-// Haiku 4.5). Ajoute aussi un jitter humain 800-1500ms après réponse.
-func (m *BotManager) callClaude(ctx context.Context, room *Room, system string, history []claudeapi.Message, userMsg, targetLang string) (string, error) {
+// callClaude : envoie le message du user à Claude tout en émettant un signal
+// "typing" au peer pour que l'UI affiche les 3 points pendant la latence (~1s
+// sur Haiku 4.5). Ajoute aussi un jitter humain 800-1500ms après réponse.
+// N'est appelée QUE pour répondre à un vrai message du user — le greeting
+// d'ouverture part en dur depuis runBot (persona.Greeting), jamais via Claude.
+func (m *BotManager) callClaude(ctx context.Context, room *Room, system string, history []claudeapi.Message, userMsg string) (string, error) {
 	typingCtx, typingCancel := context.WithCancel(ctx)
 	defer typingCancel()
 	go func() {
@@ -413,12 +409,7 @@ func (m *BotManager) callClaude(ctx context.Context, room *Room, system string, 
 		}
 	}()
 
-	prompt := userMsg
-	if prompt == "" {
-		// Cas du greeting initial — on demande à Claude d'ouvrir.
-		prompt = greetingSeed(targetLang)
-	}
-	reply, err := m.claude.Reply(ctx, system, history, prompt)
+	reply, err := m.claude.Reply(ctx, system, history, userMsg)
 	if err != nil {
 		return "", err
 	}

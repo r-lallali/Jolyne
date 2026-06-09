@@ -3,6 +3,10 @@ package ws
 // Réponses de repli quand Claude est injoignable (timeout, 5xx, clé
 // révoquée…). Le bot reste poli, indique brièvement que ça ne marche
 // pas, puis termine la conversation pour laisser le user re-queue.
+//
+// Le greeting d'ouverture, lui, n'est PAS ici : il est porté par chaque
+// persona (botPersona.Greeting) — toujours identique pour une langue donnée,
+// envoyé sans appel Claude. Voir bot_persona.go.
 
 var botFallbacks = map[string]string{
 	"fr": "Désolée, j'ai un petit bug — on se reparle plus tard !",
@@ -45,35 +49,11 @@ var botDailyLimit = map[string]string{
 	"ar": "تحدّثنا كثيرًا اليوم! لقد بلغت حدّك اليومي من الرسائل معي. عُد غدًا، أو اشترك في Premium للدردشة بلا حدود 💛",
 }
 
-// Greeting de repli quand l'appel Claude initial échoue (timeout, 5xx, clé
-// révoquée…). Garantit que le prof IA ouvre TOUJOURS la conversation par un
-// message — sinon le chat reste muet après le match et l'user croit que le
-// bot « ne s'est pas lancé ». Rédigé dans la langue que l'user pratique.
-var botGreetings = map[string]string{
-	"fr": "Salut ! Je suis ton partenaire de langue. De quoi as-tu envie de parler aujourd'hui ?",
-	"en": "Hi! I'm your language partner. What would you like to talk about today?",
-	"es": "¡Hola! Soy tu compañero de idiomas. ¿De qué te gustaría hablar hoy?",
-	"de": "Hallo! Ich bin dein Sprachpartner. Worüber möchtest du heute sprechen?",
-	"pt": "Olá! Sou o teu parceiro de línguas. Sobre o que queres falar hoje?",
-	"it": "Ciao! Sono il tuo partner linguistico. Di cosa ti va di parlare oggi?",
-	"zh": "你好！我是你的语言伙伴。今天想聊点什么呢？",
-	"ja": "こんにちは！あなたの語学パートナーです。今日は何について話したいですか？",
-	"ko": "안녕하세요! 당신의 언어 파트너예요. 오늘은 어떤 얘기를 나눠볼까요?",
-	"ar": "مرحبًا! أنا شريكك اللغوي. عن ماذا تودّ أن نتحدّث اليوم؟",
-}
-
 func fallbackReply(lang string) string {
 	if s, ok := botFallbacks[lang]; ok {
 		return s
 	}
 	return botFallbacks["en"]
-}
-
-func greetingFallbackMsg(lang string) string {
-	if s, ok := botGreetings[lang]; ok {
-		return s
-	}
-	return botGreetings["en"]
 }
 
 func goodbyeMsg(lang string) string {

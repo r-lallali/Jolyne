@@ -16,6 +16,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -28,6 +30,15 @@ const (
 	defaultModel     = "claude-haiku-4-5-20251001"
 	defaultMaxTokens = 256
 	defaultTimeout   = 8 * time.Second
+
+	// Retry sur 429 / 5xx (rate limit, overload, erreur transitoire). 1 retry
+	// = 2 tentatives max — assez pour absorber un pic à BOT_MAX_CONCURRENT sans
+	// faire trop attendre l'user (le prof IA reste "en train d'écrire"). On NE
+	// retry PAS les erreurs réseau/timeout (le client a déjà un timeout dur ;
+	// re-tenter doublerait la latence sans garantie).
+	maxRetries    = 1
+	retryBackoff  = 600 * time.Millisecond
+	maxRetryAfter = 4 * time.Second
 )
 
 // ErrDisabled : le client est instancié mais pas de clé API → tout
@@ -45,7 +56,7 @@ type Client struct {
 
 type Option func(*Client)
 
-func WithModel(m string) Option       { return func(c *Client) { c.model = m } }
+func WithModel(m string) Option        { return func(c *Client) { c.model = m } }
 func WithLogger(l *slog.Logger) Option { return func(c *Client) { c.log = l } }
 func WithHTTPClient(h *http.Client) Option {
 	return func(c *Client) { c.http = h }
@@ -138,43 +149,102 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 		return "", fmt.Errorf("claudeapi: marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewReader(reqBody))
-	if err != nil {
-		return "", fmt.Errorf("claudeapi: new request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", c.apiKey)
-	req.Header.Set("anthropic-version", c.apiVer)
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("claudeapi: http do: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return "", fmt.Errorf("claudeapi: read body: %w", err)
-	}
-
-	if resp.StatusCode >= 400 {
-		var env apiErrorEnvelope
-		_ = json.Unmarshal(body, &env)
-		if c.log != nil {
-			// On log uniquement le type d'erreur, jamais le content envoyé.
-			c.log.Warn("claudeapi error response", "status", resp.StatusCode, "type", env.Error.Type)
+	backoff := retryBackoff
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			// Backoff entre deux tentatives (429/5xx) — respecte l'annulation.
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(backoff):
+			}
 		}
-		return "", fmt.Errorf("claudeapi: status %d: %s", resp.StatusCode, env.Error.Type)
-	}
 
-	var parsed messagesResponse
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return "", fmt.Errorf("claudeapi: parse response: %w", err)
-	}
-	for _, b := range parsed.Content {
-		if b.Type == "text" && b.Text != "" {
-			return b.Text, nil
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewReader(reqBody))
+		if err != nil {
+			return "", fmt.Errorf("claudeapi: new request: %w", err)
 		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-api-key", c.apiKey)
+		req.Header.Set("anthropic-version", c.apiVer)
+
+		resp, err := c.http.Do(req)
+		if err != nil {
+			// Erreur réseau/timeout : pas de retry (voir note sur maxRetries).
+			return "", fmt.Errorf("claudeapi: http do: %w", err)
+		}
+		body, rerr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		status := resp.StatusCode
+		retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"))
+		_ = resp.Body.Close()
+		if rerr != nil {
+			return "", fmt.Errorf("claudeapi: read body: %w", rerr)
+		}
+
+		// 429 / 5xx : transitoire (rate limit, overload). On re-tente s'il
+		// reste des tentatives, sinon on remonte l'erreur au caller (qui
+		// bascule sur sa réponse de repli).
+		if status == http.StatusTooManyRequests || status >= 500 {
+			var env apiErrorEnvelope
+			_ = json.Unmarshal(body, &env)
+			lastErr = fmt.Errorf("claudeapi: status %d: %s", status, env.Error.Type)
+			if attempt < maxRetries {
+				backoff = retryBackoff
+				if retryAfter > 0 {
+					backoff = retryAfter
+				}
+				if c.log != nil {
+					c.log.Warn("claudeapi retrying", "status", status, "type", env.Error.Type, "attempt", attempt+1)
+				}
+				continue
+			}
+			if c.log != nil {
+				c.log.Warn("claudeapi error response", "status", status, "type", env.Error.Type)
+			}
+			return "", lastErr
+		}
+
+		if status >= 400 {
+			// 4xx non-retryable (400/401/403/404…) : erreur définitive.
+			var env apiErrorEnvelope
+			_ = json.Unmarshal(body, &env)
+			if c.log != nil {
+				// On log uniquement le type d'erreur, jamais le content envoyé.
+				c.log.Warn("claudeapi error response", "status", status, "type", env.Error.Type)
+			}
+			return "", fmt.Errorf("claudeapi: status %d: %s", status, env.Error.Type)
+		}
+
+		var parsed messagesResponse
+		if err := json.Unmarshal(body, &parsed); err != nil {
+			return "", fmt.Errorf("claudeapi: parse response: %w", err)
+		}
+		for _, b := range parsed.Content {
+			if b.Type == "text" && b.Text != "" {
+				return b.Text, nil
+			}
+		}
+		return "", fmt.Errorf("claudeapi: empty response")
 	}
-	return "", fmt.Errorf("claudeapi: empty response")
+	return "", lastErr
+}
+
+// parseRetryAfter lit l'en-tête Retry-After (secondes entières — format usuel
+// d'Anthropic). Plafonné à maxRetryAfter pour ne pas geler le prof IA. Renvoie
+// 0 si absent/illisible (le caller retombe alors sur retryBackoff).
+func parseRetryAfter(v string) time.Duration {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0
+	}
+	secs, err := strconv.Atoi(v)
+	if err != nil || secs <= 0 {
+		return 0
+	}
+	d := time.Duration(secs) * time.Second
+	if d > maxRetryAfter {
+		return maxRetryAfter
+	}
+	return d
 }
