@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -31,13 +32,19 @@ const (
 	defaultMaxTokens = 256
 	defaultTimeout   = 8 * time.Second
 
-	// Retry sur 429 / 5xx (rate limit, overload, erreur transitoire). 1 retry
-	// = 2 tentatives max — assez pour absorber un pic à BOT_MAX_CONCURRENT sans
-	// faire trop attendre l'user (le prof IA reste "en train d'écrire"). On NE
-	// retry PAS les erreurs réseau/timeout (le client a déjà un timeout dur ;
-	// re-tenter doublerait la latence sans garantie).
-	maxRetries    = 1
+	// Retry sur 429 / 5xx (rate limit, overload, erreur transitoire). Budgets
+	// distincts : un 5xx est rarement résolu en re-tentant vite (1 retry
+	// suffit), alors qu'un 429 est par nature transitoire — quand plusieurs
+	// profs IA parlent en même temps, c'est l'erreur dominante, d'où un budget
+	// plus large. On NE retry PAS les erreurs réseau/timeout (le client a déjà
+	// un timeout dur ; re-tenter doublerait la latence sans garantie).
+	maxRetries5xx = 1
+	maxRetries429 = 2
 	retryBackoff  = 600 * time.Millisecond
+	// retryJitter étale les re-tentatives des appels concurrents : sans lui,
+	// N bots pris dans le même pic 429 re-tentent au même instant et
+	// re-collisionnent — le retry ne sert alors à rien.
+	retryJitter   = 400 * time.Millisecond
 	maxRetryAfter = 4 * time.Second
 )
 
@@ -66,12 +73,20 @@ func WithHTTPClient(h *http.Client) Option {
 // et chaque Reply renverra ErrDisabled. Permet de garder le câblage du
 // caller indépendant de la configuration.
 func New(apiKey string, opts ...Option) *Client {
+	// Pool dimensionné pour des appels simultanés : le Transport par défaut ne
+	// garde que 2 connexions idle par hôte — au-delà de 2 profs IA répondant
+	// en même temps, chaque appel paierait un handshake TCP+TLS complet vers
+	// api.anthropic.com (latence ↑, donc plus de timeouts à defaultTimeout et
+	// de réponses de repli). 64 couvre BOT_MAX_CONCURRENT avec de la marge.
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.MaxIdleConns = 64
+	tr.MaxIdleConnsPerHost = 64
 	c := &Client{
 		apiKey:   apiKey,
 		model:    defaultModel,
 		endpoint: defaultEndpoint,
 		apiVer:   defaultAPIVer,
-		http:     &http.Client{Timeout: defaultTimeout},
+		http:     &http.Client{Timeout: defaultTimeout, Transport: tr},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -150,8 +165,7 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 	}
 
 	backoff := retryBackoff
-	var lastErr error
-	for attempt := 0; attempt <= maxRetries; attempt++ {
+	for attempt := 0; ; attempt++ {
 		if attempt > 0 {
 			// Backoff entre deux tentatives (429/5xx) — respecte l'annulation.
 			select {
@@ -171,7 +185,8 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 
 		resp, err := c.http.Do(req)
 		if err != nil {
-			// Erreur réseau/timeout : pas de retry (voir note sur maxRetries).
+			// Erreur réseau/timeout : pas de retry (voir note sur les budgets
+			// maxRetries429/maxRetries5xx en tête de fichier).
 			return "", fmt.Errorf("claudeapi: http do: %w", err)
 		}
 		body, rerr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
@@ -188,12 +203,19 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 		if status == http.StatusTooManyRequests || status >= 500 {
 			var env apiErrorEnvelope
 			_ = json.Unmarshal(body, &env)
-			lastErr = fmt.Errorf("claudeapi: status %d: %s", status, env.Error.Type)
-			if attempt < maxRetries {
+			lastErr := fmt.Errorf("claudeapi: status %d: %s", status, env.Error.Type)
+			limit := maxRetries5xx
+			if status == http.StatusTooManyRequests {
+				limit = maxRetries429
+			}
+			if attempt < limit {
 				backoff = retryBackoff
 				if retryAfter > 0 {
 					backoff = retryAfter
 				}
+				// Jitter anti-troupeau : étale les retries des bots
+				// concurrents pris dans le même pic de rate limit.
+				backoff += time.Duration(rand.Int63n(int64(retryJitter)))
 				if c.log != nil {
 					c.log.Warn("claudeapi retrying", "status", status, "type", env.Error.Type, "attempt", attempt+1)
 				}
@@ -227,7 +249,6 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 		}
 		return "", fmt.Errorf("claudeapi: empty response")
 	}
-	return "", lastErr
 }
 
 // parseRetryAfter lit l'en-tête Retry-After (secondes entières — format usuel
