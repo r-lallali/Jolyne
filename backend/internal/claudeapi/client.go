@@ -30,16 +30,25 @@ const (
 	// (prof IA muet) ; on garde donc l'ID daté comme repli sûr.
 	defaultModel     = "claude-haiku-4-5-20251001"
 	defaultMaxTokens = 256
-	defaultTimeout   = 8 * time.Second
+	// defaultTimeout est PAR TENTATIVE et borne la génération entière : l'appel
+	// est non-streaming, l'API n'envoie ses headers qu'une fois les ~256 tokens
+	// générés. À 8s les générations de pointe se faisaient couper ("Client.Timeout
+	// exceeded while awaiting headers" en prod) ; 12s + 1 retry transport couvre
+	// la queue de latence en gardant l'attente max sous ~25s (l'UI affiche
+	// "écrit…" pendant ce temps).
+	defaultTimeout = 12 * time.Second
 
-	// Retry sur 429 / 5xx (rate limit, overload, erreur transitoire). Budgets
-	// distincts : un 5xx est rarement résolu en re-tentant vite (1 retry
+	// Retry sur 429 / 5xx / erreur transport (rate limit, overload, timeout).
+	// Budgets distincts : un 5xx est rarement résolu en re-tentant vite (1 retry
 	// suffit), alors qu'un 429 est par nature transitoire — quand plusieurs
 	// profs IA parlent en même temps, c'est l'erreur dominante, d'où un budget
-	// plus large. On NE retry PAS les erreurs réseau/timeout (le client a déjà
-	// un timeout dur ; re-tenter doublerait la latence sans garantie).
-	maxRetries5xx = 1
-	maxRetries429 = 2
+	// plus large. Les timeouts/erreurs réseau sont retentés UNE fois : un
+	// dépassement de defaultTimeout est presque toujours une pointe de latence
+	// transitoire côté API, et sans retry un seul timeout tuait la conversation
+	// (réponse de repli + congé) — vu en prod.
+	maxRetries5xx       = 1
+	maxRetries429       = 2
+	maxRetriesTransport = 1
 	retryBackoff  = 600 * time.Millisecond
 	// retryJitter étale les re-tentatives des appels concurrents : sans lui,
 	// N bots pris dans le même pic 429 re-tentent au même instant et
@@ -185,8 +194,16 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 
 		resp, err := c.http.Do(req)
 		if err != nil {
-			// Erreur réseau/timeout : pas de retry (voir note sur les budgets
-			// maxRetries429/maxRetries5xx en tête de fichier).
+			// Timeout / erreur transport : transitoire dans l'immense majorité
+			// des cas (pointe de latence API, connexion idle recyclée). Voir
+			// note sur maxRetriesTransport en tête de fichier.
+			if attempt < maxRetriesTransport {
+				backoff = retryBackoff + time.Duration(rand.Int63n(int64(retryJitter)))
+				if c.log != nil {
+					c.log.Warn("claudeapi retrying", "err", err, "attempt", attempt+1)
+				}
+				continue
+			}
 			return "", fmt.Errorf("claudeapi: http do: %w", err)
 		}
 		body, rerr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))

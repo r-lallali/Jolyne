@@ -2,6 +2,7 @@ package claudeapi
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -87,6 +88,60 @@ func TestReply_FailsAfter5xxBudgetExhausted(t *testing.T) {
 
 	if _, err := c.Reply(context.Background(), "sys", nil, "salut"); err == nil {
 		t.Fatal("attendu une erreur après épuisement du budget 5xx")
+	}
+	if rt.calls != 2 {
+		t.Fatalf("tentatives = %d, attendu 2", rt.calls)
+	}
+}
+
+// flakyRT échoue au niveau transport (timeout simulé) `failures` fois, puis
+// renvoie 200. http.Client enveloppe l'erreur dans *url.Error — le retry ne
+// dépend pas du type, seul le comptage des tentatives importe.
+type flakyRT struct {
+	failures int
+	calls    int
+}
+
+func (rt *flakyRT) RoundTrip(_ *http.Request) (*http.Response, error) {
+	rt.calls++
+	if rt.calls <= rt.failures {
+		return nil, errors.New("timeout awaiting response headers")
+	}
+	body := `{"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn"}`
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     make(http.Header),
+	}, nil
+}
+
+// Timeout au 1er essai puis 200 : le retry transport doit récupérer la
+// réponse au lieu de tuer la conversation (vu en prod : un seul timeout
+// suffisait à faire prendre congé au prof IA).
+func TestReply_RetriesOnceOnTransportError(t *testing.T) {
+	rt := &flakyRT{failures: 1}
+	c := New("test-key", WithHTTPClient(&http.Client{Transport: rt}))
+
+	got, err := c.Reply(context.Background(), "sys", nil, "salut")
+	if err != nil {
+		t.Fatalf("Reply: %v", err)
+	}
+	if got != "ok" {
+		t.Fatalf("réponse = %q, attendu ok", got)
+	}
+	if rt.calls != 2 {
+		t.Fatalf("tentatives = %d, attendu 2", rt.calls)
+	}
+}
+
+// Deux timeouts d'affilée : budget transport épuisé → erreur remontée au
+// caller (qui bascule sur sa réponse de repli).
+func TestReply_FailsAfterTransportBudgetExhausted(t *testing.T) {
+	rt := &flakyRT{failures: 2}
+	c := New("test-key", WithHTTPClient(&http.Client{Transport: rt}))
+
+	if _, err := c.Reply(context.Background(), "sys", nil, "salut"); err == nil {
+		t.Fatal("attendu une erreur après épuisement du budget transport")
 	}
 	if rt.calls != 2 {
 		t.Fatalf("tentatives = %d, attendu 2", rt.calls)
