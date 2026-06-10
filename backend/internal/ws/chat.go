@@ -62,7 +62,11 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 	// pub/sub ne bufferisant pas → prof IA muet). `join` est ignoré par un
 	// peer humain (kind absent du switch de la boucle).
 	peerCh := room.Channel()
-	_ = room.SendJoin(ctx)
+	// Un join perdu = le bot prof IA n'a pas de signe de présence et part sur
+	// son timer de repli — si ce log apparaît, c'est le maillon à creuser.
+	if err := room.SendJoin(ctx); err != nil {
+		h.d.Log.Warn("room join publish", "err", err)
+	}
 
 	conn.Send(ServerFrame{Type: ServerMatched, Room: roomID, PeerNick: peer.Nick, IsBot: peer.IsBot})
 

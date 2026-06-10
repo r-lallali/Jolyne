@@ -139,6 +139,11 @@ func (m *BotManager) attemptSpawn(parent context.Context, userSess session.Sessi
 	delete(m.timers, userSess.ID)
 	if m.activeBots >= m.maxConcurrent {
 		m.mu.Unlock()
+		// Le user reste en queue jusqu'au queue_timeout — sans ce log la
+		// saturation est invisible côté ops.
+		if m.log != nil {
+			m.log.Warn("bot capacity saturated, queued user keeps waiting", "max_concurrent", m.maxConcurrent)
+		}
 		return
 	}
 	m.activeBots++
@@ -193,6 +198,11 @@ func (m *BotManager) SpawnNow(parent context.Context, userSess session.Session) 
 	m.mu.Lock()
 	if m.activeBots >= m.maxConcurrent {
 		m.mu.Unlock()
+		// Visible en log : sans ça la saturation est indiscernable d'un bot
+		// qui « ne se lance pas » (le caller bascule en matching humain).
+		if m.log != nil {
+			m.log.Warn("bot capacity saturated, falling back to human matching", "max_concurrent", m.maxConcurrent)
+		}
 		return false
 	}
 	m.activeBots++
@@ -237,7 +247,15 @@ func (m *BotManager) startBot(ctx context.Context, userSess session.Session) boo
 		IsBot:    true,
 	}) {
 		_ = room.Close()
+		if m.log != nil {
+			m.log.Warn("bot wakeup refused (session gone or channel busy)")
+		}
 		return false
+	}
+	// Un Info par conversation : borne de corrélation pour tous les logs bot
+	// qui suivent (échecs de publish, join raté, fallback Claude…).
+	if m.log != nil {
+		m.log.Info("bot started", "lang", userSess.Wants)
 	}
 
 	m.runBot(ctx, room, userSess, persona)
@@ -251,7 +269,11 @@ func (m *BotManager) startBot(ctx context.Context, userSess session.Session) boo
 func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Session, p botPersona) {
 	defer func() {
 		sendCtx, c := context.WithTimeout(context.Background(), time.Second)
-		_ = room.SendLeft(sendCtx)
+		// Un Left perdu = le user fixe un prof parti sans le savoir — à
+		// défaut de retry (le user finira par quitter), on veut le voir.
+		if err := room.SendLeft(sendCtx); err != nil && m.log != nil {
+			m.log.Warn("bot left publish failed", "err", err)
+		}
 		_ = room.Close()
 		c()
 	}()
@@ -283,7 +305,7 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 	// muet (le prof IA « ne se lance pas ») et ne brûle pas de tokens.
 	if userSess.Plan != session.PlanPremium && m.quota != nil {
 		if used, qerr := m.quota.Used(ctx, quota.KindBot, botQuotaID); qerr == nil && used >= quota.FreeBotDaily {
-			m.sendBotMessage(ctx, room, botDailyLimitMsg(userSess.Wants))
+			m.sendBotMessage(ctx, room, "limit", botDailyLimitMsg(userSess.Wants))
 			return
 		}
 	}
@@ -302,7 +324,7 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 		claudeapi.Message{Role: "user", Content: greetingSeed(userSess.Wants)},
 		claudeapi.Message{Role: "assistant", Content: p.Greeting},
 	)
-	m.sendBotMessage(ctx, room, p.Greeting)
+	m.sendBotMessage(ctx, room, "greeting", p.Greeting)
 	msgCount := 1
 
 	for {
@@ -318,7 +340,7 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 				return
 			case roomKindMsg:
 				if msgCount >= maxBotMessages {
-					m.sendBotMessage(ctx, room, goodbyeMsg(userSess.Wants))
+					m.sendBotMessage(ctx, room, "goodbye", goodbyeMsg(userSess.Wants))
 					return
 				}
 				// Rafale : on draine les évènements déjà bufferisés AVANT de
@@ -342,7 +364,7 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 					for range bodies {
 						_, qerr := m.quota.CheckAndIncrement(ctx, quota.KindBot, botQuotaID, quota.FreeBotDaily)
 						if errors.Is(qerr, quota.ErrQuotaExceeded) {
-							m.sendBotMessage(ctx, room, botDailyLimitMsg(userSess.Wants))
+							m.sendBotMessage(ctx, room, "limit", botDailyLimitMsg(userSess.Wants))
 							return
 						}
 						if qerr != nil {
@@ -380,12 +402,12 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 						}
 						rc()
 					}
-					m.sendBotMessage(ctx, room, fallbackReply(userSess.Wants))
+					m.sendBotMessage(ctx, room, "fallback", fallbackReply(userSess.Wants))
 					return
 				}
 				history = appendHistory(history, claudeapi.Message{Role: "user", Content: userMsg})
 				history = appendHistory(history, claudeapi.Message{Role: "assistant", Content: reply})
-				m.sendBotMessage(ctx, room, reply)
+				m.sendBotMessage(ctx, room, "reply", reply)
 				msgCount++
 			}
 		}
@@ -432,13 +454,25 @@ func (m *BotManager) waitForPeerJoin(ctx context.Context, events <-chan roomEnve
 		case <-ctx.Done():
 			return false
 		case <-timer.C:
+			// Le greeting partira sans signe de vie du user — il est censé
+			// être abonné depuis longtemps, mais si ce log précède un prof
+			// muet, le `join` se perd quelque part.
+			if m.log != nil {
+				m.log.Warn("bot join signal missed, greeting on fallback timer")
+			}
 			return true
 		case env, ok := <-events:
 			if !ok {
+				if m.log != nil {
+					m.log.Warn("bot room channel closed before peer join")
+				}
 				return false
 			}
 			switch env.Kind {
 			case roomKindLeft:
+				if m.log != nil {
+					m.log.Info("peer left before bot greeting")
+				}
 				return false
 			case roomKindJoin, roomKindMsg, roomKindTyping:
 				return true
@@ -484,15 +518,28 @@ func (m *BotManager) callClaude(ctx context.Context, room *Room, system string, 
 	return reply, nil
 }
 
-// sendBotMessage : escape HTML (invariant règle d'or #2) puis publish.
-// On évite d'appeler moderation.SanitizeAndCheck — pas de blocklist
-// pertinente pour la sortie d'une IA prof.
-func (m *BotManager) sendBotMessage(ctx context.Context, room *Room, body string) {
-	sendCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
+// sendBotMessage : escape HTML (invariant règle d'or #2) puis publish, avec
+// UN retry sur échec — pub/sub ne rejoue jamais un publish raté, et pour le
+// greeting un raté = prof IA définitivement muet. `kind` n'alimente que les
+// logs (greeting/reply/goodbye/limit/fallback) — jamais le contenu (règle
+// d'or #1). On évite d'appeler moderation.SanitizeAndCheck — pas de
+// blocklist pertinente pour la sortie d'une IA prof.
+func (m *BotManager) sendBotMessage(ctx context.Context, room *Room, kind, body string) {
 	_ = ctx // contexte parent ignoré pour le SendMsg — on veut envoyer même si
 	// le parent est en train d'être annulé pour propager le goodbye.
-	_ = room.SendMsg(sendCtx, uuid.NewString(), html.EscapeString(body))
+	id := uuid.NewString() // même ID sur les 2 tentatives : c'est le même message
+	escaped := html.EscapeString(body)
+	for attempt := 1; attempt <= 2; attempt++ {
+		sendCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		err := room.SendMsg(sendCtx, id, escaped)
+		cancel()
+		if err == nil {
+			return
+		}
+		if m.log != nil {
+			m.log.Warn("bot message publish failed", "kind", kind, "attempt", attempt, "err", err)
+		}
+	}
 }
 
 // appendHistory : ajoute un tour et cap la taille à maxBotHistoryTurns*2.
