@@ -73,6 +73,28 @@ func (e *Engine) CheckAndIncrementNext(ctx context.Context, id string, max int64
 	return e.CheckAndIncrement(ctx, KindNext, id, max)
 }
 
+// Refund rend n crédits (kind, id). Best-effort : appelé quand l'action déjà
+// comptée a finalement échoué (ex: appel Claude en erreur après retries) pour
+// ne pas facturer un message resté sans vraie réponse. Pipeline DECRBY +
+// ExpireNX : si la clé venait d'expirer (passage de minuit), la clé recréée
+// (négative = bonus borné) reçoit quand même un TTL et ne traîne pas.
+func (e *Engine) Refund(ctx context.Context, kind Kind, id string, n int64) error {
+	if id == "" {
+		return fmt.Errorf("quota: id vide")
+	}
+	if n <= 0 {
+		return nil
+	}
+	key := e.key(kind, id)
+	pipe := e.rdb.Pipeline()
+	pipe.DecrBy(ctx, key, n)
+	pipe.ExpireNX(ctx, key, e.untilMidnight())
+	if _, err := pipe.Exec(ctx); err != nil {
+		return fmt.Errorf("quota refund: %w", err)
+	}
+	return nil
+}
+
 // Used renvoie le compteur courant pour (kind, id) sans l'incrémenter. 0 si la
 // clé n'existe pas (jour neuf). Sert au pré-check (bloquer avant de mobiliser
 // un peer) et à un éventuel endpoint d'état des quotas.

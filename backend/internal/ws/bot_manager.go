@@ -6,6 +6,7 @@ import (
 	"html"
 	"log/slog"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -320,40 +321,99 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 					m.sendBotMessage(ctx, room, goodbyeMsg(userSess.Wants))
 					return
 				}
+				// Rafale : on draine les évènements déjà bufferisés AVANT de
+				// consommer du quota et de payer un appel Claude. Si un Left y
+				// figure (le user a fait Next/quitté pendant le tour
+				// précédent), on sort tout de suite — sinon le bot répondrait
+				// message par message dans une room morte, en gardant son slot
+				// activeBots occupé (et le nouveau prof du même user compterait
+				// double, jusqu'à saturer maxConcurrent sous charge). Les
+				// messages drainés sont coalescés en un seul tour user → une
+				// seule réponse pour la rafale, un seul appel API.
+				bodies, left := drainPending(events, env.Body)
+				if left {
+					return
+				}
 				// Quota quotidien prof IA (Free = 50 msg/j ; Premium illimité).
-				// On compte chaque message du user auquel on répond — pas le
+				// Un crédit par message du user, rafale comprise — pas le
 				// greeting. Dépassement → adieu + upsell Premium.
+				quotaUsed := int64(0)
 				if userSess.Plan != session.PlanPremium && m.quota != nil {
-					_, qerr := m.quota.CheckAndIncrement(ctx, quota.KindBot, botQuotaID, quota.FreeBotDaily)
-					if errors.Is(qerr, quota.ErrQuotaExceeded) {
-						m.sendBotMessage(ctx, room, botDailyLimitMsg(userSess.Wants))
-						return
-					}
-					if qerr != nil && m.log != nil {
-						// Redis indisponible : on log et on laisse passer plutôt
-						// que de casser la conversation.
-						m.log.Warn("bot quota incr", "err", qerr)
+					for range bodies {
+						_, qerr := m.quota.CheckAndIncrement(ctx, quota.KindBot, botQuotaID, quota.FreeBotDaily)
+						if errors.Is(qerr, quota.ErrQuotaExceeded) {
+							m.sendBotMessage(ctx, room, botDailyLimitMsg(userSess.Wants))
+							return
+						}
+						if qerr != nil {
+							// Redis indisponible : on log et on laisse passer
+							// plutôt que de casser la conversation. Rien à
+							// rembourser pour ce crédit non compté.
+							if m.log != nil {
+								m.log.Warn("bot quota incr", "err", qerr)
+							}
+							continue
+						}
+						quotaUsed++
 					}
 				}
-				// CLAUDE.md règle d'or #2 : le body est arrivé HTML-escaped
-				// via moderation.SanitizeAndCheck côté sender. On le
-				// déchiffre pour l'envoyer en clair à Claude — sans logguer
-				// le contenu.
-				userMsg := html.UnescapeString(env.Body)
+				// CLAUDE.md règle d'or #2 : les bodies sont arrivés HTML-escaped
+				// via moderation.SanitizeAndCheck côté sender. On les déchiffre
+				// pour les envoyer en clair à Claude — sans logguer le contenu.
+				userMsg := html.UnescapeString(strings.Join(bodies, "\n"))
 				reply, err := m.callClaude(ctx, room, p.System, history, userMsg)
 				if err != nil {
-					// Réponse de repli + log : si ça arrive à CHAQUE message,
-					// c'est un souci de clé/modèle Anthropic (et non la room).
+					// Échec malgré retries + jitter : l'API est vraiment en
+					// difficulté. On rembourse les crédits consommés, on envoie
+					// la réponse de repli et on prend congé (cf. bot_fallback.go)
+					// — continuer ne produirait que des fallbacks en chaîne (qui
+					// pollueraient aussi l'historique) en gardant le slot occupé.
+					// Si ça arrive à CHAQUE conversation, c'est un souci de
+					// clé/modèle Anthropic (et non la room).
 					if m.log != nil {
 						m.log.Warn("bot reply fell back (claude call failed)", "err", err)
 					}
-					reply = fallbackReply(userSess.Wants)
+					if quotaUsed > 0 {
+						refundCtx, rc := context.WithTimeout(context.Background(), time.Second)
+						if rerr := m.quota.Refund(refundCtx, quota.KindBot, botQuotaID, quotaUsed); rerr != nil && m.log != nil {
+							m.log.Warn("bot quota refund", "err", rerr)
+						}
+						rc()
+					}
+					m.sendBotMessage(ctx, room, fallbackReply(userSess.Wants))
+					return
 				}
 				history = appendHistory(history, claudeapi.Message{Role: "user", Content: userMsg})
 				history = appendHistory(history, claudeapi.Message{Role: "assistant", Content: reply})
 				m.sendBotMessage(ctx, room, reply)
 				msgCount++
 			}
+		}
+	}
+}
+
+// drainPending vide sans bloquer les évènements déjà bufferisés de la room et
+// renvoie les corps de messages accumulés (le courant `current` inclus, dans
+// l'ordre d'arrivée). left=true si un Left — ou la fermeture du canal — est en
+// file : le user est déjà parti, le caller doit sortir sans payer d'appel
+// Claude pour une room morte. Les typing/join drainés sont ignorés (le bot
+// n'en fait rien pendant un tour de réponse).
+func drainPending(events <-chan roomEnvelope, current string) (bodies []string, left bool) {
+	bodies = []string{current}
+	for {
+		select {
+		case env, ok := <-events:
+			if !ok {
+				return bodies, true
+			}
+			switch env.Kind {
+			case roomKindLeft:
+				return bodies, true
+			case roomKindMsg:
+				bodies = append(bodies, env.Body)
+			}
+		default:
+			return bodies, false
 		}
 	}
 }

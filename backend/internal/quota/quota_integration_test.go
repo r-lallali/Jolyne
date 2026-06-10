@@ -131,3 +131,53 @@ func TestQuota_TTLNotResetOnSubsequentIncrement(t *testing.T) {
 		t.Fatalf("TTL ne devrait pas être prolongé : ttl1=%v ttl2=%v", ttl1, ttl2)
 	}
 }
+
+func TestQuota_RefundDecrementsAndKeepsTTL(t *testing.T) {
+	rdb := newRedis(t)
+	e := quota.NewEngine(rdb, time.UTC)
+	ctx := context.Background()
+
+	for i := 0; i < 3; i++ {
+		if _, err := e.CheckAndIncrement(ctx, quota.KindBot, "u", 50); err != nil {
+			t.Fatalf("incr %d: %v", i, err)
+		}
+	}
+	if err := e.Refund(ctx, quota.KindBot, "u", 2); err != nil {
+		t.Fatalf("refund: %v", err)
+	}
+	used, err := e.Used(ctx, quota.KindBot, "u")
+	if err != nil {
+		t.Fatalf("used: %v", err)
+	}
+	if used != 1 {
+		t.Fatalf("attendu 1 après remboursement, got %d", used)
+	}
+	// La clé doit garder un TTL (pas de compteur orphelin sans expiration).
+	ttl, err := rdb.TTL(ctx, "quota:bot:u").Result()
+	if err != nil {
+		t.Fatalf("ttl: %v", err)
+	}
+	if ttl <= 0 {
+		t.Fatalf("ttl attendu > 0, got %v", ttl)
+	}
+}
+
+func TestQuota_RefundOnMissingKeySetsTTL(t *testing.T) {
+	rdb := newRedis(t)
+	e := quota.NewEngine(rdb, time.UTC)
+	ctx := context.Background()
+
+	// Clé absente (ex: expirée à minuit entre l'incr et le refund) : DECRBY la
+	// recrée en négatif — bonus borné, mais elle DOIT porter un TTL pour ne
+	// pas traîner indéfiniment.
+	if err := e.Refund(ctx, quota.KindBot, "ghost", 1); err != nil {
+		t.Fatalf("refund: %v", err)
+	}
+	ttl, err := rdb.TTL(ctx, "quota:bot:ghost").Result()
+	if err != nil {
+		t.Fatalf("ttl: %v", err)
+	}
+	if ttl <= 0 {
+		t.Fatalf("ttl attendu > 0 sur clé recréée, got %v", ttl)
+	}
+}
