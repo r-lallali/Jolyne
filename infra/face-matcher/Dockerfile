@@ -7,15 +7,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Warnings pip non actionnables dans une image jetable : on tourne en root par
+# design (pas de venv) et la version de pip est figée par l'image de base.
+ENV PIP_ROOT_USER_ACTION=ignore \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
 COPY requirements.txt .
-# Ordre critique : on installe d'abord dlib-bin (wheel prebuilt — pas de
-# compilation requise), puis face-recognition avec --no-deps pour empêcher
-# pip de retomber sur le paquet `dlib` source qui nécessiterait cmake +
-# g++ (toolchain absente de l'image slim). face-recognition-models est
-# tiré séparément via requirements.txt.
-RUN pip install --no-cache-dir dlib-bin==19.24.6 \
-    && pip install --no-cache-dir --no-deps face-recognition==1.3.0 \
-    && pip install --no-cache-dir -r requirements.txt
+# face-recognition est installé en --no-deps pour empêcher pip de tirer le
+# paquet `dlib` source qui nécessiterait cmake + g++ (toolchain absente de
+# l'image slim) — le module `dlib` est fourni par le wheel prebuilt dlib-bin.
+# Ordre critique : le --no-deps passe en DERNIER. Toute install ultérieure
+# ferait une résolution complète, verrait `dlib>=19.7` déclaré par
+# face-recognition mais non installé (dlib-bin porte un autre nom de paquet)
+# et logguerait une ERROR de résolveur à chaque build — cosmétique mais
+# alarmante dans les logs de déploiement. face-recognition-models est tiré
+# via requirements.txt.
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir dlib-bin==19.24.6 \
+    && pip install --no-cache-dir --no-deps face-recognition==1.3.0
 
 COPY app.py .
 

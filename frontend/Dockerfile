@@ -1,12 +1,17 @@
 # --- deps stage ---
 FROM node:20-alpine AS deps
+# Coupe la notice "Corepack is about to download..." au premier usage de pnpm.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /app
-COPY package.json pnpm-lock.yaml* ./
+# .npmrc copié explicitement : il porte update-notifier=false (bannière
+# "Update available!" de pnpm) et le stage deps ne fait pas de COPY . .
+COPY package.json pnpm-lock.yaml* .npmrc ./
 RUN pnpm install --frozen-lockfile || pnpm install
 
 # --- build stage ---
 FROM node:20-alpine AS build
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -24,11 +29,13 @@ RUN pnpm build
 
 # --- runtime stage ---
 FROM node:20-alpine AS runtime
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+COPY --from=build /app/.npmrc ./.npmrc
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
 COPY --from=build /app/node_modules ./node_modules
