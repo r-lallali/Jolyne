@@ -16,6 +16,7 @@ Thumbs.db
 # Backend Go
 backend/bin/
 backend/dist/
+backend/gateway
 backend/*.test
 backend/coverage.out
 backend/vendor/
