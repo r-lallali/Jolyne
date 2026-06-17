@@ -40,8 +40,6 @@ infra/data/
 
 # Builds
 *.tgz
-CLAUDE.md
-PLAN.md
 
 # Sorties brutes k6 (volumineuses, régénérées à chaque run)
 infra/k6/*-timeseries.json
