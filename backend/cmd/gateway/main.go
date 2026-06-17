@@ -37,6 +37,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/session"
 	"github.com/ralys/jolyne/backend/internal/translate"
 	"github.com/ralys/jolyne/backend/internal/users"
+	"github.com/ralys/jolyne/backend/internal/vocab"
 	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
@@ -398,6 +399,14 @@ func run() error {
 			Log:                  log,
 		}
 		log.Info("friends endpoints ready")
+
+		// Carnet de vocabulaire : mots sauvegardés depuis le popover de
+		// traduction. Dépend uniquement de Postgres + auth user.
+		svc.vocab = &vocab.Handlers{
+			Store: vocab.NewStore(svc.pg),
+			Log:   log,
+		}
+		log.Info("vocab endpoints ready")
 
 		// Web Push : Postgres-backed subscriptions + VAPID sender. Si une
 		// des trois VAPID env n'est pas posée, le sender est laissé nil

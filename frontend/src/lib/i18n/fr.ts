@@ -87,6 +87,16 @@ export const fr: Messages = {
     limitCta: "Passer Premium",
     remaining: ({ count }) => `${count} traductions restantes aujourd'hui`,
   },
+  vocab: {
+    title: "Carnet de vocabulaire",
+    empty: "Aucun mot sauvegardé pour l'instant.",
+    save: "Sauvegarder",
+    saved: "Ajouté au carnet",
+    saveError: "Échec de l'enregistrement",
+    delete: "Supprimer",
+    link: "Mon carnet de vocabulaire",
+    count: ({ count }) => `${count} mot${count > 1 ? "s" : ""}`,
+  },
   grammar: {
     suggestionsCount: ({ count }) =>
       `${count} suggestion${count > 1 ? "s" : ""}`,

@@ -84,6 +84,16 @@ export const en: Messages = {
     limitCta: "Go Premium",
     remaining: ({ count }) => `${count} translations left today`,
   },
+  vocab: {
+    title: "Vocabulary notebook",
+    empty: "No saved words yet.",
+    save: "Save",
+    saved: "Added to notebook",
+    saveError: "Couldn't save",
+    delete: "Delete",
+    link: "My vocabulary notebook",
+    count: ({ count }) => `${count} word${count > 1 ? "s" : ""}`,
+  },
   grammar: {
     suggestionsCount: ({ count }) =>
       `${count} suggestion${count > 1 ? "s" : ""}`,

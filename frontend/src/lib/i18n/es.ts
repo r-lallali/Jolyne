@@ -83,6 +83,16 @@ export const es: Messages = {
     limitCta: "Hazte Premium",
     remaining: ({ count }) => `${count} traducciones restantes hoy`,
   },
+  vocab: {
+    title: "Cuaderno de vocabulario",
+    empty: "Aún no has guardado ninguna palabra.",
+    save: "Guardar",
+    saved: "Añadido al cuaderno",
+    saveError: "No se pudo guardar",
+    delete: "Eliminar",
+    link: "Mi cuaderno de vocabulario",
+    count: ({ count }) => `${count} palabra${count > 1 ? "s" : ""}`,
+  },
   grammar: {
     suggestionsCount: ({ count }) =>
       `${count} sugerencia${count > 1 ? "s" : ""}`,

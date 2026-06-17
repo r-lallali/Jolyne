@@ -81,6 +81,16 @@ export const ja: Messages = {
     limitCta: "Premiumにする",
     remaining: ({ count }) => `今日はあと${count}回翻訳できます`,
   },
+  vocab: {
+    title: "単語帳",
+    empty: "保存した単語はまだありません。",
+    save: "保存",
+    saved: "単語帳に追加しました",
+    saveError: "保存できませんでした",
+    delete: "削除",
+    link: "マイ単語帳",
+    count: ({ count }) => `${count}語`,
+  },
   grammar: {
     suggestionsCount: ({ count }) => `${count}件の提案`,
     nothingToFix: "修正点はありません",

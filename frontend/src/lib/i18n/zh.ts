@@ -80,6 +80,16 @@ export const zh: Messages = {
     limitCta: "升级 Premium",
     remaining: ({ count }) => `今天还剩 ${count} 次翻译`,
   },
+  vocab: {
+    title: "生词本",
+    empty: "还没有保存任何单词。",
+    save: "保存",
+    saved: "已添加到生词本",
+    saveError: "保存失败",
+    delete: "删除",
+    link: "我的生词本",
+    count: ({ count }) => `${count} 个单词`,
+  },
   grammar: {
     suggestionsCount: ({ count }) => `${count} 条建议`,
     nothingToFix: "无需修改",

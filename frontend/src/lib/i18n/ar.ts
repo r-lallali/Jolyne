@@ -81,6 +81,16 @@ export const ar: Messages = {
     limitCta: "اشترك في Premium",
     remaining: ({ count }) => `بقيت ${count} ترجمة اليوم`,
   },
+  vocab: {
+    title: "دفتر المفردات",
+    empty: "لا توجد كلمات محفوظة بعد.",
+    save: "حفظ",
+    saved: "أُضيفت إلى الدفتر",
+    saveError: "تعذّر الحفظ",
+    delete: "حذف",
+    link: "دفتر المفردات الخاص بي",
+    count: ({ count }) => `${count} كلمة`,
+  },
   grammar: {
     suggestionsCount: ({ count }) => `${count} اقتراح`,
     nothingToFix: "لا شيء لتصحيحه",

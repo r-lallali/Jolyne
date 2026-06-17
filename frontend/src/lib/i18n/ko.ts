@@ -80,6 +80,16 @@ export const ko: Messages = {
     limitCta: "프리미엄 전환",
     remaining: ({ count }) => `오늘 ${count}회 번역 남음`,
   },
+  vocab: {
+    title: "단어장",
+    empty: "아직 저장한 단어가 없습니다.",
+    save: "저장",
+    saved: "단어장에 추가됨",
+    saveError: "저장하지 못했습니다",
+    delete: "삭제",
+    link: "내 단어장",
+    count: ({ count }) => `단어 ${count}개`,
+  },
   grammar: {
     suggestionsCount: ({ count }) => `제안 ${count}개`,
     nothingToFix: "고칠 부분이 없어요",

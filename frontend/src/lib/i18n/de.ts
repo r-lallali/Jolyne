@@ -84,6 +84,16 @@ export const de: Messages = {
     limitCta: "Premium holen",
     remaining: ({ count }) => `Noch ${count} Übersetzungen heute`,
   },
+  vocab: {
+    title: "Vokabelheft",
+    empty: "Noch keine Wörter gespeichert.",
+    save: "Speichern",
+    saved: "Zum Heft hinzugefügt",
+    saveError: "Speichern fehlgeschlagen",
+    delete: "Löschen",
+    link: "Mein Vokabelheft",
+    count: ({ count }) => `${count} ${count > 1 ? "Wörter" : "Wort"}`,
+  },
   grammar: {
     suggestionsCount: ({ count }) =>
       `${count} Vorschlag${count > 1 ? "e" : ""}`,

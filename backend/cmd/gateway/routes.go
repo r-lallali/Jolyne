@@ -20,6 +20,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/translate"
 	"github.com/ralys/jolyne/backend/internal/users"
+	"github.com/ralys/jolyne/backend/internal/vocab"
 	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
@@ -38,6 +39,7 @@ type services struct {
 	users           *users.Handlers   // nil si auth utilisateur désactivée
 	profile         *profile.Handlers // nil si auth utilisateur désactivée
 	friends         *friends.Handlers // nil si auth utilisateur désactivée
+	vocab           *vocab.Handlers   // nil si auth utilisateur désactivée
 	push            *push.Handlers    // nil si VAPID env manquant
 	publicCORS      string            // origin autorisée pour /api/translate et /api/grammar
 }
@@ -163,6 +165,30 @@ func routes(s services) http.Handler {
 			default:
 				http.NotFound(w, r)
 			}
+		}))))
+	}
+
+	// Carnet de vocabulaire. Toutes les routes requièrent l'auth user.
+	// `/api/vocab` (GET liste, POST création) ; `/api/vocab/{id}` (DELETE).
+	if s.vocab != nil && s.users != nil {
+		auth := s.users.RequireAuth
+		cors := publicCORS(s.publicCORS)
+		mux.Handle("/api/vocab", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
+				s.vocab.HandleList(w, r)
+			case http.MethodPost:
+				s.vocab.HandleCreate(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))))
+		mux.Handle("/api/vocab/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodDelete {
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			s.vocab.HandleDelete(w, r)
 		}))))
 	}
 

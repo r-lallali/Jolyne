@@ -111,6 +111,16 @@ export interface Messages {
     limitCta: string; // bouton "Premium" dans le popover
     remaining: FormatString<{ count: number }>; // compteur traductions restantes
   };
+  vocab: {
+    title: string;
+    empty: string;
+    save: string; // bouton "sauvegarder" dans le popover de traduction
+    saved: string; // confirmation après sauvegarde
+    saveError: string;
+    delete: string; // aria-label suppression d'une entrée
+    link: string; // libellé du lien depuis /account
+    count: FormatString<{ count: number }>;
+  };
   grammar: {
     suggestionsCount: FormatString<{ count: number }>;
     nothingToFix: string;

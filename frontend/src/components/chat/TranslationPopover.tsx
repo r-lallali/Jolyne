@@ -9,6 +9,8 @@ import {
   TranslateQuotaError,
 } from "@/lib/translate";
 import { usePaywallStore } from "@/stores/paywallStore";
+import { useUserStore } from "@/stores/userStore";
+import { saveVocab } from "@/lib/vocab";
 
 export interface TranslationRequest {
   text: string;
@@ -34,8 +36,14 @@ type State =
 // Traduit AUTOMATIQUEMENT le texte au chargement ou changement de requête.
 export function TranslationPopover({ request, onClose }: Props) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  // État du bouton "sauvegarder dans le carnet" (visible une fois traduit,
+  // pour les users connectés). idle → saving → saved, ou error.
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
   const t = useT();
   const showPaywall = usePaywallStore((s) => s.show);
+  const user = useUserStore((s) => s.user);
 
   // Fermeture sur clic extérieur ou Escape.
   useEffect(() => {
@@ -64,6 +72,7 @@ export function TranslationPopover({ request, onClose }: Props) {
   useEffect(() => {
     let active = true;
     setState({ kind: "loading" });
+    setSaveState("idle");
 
     const performTranslation = async () => {
       try {
@@ -104,6 +113,25 @@ export function TranslationPopover({ request, onClose }: Props) {
 
   // On clamp à droite pour ne pas déborder.
   const left = Math.min(Math.max(request.x, 80), window.innerWidth - 240);
+
+  // Sauvegarde du couple (terme original → traduction) dans le carnet.
+  // Réservé aux users connectés (le carnet est lié au compte). Idempotent
+  // côté backend : re-sauver remonte le mot en tête.
+  const handleSave = async (translated: string) => {
+    if (saveState === "saving" || saveState === "saved") return;
+    setSaveState("saving");
+    try {
+      await saveVocab({
+        term: request.text,
+        translation: translated,
+        source: request.source,
+        target: request.target,
+      });
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
+  };
 
   return (
     <motion.div
@@ -188,6 +216,54 @@ export function TranslationPopover({ request, onClose }: Props) {
               <p className="mt-2 text-[10px] text-neutral-400 dark:text-neutral-500">
                 {t.translate.remaining({ count: state.remaining })}
               </p>
+            )}
+            {user && (
+              <button
+                type="button"
+                onClick={() => handleSave(state.translated)}
+                disabled={saveState === "saving" || saveState === "saved"}
+                className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-[11px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-100 disabled:opacity-60 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-900"
+              >
+                {saveState === "saved" ? (
+                  <>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="size-3 text-emerald-500"
+                      aria-hidden
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4.5 12.75l6 6 9-13.5"
+                      />
+                    </svg>
+                    {t.vocab.saved}
+                  </>
+                ) : saveState === "error" ? (
+                  t.vocab.saveError
+                ) : (
+                  <>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="size-3"
+                      aria-hidden
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
+                      />
+                    </svg>
+                    {t.vocab.save}
+                  </>
+                )}
+              </button>
             )}
           </div>
         )}
