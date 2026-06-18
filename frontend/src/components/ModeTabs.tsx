@@ -6,14 +6,13 @@ import {
   useNotificationStore,
 } from "@/stores/notificationStore";
 
-// ModeTabs : 2 barres horizontales côte à côte en haut de la home, façon
-// indicateurs de stories Instagram. Le bar actif est noir / blanc opaque,
-// l'inactif gris discret. Cliquer un bar appelle onChange.
+// ModeTabs : barres horizontales côte à côte en haut de la home, façon
+// indicateurs de stories Instagram. La barre active est opaque, les inactives
+// grises. Ordre (gauche → droite) : chat anonyme, conversations, cours.
 //
-// Pas de libellés : la disposition (gauche = chat anonyme, droite = amis)
-// est apprise une fois et l'affichage en pâtit visuellement si on ajoute du
-// texte. Au survol on annonce via title ; lecteurs d'écran via aria-label.
-export type Mode = "anon" | "friends";
+// Pas de libellés visibles : la disposition est apprise une fois. Au survol on
+// annonce via title ; lecteurs d'écran via aria-label.
+export type Mode = "anon" | "friends" | "learn";
 
 interface Props {
   mode: Mode;
@@ -53,6 +52,11 @@ export function ModeTabs({ mode, onChange }: Props) {
             )}
           </AnimatePresence>
         </span>
+        <Bar
+          active={mode === "learn"}
+          onClick={() => onChange("learn")}
+          label="Cours"
+        />
       </div>
     </div>
   );
@@ -74,7 +78,7 @@ function Bar({
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className="group relative flex h-4 w-24 items-center justify-center sm:h-3"
+      className="group relative flex h-4 w-20 items-center justify-center sm:h-3"
     >
       <motion.span
         aria-hidden

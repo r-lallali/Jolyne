@@ -202,13 +202,37 @@ func routes(s services) http.Handler {
 	//   POST /api/learn/lessons/{id}/complete         valide la leçon
 	//   GET  /api/learn/state                         état de gamification
 	//   PUT  /api/learn/state/daily-goal              règle l'objectif quotidien
+	//   POST /api/learn/courses/{lang}/placement      choix du niveau de départ
+	//   POST /api/learn/hearts/request                demande un cœur à un ami
+	//   GET  /api/learn/hearts/requests               demandes de cœur reçues
+	//   POST /api/learn/hearts/requests/{id}/grant    accorde un cœur
 	if s.learn != nil && s.users != nil {
 		auth := s.users.RequireAuth
 		cors := publicCORS(s.publicCORS)
 		mux.Handle("/api/learn/courses", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleListCourses)))))
-		mux.Handle("/api/learn/courses/", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleTree)))))
+		// Sous-arbre /api/learn/courses/{lang}[/placement] — dispatch par méthode/suffixe.
+		mux.Handle("/api/learn/courses/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/placement"):
+				s.learn.HandlePlacement(w, r)
+			case r.Method == http.MethodGet && !strings.HasSuffix(r.URL.Path, "/placement"):
+				s.learn.HandleTree(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))))
 		mux.Handle("/api/learn/state", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleState)))))
 		mux.Handle("/api/learn/state/daily-goal", cors(auth(methodOnly("PUT", http.HandlerFunc(s.learn.HandleSetGoal)))))
+		mux.Handle("/api/learn/hearts/request", cors(auth(methodOnly("POST", http.HandlerFunc(s.learn.HandleRequestHeart)))))
+		mux.Handle("/api/learn/hearts/requests", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleListHeartRequests)))))
+		// Sous-arbre /api/learn/hearts/requests/{id}/grant.
+		mux.Handle("/api/learn/hearts/requests/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/grant") {
+				s.learn.HandleGrantHeart(w, r)
+				return
+			}
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}))))
 		// Sous-arbre /api/learn/lessons/{id}[/complete] — dispatch par suffixe.
 		mux.Handle("/api/learn/lessons/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch {

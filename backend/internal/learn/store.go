@@ -162,22 +162,27 @@ func (s *Store) Tree(ctx context.Context, lang string, userID int64) (CourseTree
 		return CourseTree{}, err
 	}
 
-	// Progression : map lesson_id -> stars (présence = complété).
-	progress := map[int64]int{}
+	// Progression : map lesson_id -> {stars, placed}. Présence = complété
+	// (joué OU placé via le niveau choisi).
+	type progRow struct {
+		stars  int
+		placed bool
+	}
+	progress := map[int64]progRow{}
 	if userID != 0 {
 		prows, err := s.pool.Query(ctx,
-			`SELECT lesson_id, stars FROM learn_progress WHERE user_id = $1`, userID)
+			`SELECT lesson_id, stars, placed FROM learn_progress WHERE user_id = $1`, userID)
 		if err != nil {
 			return CourseTree{}, fmt.Errorf("learn: progress: %w", err)
 		}
 		defer prows.Close()
 		for prows.Next() {
 			var id int64
-			var stars int
-			if err := prows.Scan(&id, &stars); err != nil {
+			var pr progRow
+			if err := prows.Scan(&id, &pr.stars, &pr.placed); err != nil {
 				return CourseTree{}, err
 			}
-			progress[id] = stars
+			progress[id] = pr
 		}
 		if err := prows.Err(); err != nil {
 			return CourseTree{}, err
@@ -185,11 +190,12 @@ func (s *Store) Tree(ctx context.Context, lang string, userID int64) (CourseTree
 	}
 
 	// Verrou : une leçon est ouverte si elle est la première OU si la leçon
-	// précédente (ordre global) est complétée.
+	// précédente (ordre global) est complétée (jouée ou placée).
 	prevCompleted := true
 	for i := range lessons {
-		stars, done := progress[lessons[i].node.ID]
-		lessons[i].node.Stars = stars
+		pr, done := progress[lessons[i].node.ID]
+		lessons[i].node.Stars = pr.stars
+		lessons[i].node.Placed = pr.placed
 		lessons[i].node.Completed = done
 		lessons[i].node.Locked = !prevCompleted
 		prevCompleted = done
@@ -207,7 +213,71 @@ func (s *Store) Tree(ctx context.Context, lang string, userID int64) (CourseTree
 		}
 		tree.Units[ui].Lessons = append(tree.Units[ui].Lessons, f.node)
 	}
+	tree.UnitCount = len(tree.Units)
+
+	// Inscription : l'apprenant a-t-il déjà choisi son niveau pour ce cours ?
+	if userID != 0 {
+		var n int
+		if err := s.pool.QueryRow(ctx,
+			`SELECT count(*) FROM learn_enrollments WHERE user_id = $1 AND lang = $2`,
+			userID, lang,
+		).Scan(&n); err != nil {
+			return CourseTree{}, fmt.Errorf("learn: enrollment: %w", err)
+		}
+		tree.Enrolled = n > 0
+	}
 	return tree, nil
+}
+
+// Enroll : inscrit l'apprenant à un cours en mémorisant son niveau de départ.
+// Toutes les leçons des unités d'indice < startUnit sont marquées « placées »
+// (acquises sans avoir été jouées) afin que le parcours s'ouvre au bon niveau.
+// Idempotent : ré-inscrire ne réinitialise pas les leçons déjà jouées.
+func (s *Store) Enroll(ctx context.Context, userID int64, lang string, startUnit int) error {
+	if startUnit < 0 {
+		startUnit = 0
+	}
+	var courseID int64
+	if err := s.pool.QueryRow(ctx,
+		`SELECT id FROM learn_courses WHERE lang = $1`, lang,
+	).Scan(&courseID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("learn: enroll course: %w", err)
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("learn: enroll begin: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO learn_enrollments (user_id, lang, start_unit) VALUES ($1, $2, $3)
+		 ON CONFLICT (user_id, lang) DO UPDATE SET start_unit = EXCLUDED.start_unit`,
+		userID, lang, startUnit,
+	); err != nil {
+		return fmt.Errorf("learn: enroll upsert: %w", err)
+	}
+
+	// Marque comme « placées » les leçons des unités antérieures au niveau
+	// choisi (sans écraser une leçon déjà jouée : placed reste false si déjà
+	// complétée pour de vrai).
+	if startUnit > 0 {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO learn_progress (user_id, lesson_id, stars, times_done, placed)
+			 SELECT $1, l.id, 0, 0, true
+			 FROM learn_lessons l
+			 JOIN learn_units u ON u.id = l.unit_id
+			 WHERE u.course_id = $2 AND u.idx < $3
+			 ON CONFLICT (user_id, lesson_id) DO NOTHING`,
+			userID, courseID, startUnit,
+		); err != nil {
+			return fmt.Errorf("learn: enroll place: %w", err)
+		}
+	}
+	return tx.Commit(ctx)
 }
 
 // LessonForPlay : items d'une leçon résolus dans la langue source `from`.
@@ -267,7 +337,8 @@ func ensureState(ctx context.Context, q interface {
 }
 
 // State : lecture de l'état courant (cœurs régénérés à la volée, sans écriture).
-func (s *Store) State(ctx context.Context, userID int64, now time.Time) (State, error) {
+// `premium` = cœurs illimités (jamais décrémentés, affichés « ∞ »).
+func (s *Store) State(ctx context.Context, userID int64, premium bool, now time.Time) (State, error) {
 	if err := ensureState(ctx, s.pool, userID); err != nil {
 		return State{}, fmt.Errorf("learn: ensure state: %w", err)
 	}
@@ -286,8 +357,16 @@ func (s *Store) State(ctx context.Context, userID int64, now time.Time) (State, 
 		return State{}, fmt.Errorf("learn: read state: %w", err)
 	}
 
-	st.Hearts, _, st.NextHeartInSec = regenHearts(hearts, heartsUpdated, now)
 	st.MaxHearts = MaxHearts
+	st.Premium = premium
+	if premium {
+		// Cœurs illimités : on affiche le plein, pas de timer de régénération.
+		st.UnlimitedHearts = true
+		st.Hearts = MaxHearts
+		st.NextHeartInSec = 0
+	} else {
+		st.Hearts, _, st.NextHeartInSec = regenHearts(hearts, heartsUpdated, now)
+	}
 
 	// Streak expiré (dernier jour actif < hier) → on l'affiche à 0 sans le
 	// réécrire (lazy, comme friends). « At risk » = dernier actif = hier.
@@ -316,6 +395,26 @@ func (s *Store) State(ctx context.Context, userID int64, now time.Time) (State, 
 		return State{}, err
 	}
 	st.Achievements = ach
+
+	// Demande de cœur à un ami : quota 1/jour non consommé ?
+	var reqToday int
+	if err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM learn_heart_requests
+		 WHERE requester_id = $1 AND created_at::date = $2::date`,
+		userID, today,
+	).Scan(&reqToday); err != nil {
+		return State{}, fmt.Errorf("learn: heart req count: %w", err)
+	}
+	st.CanAskHeart = reqToday == 0
+
+	// Demandes de cœur reçues en attente (à accorder).
+	if err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM learn_heart_requests
+		 WHERE target_id = $1 AND status = 'pending'`, userID,
+	).Scan(&st.IncomingHeartRequests); err != nil {
+		return State{}, fmt.Errorf("learn: incoming count: %w", err)
+	}
+
 	return st, nil
 }
 
@@ -363,7 +462,11 @@ func (s *Store) achievementCodes(ctx context.Context, q achQuerier, userID int64
 // quotidien (cœur du mode Cours), déduit les cœurs perdus, enregistre les
 // étoiles, l'XP du jour et débloque les succès franchis. Tout en une
 // transaction pour rester cohérent.
-func (s *Store) CompleteLesson(ctx context.Context, userID, lessonID int64, mistakes int, now time.Time) (CompleteResult, error) {
+//
+// `premium` : cœurs illimités → aucune déduction. `failed` : la leçon a été
+// abandonnée faute de cœurs → on décompte les cœurs mais on n'attribue ni XP,
+// ni progrès, ni streak (cf. interruption style Duolingo).
+func (s *Store) CompleteLesson(ctx context.Context, userID, lessonID int64, mistakes int, premium, failed bool, now time.Time) (CompleteResult, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return CompleteResult{}, fmt.Errorf("learn: begin: %w", err)
@@ -404,12 +507,46 @@ func (s *Store) CompleteLesson(ctx context.Context, userID, lessonID int64, mist
 		return CompleteResult{}, fmt.Errorf("learn: lock state: %w", err)
 	}
 
+	// Cœurs : régénération paresseuse puis déduction des fautes (plancher 0).
+	// Premium = cœurs illimités, aucune déduction.
+	curHearts, newHeartsUpdated, _ := regenHearts(hearts, heartsUpdated, now)
+	if !premium {
+		curHearts -= mistakes
+		if curHearts < 0 {
+			curHearts = 0
+		}
+	} else {
+		curHearts = hearts
+		newHeartsUpdated = heartsUpdated
+	}
+
+	// Échec (plus de cœurs en cours de leçon) : on persiste la perte de cœurs
+	// mais on n'attribue ni XP, ni progrès, ni streak. Premium ne peut pas
+	// échouer (cœurs illimités) → on ignore le flag.
+	if failed && !premium {
+		if _, err := tx.Exec(ctx,
+			`UPDATE learn_state SET hearts = $2, hearts_updated_at = $3, updated_at = now()
+			 WHERE user_id = $1`,
+			userID, curHearts, newHeartsUpdated,
+		); err != nil {
+			return CompleteResult{}, fmt.Errorf("learn: update hearts (fail): %w", err)
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return CompleteResult{}, fmt.Errorf("learn: commit (fail): %w", err)
+		}
+		st, err := s.State(ctx, userID, premium, now)
+		if err != nil {
+			return CompleteResult{}, err
+		}
+		return CompleteResult{Failed: true, State: st}, nil
+	}
+
 	// Étoiles + reprise (XP réduit si la leçon a déjà été complétée).
 	stars := starsFromMistakes(mistakes)
 	var alreadyStars int
 	var alreadyDone bool
 	if err := tx.QueryRow(ctx,
-		`SELECT stars, true FROM learn_progress WHERE user_id = $1 AND lesson_id = $2`,
+		`SELECT stars, true FROM learn_progress WHERE user_id = $1 AND lesson_id = $2 AND placed = false`,
 		userID, lessonID,
 	).Scan(&alreadyStars, &alreadyDone); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return CompleteResult{}, fmt.Errorf("learn: read progress: %w", err)
@@ -417,13 +554,6 @@ func (s *Store) CompleteLesson(ctx context.Context, userID, lessonID int64, mist
 	xpAward := lessonXP
 	if alreadyDone {
 		xpAward = ReviewXPMax
-	}
-
-	// Cœurs : régénération paresseuse puis déduction des fautes (plancher 0).
-	curHearts, newHeartsUpdated, _ := regenHearts(hearts, heartsUpdated, now)
-	curHearts -= mistakes
-	if curHearts < 0 {
-		curHearts = 0
 	}
 
 	// Streak quotidien.
@@ -484,13 +614,15 @@ func (s *Store) CompleteLesson(ctx context.Context, userID, lessonID int64, mist
 		return CompleteResult{}, fmt.Errorf("learn: update state: %w", err)
 	}
 
-	// Progression de la leçon : on garde le meilleur score d'étoiles.
+	// Progression de la leçon : on garde le meilleur score d'étoiles. Jouer une
+	// leçon « placée » la convertit en leçon réellement complétée (placed=false).
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO learn_progress (user_id, lesson_id, stars, times_done, completed_at)
-		 VALUES ($1, $2, $3, 1, now())
+		`INSERT INTO learn_progress (user_id, lesson_id, stars, times_done, placed, completed_at)
+		 VALUES ($1, $2, $3, 1, false, now())
 		 ON CONFLICT (user_id, lesson_id) DO UPDATE
 		   SET stars = GREATEST(learn_progress.stars, EXCLUDED.stars),
 		       times_done = learn_progress.times_done + 1,
+		       placed = false,
 		       completed_at = now()`,
 		userID, lessonID, stars,
 	); err != nil {
@@ -506,10 +638,11 @@ func (s *Store) CompleteLesson(ctx context.Context, userID, lessonID int64, mist
 		return CompleteResult{}, fmt.Errorf("learn: daily xp: %w", err)
 	}
 
-	// Nombre de leçons distinctes complétées (pour les succès "lessons").
+	// Nombre de leçons réellement jouées (placées exclues) — pour les succès
+	// "lessons", afin qu'un choix de niveau élevé ne les débloque pas d'office.
 	var lessonsDone int
 	if err := tx.QueryRow(ctx,
-		`SELECT count(*) FROM learn_progress WHERE user_id = $1`, userID,
+		`SELECT count(*) FROM learn_progress WHERE user_id = $1 AND placed = false`, userID,
 	).Scan(&lessonsDone); err != nil {
 		return CompleteResult{}, fmt.Errorf("learn: count lessons: %w", err)
 	}
@@ -545,7 +678,7 @@ func (s *Store) CompleteLesson(ctx context.Context, userID, lessonID int64, mist
 	}
 
 	// État final reconstitué (post-commit, lecture simple).
-	st, err := s.State(ctx, userID, now)
+	st, err := s.State(ctx, userID, premium, now)
 	if err != nil {
 		return CompleteResult{}, err
 	}
@@ -557,6 +690,113 @@ func (s *Store) CompleteLesson(ctx context.Context, userID, lessonID int64, mist
 		StreakIncreased:    streakIncreased,
 		NewStreakMilestone: newMilestone,
 	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// Demandes de cœur entre amis (1/jour côté demandeur).
+// ---------------------------------------------------------------------------
+
+// CreateHeartRequest : crée une demande de cœur en attente vers `targetID`.
+// errCode "quota" si l'apprenant a déjà demandé un cœur aujourd'hui.
+func (s *Store) CreateHeartRequest(ctx context.Context, requesterID, targetID int64, now time.Time) (int64, string, error) {
+	today := now.UTC().Format("2006-01-02")
+	var cnt int
+	if err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM learn_heart_requests
+		 WHERE requester_id = $1 AND created_at::date = $2::date`,
+		requesterID, today,
+	).Scan(&cnt); err != nil {
+		return 0, "", fmt.Errorf("learn: heart req quota: %w", err)
+	}
+	if cnt > 0 {
+		return 0, "quota", nil
+	}
+	var id int64
+	if err := s.pool.QueryRow(ctx,
+		`INSERT INTO learn_heart_requests (requester_id, target_id) VALUES ($1, $2)
+		 RETURNING id`, requesterID, targetID,
+	).Scan(&id); err != nil {
+		return 0, "", fmt.Errorf("learn: heart req insert: %w", err)
+	}
+	return id, "", nil
+}
+
+// ListIncomingHeartRequests : demandes en attente reçues par `userID`.
+func (s *Store) ListIncomingHeartRequests(ctx context.Context, userID int64) ([]HeartRequest, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT id, requester_id, created_at FROM learn_heart_requests
+		 WHERE target_id = $1 AND status = 'pending'
+		 ORDER BY created_at DESC`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("learn: incoming reqs: %w", err)
+	}
+	defer rows.Close()
+	out := []HeartRequest{}
+	for rows.Next() {
+		var hr HeartRequest
+		var created time.Time
+		if err := rows.Scan(&hr.ID, &hr.RequesterID, &created); err != nil {
+			return nil, err
+		}
+		hr.CreatedAt = created.Format(time.RFC3339)
+		out = append(out, hr)
+	}
+	return out, rows.Err()
+}
+
+// GrantHeart : `targetID` accorde la demande `requestID` → +1 cœur au
+// demandeur (plafonné). Renvoie l'ID du demandeur et true si accordé. false si
+// la demande n'existe pas / déjà résolue / pas adressée à ce user.
+func (s *Store) GrantHeart(ctx context.Context, targetID, requestID int64, now time.Time) (int64, bool, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, false, fmt.Errorf("learn: grant begin: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var requesterID int64
+	if err := tx.QueryRow(ctx,
+		`SELECT requester_id FROM learn_heart_requests
+		 WHERE id = $1 AND target_id = $2 AND status = 'pending' FOR UPDATE`,
+		requestID, targetID,
+	).Scan(&requesterID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, false, nil
+		}
+		return 0, false, fmt.Errorf("learn: grant load: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE learn_heart_requests SET status = 'granted', resolved_at = now() WHERE id = $1`,
+		requestID,
+	); err != nil {
+		return 0, false, fmt.Errorf("learn: grant mark: %w", err)
+	}
+
+	if err := ensureState(ctx, tx, requesterID); err != nil {
+		return 0, false, fmt.Errorf("learn: grant ensure: %w", err)
+	}
+	var hearts int
+	var hu time.Time
+	if err := tx.QueryRow(ctx,
+		`SELECT hearts, hearts_updated_at FROM learn_state WHERE user_id = $1 FOR UPDATE`,
+		requesterID,
+	).Scan(&hearts, &hu); err != nil {
+		return 0, false, fmt.Errorf("learn: grant read: %w", err)
+	}
+	cur, newHu, _ := regenHearts(hearts, hu, now)
+	cur = min(cur+1, MaxHearts)
+	if _, err := tx.Exec(ctx,
+		`UPDATE learn_state SET hearts = $2, hearts_updated_at = $3, updated_at = now()
+		 WHERE user_id = $1`, requesterID, cur, newHu,
+	); err != nil {
+		return 0, false, fmt.Errorf("learn: grant apply: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, false, fmt.Errorf("learn: grant commit: %w", err)
+	}
+	return requesterID, true, nil
 }
 
 // daysBetweenUTC : nombre de jours calendaires UTC entre d et now.

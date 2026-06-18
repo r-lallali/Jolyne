@@ -73,6 +73,10 @@ type CourseTree struct {
 	Lang  string     `json:"lang"`
 	Title string     `json:"title"`
 	Units []UnitNode `json:"units"`
+	// Enrolled : l'apprenant a déjà choisi son niveau de départ pour ce cours.
+	// Si false, le front affiche d'abord le sélecteur de niveau.
+	Enrolled  bool `json:"enrolled"`
+	UnitCount int  `json:"unit_count"`
 }
 
 type UnitNode struct {
@@ -90,6 +94,9 @@ type LessonNode struct {
 	Stars     int    `json:"stars"`
 	Completed bool   `json:"completed"`
 	Locked    bool   `json:"locked"`
+	// Placed : leçon acquise via le choix de niveau (non jouée). Affichée
+	// comme faite mais sans étoiles, et jouable en révision.
+	Placed bool `json:"placed"`
 }
 
 // PlayItem : item résolu dans la langue de l'apprenant pour la lecture.
@@ -118,6 +125,23 @@ type State struct {
 	LongestStreak  int      `json:"longest_streak"`
 	StreakAtRisk   bool     `json:"streak_at_risk"`
 	Achievements   []string `json:"achievements"`
+	// Premium : cœurs illimités (jamais décrémentés). Le front affiche un
+	// cœur doré « ∞ » et masque l'upsell.
+	Premium         bool `json:"premium"`
+	UnlimitedHearts bool `json:"unlimited_hearts"`
+	// CanAskHeart : l'apprenant peut encore demander un cœur à un ami
+	// aujourd'hui (quota 1/jour non consommé).
+	CanAskHeart bool `json:"can_ask_heart"`
+	// IncomingHeartRequests : nombre de demandes de cœur en attente reçues
+	// (à afficher en bannière pour les accorder).
+	IncomingHeartRequests int `json:"incoming_heart_requests"`
+}
+
+// HeartRequest : demande de cœur reçue, présentée pour être accordée.
+type HeartRequest struct {
+	ID          int64  `json:"id"`
+	RequesterID int64  `json:"requester_id"`
+	CreatedAt   string `json:"created_at"`
 }
 
 // CompleteResult : résultat de la validation d'une leçon.
@@ -128,6 +152,9 @@ type CompleteResult struct {
 	NewAchievements    []string `json:"new_achievements"`
 	StreakIncreased    bool     `json:"streak_increased"`
 	NewStreakMilestone int      `json:"new_streak_milestone"`
+	// Failed : leçon échouée (plus de cœurs en cours de route). Les cœurs sont
+	// décomptés mais aucun XP / progrès / streak n'est attribué.
+	Failed bool `json:"failed"`
 }
 
 // ----- Constantes de gamification -----

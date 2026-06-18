@@ -15,14 +15,18 @@ export function LessonPlayer({
   title,
   items,
   initialHearts,
+  premium,
   onClose,
+  onOutOfHearts,
 }: {
   lessonId: number;
   targetLang: string;
   title: string;
   items: PlayItem[];
   initialHearts: number;
+  premium: boolean;
   onClose: (completed: boolean) => void;
+  onOutOfHearts: () => void;
 }) {
   const t = useT();
   const exercises = useMemo(() => buildExercises(items), [items]);
@@ -34,10 +38,15 @@ export function LessonPlayer({
   const total = exercises.length;
   const current = exercises[idx];
 
-  async function finish(finalMistakes: number) {
+  async function finish(finalMistakes: number, failed: boolean) {
     setSubmitting(true);
     try {
-      const res = await completeLesson(lessonId, finalMistakes);
+      const res = await completeLesson(lessonId, finalMistakes, failed);
+      if (failed) {
+        // Plus de cœurs : leçon interrompue, on bascule sur l'écran dédié.
+        onOutOfHearts();
+        return;
+      }
       setResult(res);
     } catch {
       // En cas d'échec réseau on ferme tout de même (progression non comptée).
@@ -50,8 +59,14 @@ export function LessonPlayer({
   function handleExerciseDone(exMistakes: number) {
     const nextMistakes = mistakes + exMistakes;
     setMistakes(nextMistakes);
+    // Interruption style Duolingo : plus de cœurs en cours de leçon (hors
+    // premium = cœurs illimités).
+    if (!premium && initialHearts - nextMistakes <= 0) {
+      void finish(nextMistakes, true);
+      return;
+    }
     if (idx + 1 >= total) {
-      void finish(nextMistakes);
+      void finish(nextMistakes, false);
     } else {
       setIdx((i) => i + 1);
     }
@@ -85,9 +100,15 @@ export function LessonPlayer({
             style={{ width: `${total ? (idx / total) * 100 : 0}%` }}
           />
         </div>
-        <span className="flex items-center gap-1 text-sm font-bold tabular-nums text-rose-500">
-          ❤️ {heartsLeft}
-        </span>
+        {premium ? (
+          <span className="flex items-center gap-1 text-sm font-bold text-amber-500">
+            💛 ∞
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-sm font-bold tabular-nums text-rose-500">
+            ❤️ {heartsLeft}
+          </span>
+        )}
       </div>
 
       {/* Corps de l'exercice */}

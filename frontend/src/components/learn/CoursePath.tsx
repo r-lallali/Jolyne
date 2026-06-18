@@ -36,7 +36,7 @@ export function CoursePath({
                   <p className="mt-1.5 max-w-[8rem] text-center text-xs font-medium text-neutral-600 dark:text-neutral-400">
                     {lesson.title}
                   </p>
-                  {lesson.completed && <Stars count={lesson.stars} />}
+                  {lesson.completed && !lesson.placed && <Stars count={lesson.stars} />}
                 </div>
               );
             })}
@@ -70,9 +70,13 @@ function LessonBubble({
       </button>
     );
   }
-  const style = lesson.completed
-    ? "bg-amber-400 text-amber-950 hover:scale-105"
-    : "bg-emerald-500 text-white ring-4 ring-emerald-500/25 hover:scale-105";
+  // Placée (acquise via le niveau choisi) : aspect neutre « ✓ ». Jouée :
+  // doré « ★ ». À jouer : vert mis en avant « ▶ ».
+  const style = lesson.placed
+    ? "bg-sky-100 text-sky-600 hover:scale-105 dark:bg-sky-500/15 dark:text-sky-300"
+    : lesson.completed
+      ? "bg-amber-400 text-amber-950 hover:scale-105"
+      : "bg-emerald-500 text-white ring-4 ring-emerald-500/25 hover:scale-105";
   return (
     <button
       type="button"
@@ -80,7 +84,7 @@ function LessonBubble({
       aria-label={`${lesson.title} — ${lesson.completed ? t.learn.review : t.learn.start}`}
       className={`${base} ${style}`}
     >
-      {lesson.completed ? "★" : "▶"}
+      {lesson.placed ? "✓" : lesson.completed ? "★" : "▶"}
     </button>
   );
 }

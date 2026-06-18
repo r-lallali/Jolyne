@@ -23,22 +23,31 @@ export function LearnHeader({ state }: { state: LearnState }) {
           <span className={state.streak_at_risk ? "animate-pulse" : ""}>🔥</span>
         }
       />
-      {/* Cœurs */}
+      {/* Cœurs — premium : un cœur doré « ∞ » qui ne descend jamais. */}
       <div className="flex flex-col items-center gap-0.5">
-        <div className="flex items-center gap-0.5" aria-label={t.learn.hearts}>
-          {Array.from({ length: state.max_hearts }).map((_, i) => (
-            <span
-              key={i}
-              className={
-                i < state.hearts
-                  ? "text-sm"
-                  : "text-sm opacity-25 grayscale"
-              }
-            >
-              ❤️
-            </span>
-          ))}
-        </div>
+        {state.unlimited_hearts ? (
+          <span
+            className="flex items-center gap-0.5 text-sm font-bold text-amber-500"
+            aria-label={t.learn.hearts}
+            title={t.learn.premiumHearts}
+          >
+            <span className="drop-shadow-[0_0_4px_rgba(245,158,11,0.6)]">💛</span>
+            <span>∞</span>
+          </span>
+        ) : (
+          <div className="flex items-center gap-0.5" aria-label={t.learn.hearts}>
+            {Array.from({ length: state.max_hearts }).map((_, i) => (
+              <span
+                key={i}
+                className={
+                  i < state.hearts ? "text-sm" : "text-sm opacity-25 grayscale"
+                }
+              >
+                ❤️
+              </span>
+            ))}
+          </div>
+        )}
         <span className="text-[10px] font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
           {t.learn.hearts}
         </span>

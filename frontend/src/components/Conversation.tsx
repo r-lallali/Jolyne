@@ -6,6 +6,7 @@ import { ChatView } from "@/components/chat/ChatView";
 import { FarewellView } from "@/components/chat/FarewellView";
 import { SearchingView } from "@/components/chat/SearchingView";
 import { FriendsMode } from "@/components/friends/FriendsMode";
+import { LearnMode } from "@/components/learn/LearnMode";
 import { ModeTabs, type Mode } from "@/components/ModeTabs";
 import { SetupView } from "@/components/setup/SetupView";
 import { useMatch } from "@/hooks/useMatch";
@@ -20,6 +21,9 @@ import { useUserStore } from "@/stores/userStore";
 // (chat anonyme ou conversations amis). Un vrai rechargement de page
 // ré-évalue le module → retour au défaut "anon", comportement attendu.
 let lastHomeMode: Mode = "anon";
+
+// Ordre des onglets gauche → droite. Le swipe / le sens du slide en dérivent.
+const MODES: Mode[] = ["anon", "friends", "learn"];
 
 export function Conversation() {
   const status = useChatStore((s) => s.status);
@@ -40,7 +44,7 @@ export function Conversation() {
   const [slideDir, setSlideDir] = useState(1);
   const switchMode = (next: Mode) => {
     if (next === mode) return;
-    setSlideDir(next === "friends" ? 1 : -1);
+    setSlideDir(MODES.indexOf(next) > MODES.indexOf(mode) ? 1 : -1);
     setMode(next);
     lastHomeMode = next;
   };
@@ -171,9 +175,9 @@ export function Conversation() {
       const dy = t.clientY - s.y;
       // Geste horizontal franc uniquement — protège le scroll vertical.
       if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-      const m = modeRef.current;
-      if (dx < 0 && m === "anon") switchModeRef.current("friends");
-      if (dx > 0 && m === "friends") switchModeRef.current("anon");
+      const i = MODES.indexOf(modeRef.current);
+      if (dx < 0 && i < MODES.length - 1) switchModeRef.current(MODES[i + 1]!);
+      if (dx > 0 && i > 0) switchModeRef.current(MODES[i - 1]!);
     };
 
     document.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -209,8 +213,9 @@ export function Conversation() {
     const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
     const minDist = Math.min(60, vw * 0.18);
     if (Math.abs(dx) < minDist || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-    if (dx < 0 && mode === "anon") switchMode("friends");
-    if (dx > 0 && mode === "friends") switchMode("anon");
+    const i = MODES.indexOf(mode);
+    if (dx < 0 && i < MODES.length - 1) switchMode(MODES[i + 1]!);
+    if (dx > 0 && i > 0) switchMode(MODES[i - 1]!);
   };
 
   // Variants du slide horizontal entre les deux modes. Le `custom` passé
@@ -235,7 +240,7 @@ export function Conversation() {
         // qui est l'enfant direct du flex parent.
         className={
           "flex w-full justify-center " +
-          (mode === "friends" ? "self-start" : "")
+          (mode === "friends" || mode === "learn" ? "self-start" : "")
         }
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
@@ -253,6 +258,8 @@ export function Conversation() {
           >
             {mode === "friends" && authedUser ? (
               <FriendsMode />
+            ) : mode === "learn" && authedUser ? (
+              <LearnMode />
             ) : (
               <AnimatePresence mode="wait">
                 <motion.div

@@ -417,7 +417,12 @@ func run() error {
 		if err := learn.SeedIfEmpty(ctx, learnStore, log); err != nil {
 			log.Warn("learn seed", "err", err)
 		}
-		svc.learn = &learn.Handlers{Store: learnStore, Log: log}
+		svc.learn = &learn.Handlers{
+			Store:     learnStore,
+			IsPremium: isPremium,           // cœurs illimités pour les abonnés
+			Friends:   wsDeps.Friends,      // validation amitié pour les demandes de cœur
+			Log:       log,
+		}
 		log.Info("learn endpoints ready")
 
 		// Web Push : Postgres-backed subscriptions + VAPID sender. Si une
@@ -441,6 +446,12 @@ func run() error {
 			log.Info("web push handler ready")
 		} else {
 			log.Info("web push disabled — VAPID env keys missing")
+		}
+
+		// Le mode Cours réutilise le sender push pour notifier les demandes /
+		// dons de cœur entre amis (best-effort, nil-safe).
+		if svc.learn != nil {
+			svc.learn.Push = pushSender
 		}
 
 		// WS friend chat : /ws/friend/{id} — persisté, push temps-réel.

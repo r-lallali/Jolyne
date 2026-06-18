@@ -169,6 +169,23 @@ export interface Messages {
     xpEarned: FormatString<{ xp: number }>;
     accuracy: FormatString<{ percent: number }>;
     streakMilestone: FormatString<{ count: number }>;
+    // Cœurs premium + niveau + plus-de-vies
+    premiumHearts: string;
+    chooseLevel: string;
+    levelHint: string;
+    levelBeginner: string;
+    levelBasics: string;
+    levelIntermediate: string;
+    levelAdvanced: string;
+    outOfHeartsTitle: string;
+    outOfHeartsHint: string;
+    askFriend: string;
+    requestSent: string;
+    requestQuota: string;
+    noFriends: string;
+    goPremium: string;
+    giveHeart: string;
+    incomingHearts: FormatString<{ count: number }>;
     // Succès
     achievements: string;
     achievementUnlocked: string;
