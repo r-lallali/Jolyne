@@ -14,6 +14,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/billing"
 	"github.com/ralys/jolyne/backend/internal/friends"
 	"github.com/ralys/jolyne/backend/internal/grammar"
+	"github.com/ralys/jolyne/backend/internal/learn"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/push"
@@ -40,6 +41,7 @@ type services struct {
 	profile         *profile.Handlers // nil si auth utilisateur désactivée
 	friends         *friends.Handlers // nil si auth utilisateur désactivée
 	vocab           *vocab.Handlers   // nil si auth utilisateur désactivée
+	learn           *learn.Handlers   // nil si auth utilisateur désactivée
 	push            *push.Handlers    // nil si VAPID env manquant
 	publicCORS      string            // origin autorisée pour /api/translate et /api/grammar
 }
@@ -189,6 +191,34 @@ func routes(s services) http.Handler {
 				return
 			}
 			s.vocab.HandleDelete(w, r)
+		}))))
+	}
+
+	// Mode Cours. Toutes les routes requièrent l'auth user (progression +
+	// streak liés au compte).
+	//   GET  /api/learn/courses                       liste des cours
+	//   GET  /api/learn/courses/{lang}                arbre + progression
+	//   GET  /api/learn/lessons/{id}?from=fr          items résolus pour jouer
+	//   POST /api/learn/lessons/{id}/complete         valide la leçon
+	//   GET  /api/learn/state                         état de gamification
+	//   PUT  /api/learn/state/daily-goal              règle l'objectif quotidien
+	if s.learn != nil && s.users != nil {
+		auth := s.users.RequireAuth
+		cors := publicCORS(s.publicCORS)
+		mux.Handle("/api/learn/courses", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleListCourses)))))
+		mux.Handle("/api/learn/courses/", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleTree)))))
+		mux.Handle("/api/learn/state", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleState)))))
+		mux.Handle("/api/learn/state/daily-goal", cors(auth(methodOnly("PUT", http.HandlerFunc(s.learn.HandleSetGoal)))))
+		// Sous-arbre /api/learn/lessons/{id}[/complete] — dispatch par suffixe.
+		mux.Handle("/api/learn/lessons/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/complete"):
+				s.learn.HandleComplete(w, r)
+			case r.Method == http.MethodGet && !strings.HasSuffix(r.URL.Path, "/complete"):
+				s.learn.HandleLessonPlay(w, r)
+			default:
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
 		}))))
 	}
 

@@ -121,6 +121,70 @@ export interface Messages {
     link: string; // libellé du lien depuis /account
     count: FormatString<{ count: number }>;
   };
+  // Mode Cours (apprentissage type Duolingo).
+  learn: {
+    navLink: string; // entrée de menu vers le mode Cours
+    title: string;
+    subtitle: string;
+    chooseCourse: string;
+    courseCta: string; // "Apprendre <langue>" sur une carte de cours
+    lessonsCount: FormatString<{ count: number }>;
+    backToCourses: string;
+    backToPath: string;
+    // Parcours
+    start: string;
+    continueLesson: string;
+    review: string;
+    locked: string;
+    lockedHint: string;
+    empty: string;
+    // En-tête de gamification
+    streak: string;
+    streakDays: FormatString<{ count: number }>;
+    streakAtRisk: string;
+    hearts: string;
+    noHearts: string;
+    heartsRegen: FormatString<{ mins: number }>;
+    heartsFull: string;
+    dailyGoal: string;
+    goalProgress: FormatString<{ xp: number; goal: number }>;
+    goalReached: string;
+    setGoal: string;
+    save: string;
+    // Exercices
+    chooseMeaning: string;
+    chooseTarget: string;
+    assemble: string;
+    matchPairs: string;
+    check: string;
+    next: string;
+    correct: string;
+    incorrect: FormatString<{ answer: string }>;
+    tapToType: string;
+    listen: string;
+    quit: string;
+    quitConfirm: string;
+    // Résultats
+    lessonComplete: string;
+    xpEarned: FormatString<{ xp: number }>;
+    accuracy: FormatString<{ percent: number }>;
+    streakMilestone: FormatString<{ count: number }>;
+    // Succès
+    achievements: string;
+    achievementUnlocked: string;
+    noAchievements: string;
+    ach: {
+      first_lesson: string;
+      lessons_10: string;
+      lessons_50: string;
+      xp_100: string;
+      xp_500: string;
+      xp_1000: string;
+      streak_3: string;
+      streak_7: string;
+      streak_30: string;
+    };
+  };
   grammar: {
     suggestionsCount: FormatString<{ count: number }>;
     nothingToFix: string;

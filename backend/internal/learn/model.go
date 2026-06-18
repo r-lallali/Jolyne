@@ -1,0 +1,204 @@
+// Package learn : mode Cours (apprentissage type Duolingo). Sépare le CONTENU
+// pédagogique (cours → unités → leçons, partagé et regénérable) de la
+// PROGRESSION par utilisateur (XP, streak quotidien obligatoire, cœurs, succès).
+//
+// Parti pris : une leçon porte ses « items » (mot/phrase cible + traductions
+// par langue source). Le lecteur de leçon côté front dérive les exercices
+// (choisir / traduire / associer) de ces items dans la langue de l'apprenant.
+// On ne stocke donc ni exercices ni distracteurs par langue — juste la matière.
+package learn
+
+import "time"
+
+// SupportedLangs : langues acceptées comme cible de cours ET comme langue
+// source d'un apprenant. Aligné sur l'i18n front et le handler translate.
+var SupportedLangs = map[string]struct{}{
+	"fr": {}, "en": {}, "es": {}, "de": {}, "pt": {}, "it": {},
+	"zh": {}, "ja": {}, "ko": {}, "ar": {},
+}
+
+func IsSupportedLang(code string) bool {
+	_, ok := SupportedLangs[code]
+	return ok
+}
+
+// ----- Contenu (entrée du seed / sortie du générateur Claude) -----
+
+// Item : une brique pédagogique. `Target` est dans la langue cible du cours ;
+// `Tr` mappe chaque langue source vers la traduction (sens) du terme.
+type Item struct {
+	Target string            `json:"target"`
+	Tr     map[string]string `json:"tr"`
+	Notes  string            `json:"notes,omitempty"`
+}
+
+// LessonContent : forme stockée en JSONB sur learn_lessons.content.
+type LessonContent struct {
+	Items []Item `json:"items"`
+}
+
+// Course / Unit / Lesson : arbre complet servant à l'upsert (seed + générateur).
+type Course struct {
+	Lang  string `json:"lang"`
+	Title string `json:"title"`
+	Units []Unit `json:"units"`
+}
+
+type Unit struct {
+	Slug    string   `json:"slug"`
+	Title   string   `json:"title"`
+	Lessons []Lesson `json:"lessons"`
+}
+
+type Lesson struct {
+	Slug  string `json:"slug"`
+	Title string `json:"title"`
+	XP    int    `json:"xp"`
+	Items []Item `json:"items"`
+}
+
+// ----- Vues renvoyées au front -----
+
+// CourseSummary : un cours disponible (pour la liste de sélection).
+type CourseSummary struct {
+	Lang       string `json:"lang"`
+	Title      string `json:"title"`
+	UnitCount  int    `json:"unit_count"`
+	LessonCount int   `json:"lesson_count"`
+}
+
+// CourseTree : arbre d'un cours décoré de la progression du user. Les leçons
+// portent leur ID DB (pour lancer la lecture) et leur statut (verrou/étoiles).
+type CourseTree struct {
+	Lang  string     `json:"lang"`
+	Title string     `json:"title"`
+	Units []UnitNode `json:"units"`
+}
+
+type UnitNode struct {
+	Slug    string       `json:"slug"`
+	Title   string       `json:"title"`
+	Lessons []LessonNode `json:"lessons"`
+}
+
+type LessonNode struct {
+	ID        int64  `json:"id"`
+	Slug      string `json:"slug"`
+	Title     string `json:"title"`
+	XP        int    `json:"xp"`
+	ItemCount int    `json:"item_count"`
+	Stars     int    `json:"stars"`
+	Completed bool   `json:"completed"`
+	Locked    bool   `json:"locked"`
+}
+
+// PlayItem : item résolu dans la langue de l'apprenant pour la lecture.
+type PlayItem struct {
+	Target  string `json:"target"`
+	Meaning string `json:"meaning"`
+}
+
+// LessonPlay : payload de lecture d'une leçon (items résolus + meta).
+type LessonPlay struct {
+	ID    int64      `json:"id"`
+	Title string     `json:"title"`
+	XP    int        `json:"xp"`
+	Items []PlayItem `json:"items"`
+}
+
+// State : état de gamification courant renvoyé au front.
+type State struct {
+	TotalXP        int      `json:"total_xp"`
+	DailyGoal      int      `json:"daily_goal"`
+	DailyXP        int      `json:"daily_xp"`
+	Hearts         int      `json:"hearts"`
+	MaxHearts      int      `json:"max_hearts"`
+	NextHeartInSec int      `json:"next_heart_in_sec"`
+	CurrentStreak  int      `json:"current_streak"`
+	LongestStreak  int      `json:"longest_streak"`
+	StreakAtRisk   bool     `json:"streak_at_risk"`
+	Achievements   []string `json:"achievements"`
+}
+
+// CompleteResult : résultat de la validation d'une leçon.
+type CompleteResult struct {
+	XPAwarded          int      `json:"xp_awarded"`
+	Stars              int      `json:"stars"`
+	State              State    `json:"state"`
+	NewAchievements    []string `json:"new_achievements"`
+	StreakIncreased    bool     `json:"streak_increased"`
+	NewStreakMilestone int      `json:"new_streak_milestone"`
+}
+
+// ----- Constantes de gamification -----
+
+const (
+	MaxHearts     = 5
+	HeartRegen    = 30 * time.Minute
+	DefaultGoal   = 20
+	MinGoal       = 5
+	MaxGoal       = 100
+	ReviewXPMax   = 5 // XP plafonné pour une leçon déjà complétée (anti-farm)
+)
+
+// StreakMilestones : paliers célébrés (popup). Même esprit que friends.
+var StreakMilestones = []int{2, 3, 7, 14, 30, 50, 100, 365}
+
+// AchievementKind : nature du seuil d'un succès.
+type AchievementKind string
+
+const (
+	KindFirstLesson AchievementKind = "lessons"
+	KindXP          AchievementKind = "xp"
+	KindStreak      AchievementKind = "streak"
+)
+
+// AchievementDef : définition en dur d'un succès. Le `Code` est l'identité
+// persistée ; le libellé est traduit côté front via l'i18n (clé = code).
+type AchievementDef struct {
+	Code      string
+	Kind      AchievementKind
+	Threshold int
+}
+
+// Achievements : catalogue. Évalué à chaque complétion de leçon.
+var Achievements = []AchievementDef{
+	{Code: "first_lesson", Kind: KindFirstLesson, Threshold: 1},
+	{Code: "lessons_10", Kind: KindFirstLesson, Threshold: 10},
+	{Code: "lessons_50", Kind: KindFirstLesson, Threshold: 50},
+	{Code: "xp_100", Kind: KindXP, Threshold: 100},
+	{Code: "xp_500", Kind: KindXP, Threshold: 500},
+	{Code: "xp_1000", Kind: KindXP, Threshold: 1000},
+	{Code: "streak_3", Kind: KindStreak, Threshold: 3},
+	{Code: "streak_7", Kind: KindStreak, Threshold: 7},
+	{Code: "streak_30", Kind: KindStreak, Threshold: 30},
+}
+
+// starsFromMistakes : 0 faute = 3 étoiles, 1-2 = 2, sinon 1.
+func starsFromMistakes(mistakes int) int {
+	switch {
+	case mistakes <= 0:
+		return 3
+	case mistakes <= 2:
+		return 2
+	default:
+		return 1
+	}
+}
+
+// resolveMeaning : traduction d'un item dans la langue source `from`, avec
+// repli sur l'anglais puis sur n'importe quelle traduction disponible.
+func resolveMeaning(it Item, from string) string {
+	if m, ok := it.Tr[from]; ok && m != "" {
+		return m
+	}
+	if m, ok := it.Tr["en"]; ok && m != "" {
+		return m
+	}
+	for _, m := range it.Tr {
+		if m != "" {
+			return m
+		}
+	}
+	return ""
+}

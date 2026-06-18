@@ -23,6 +23,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/db"
 	"github.com/ralys/jolyne/backend/internal/friends"
 	"github.com/ralys/jolyne/backend/internal/grammar"
+	"github.com/ralys/jolyne/backend/internal/learn"
 	"github.com/ralys/jolyne/backend/internal/mailer"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
@@ -407,6 +408,17 @@ func run() error {
 			Log:   log,
 		}
 		log.Info("vocab endpoints ready")
+
+		// Mode Cours : contenu (cours/leçons) + progression/streak/cœurs/succès.
+		// Dépend de Postgres + auth user. On amorce les cours embarqués absents
+		// de la base (idempotent, non destructif) ; le générateur Claude
+		// (cmd/coursegen) étoffe ensuite hors ligne.
+		learnStore := learn.NewStore(svc.pg)
+		if err := learn.SeedIfEmpty(ctx, learnStore, log); err != nil {
+			log.Warn("learn seed", "err", err)
+		}
+		svc.learn = &learn.Handlers{Store: learnStore, Log: log}
+		log.Info("learn endpoints ready")
 
 		// Web Push : Postgres-backed subscriptions + VAPID sender. Si une
 		// des trois VAPID env n'est pas posée, le sender est laissé nil
