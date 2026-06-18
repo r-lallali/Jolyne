@@ -175,7 +175,9 @@ export interface Messages {
     levelHint: string;
     levelBeginner: string;
     levelBasics: string;
+    levelElementary: string;
     levelIntermediate: string;
+    levelUpperIntermediate: string;
     levelAdvanced: string;
     outOfHeartsTitle: string;
     outOfHeartsHint: string;

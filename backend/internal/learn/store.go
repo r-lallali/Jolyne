@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -46,7 +49,9 @@ func (s *Store) UpsertCourse(ctx context.Context, c Course) error {
 		return fmt.Errorf("learn: upsert course: %w", err)
 	}
 
+	unitSlugs := make([]string, 0, len(c.Units))
 	for ui, u := range c.Units {
+		unitSlugs = append(unitSlugs, u.Slug)
 		var unitID int64
 		if err := tx.QueryRow(ctx,
 			`INSERT INTO learn_units (course_id, slug, idx, title) VALUES ($1, $2, $3, $4)
@@ -55,7 +60,9 @@ func (s *Store) UpsertCourse(ctx context.Context, c Course) error {
 		).Scan(&unitID); err != nil {
 			return fmt.Errorf("learn: upsert unit %q: %w", u.Slug, err)
 		}
+		lessonSlugs := make([]string, 0, len(u.Lessons))
 		for li, l := range u.Lessons {
+			lessonSlugs = append(lessonSlugs, l.Slug)
 			content, err := json.Marshal(LessonContent{Items: l.Items})
 			if err != nil {
 				return fmt.Errorf("learn: marshal lesson %q: %w", l.Slug, err)
@@ -74,6 +81,28 @@ func (s *Store) UpsertCourse(ctx context.Context, c Course) error {
 			); err != nil {
 				return fmt.Errorf("learn: upsert lesson %q: %w", l.Slug, err)
 			}
+		}
+		// Réconciliation : supprime les leçons de cette unité absentes du
+		// nouveau contenu (cascade sur la progression de ces leçons). Garde-fou :
+		// on ne purge que si on a bien des leçons (slug <> ALL('{}') vaut TRUE et
+		// supprimerait tout).
+		if len(lessonSlugs) > 0 {
+			if _, err := tx.Exec(ctx,
+				`DELETE FROM learn_lessons WHERE unit_id = $1 AND slug <> ALL($2)`,
+				unitID, lessonSlugs,
+			); err != nil {
+				return fmt.Errorf("learn: prune lessons: %w", err)
+			}
+		}
+	}
+	// Réconciliation : supprime les unités absentes du nouveau contenu (même
+	// garde-fou que pour les leçons).
+	if len(unitSlugs) > 0 {
+		if _, err := tx.Exec(ctx,
+			`DELETE FROM learn_units WHERE course_id = $1 AND slug <> ALL($2)`,
+			courseID, unitSlugs,
+		); err != nil {
+			return fmt.Errorf("learn: prune units: %w", err)
 		}
 	}
 	return tx.Commit(ctx)
@@ -280,13 +309,25 @@ func (s *Store) Enroll(ctx context.Context, userID int64, lang string, startUnit
 	return tx.Commit(ctx)
 }
 
-// LessonForPlay : items d'une leçon résolus dans la langue source `from`.
-func (s *Store) LessonForPlay(ctx context.Context, lessonID int64, from string) (LessonPlay, error) {
+// VocabPerLesson : nombre maximum de mots du carnet injectés par leçon.
+const VocabPerLesson = 2
+
+// LessonForPlay : items d'une leçon résolus dans la langue source `from`, puis
+// enrichis de quelques mots du carnet de vocabulaire de l'apprenant adaptés au
+// niveau (cf. vocabCandidates). Les entrées multi-mots deviennent naturellement
+// des exercices d'assemblage côté front (décomposition en banque de mots).
+func (s *Store) LessonForPlay(ctx context.Context, lessonID, userID int64, from string) (LessonPlay, error) {
 	var lp LessonPlay
 	var raw []byte
+	var courseLang string
+	var unitIdx int
 	if err := s.pool.QueryRow(ctx,
-		`SELECT id, title, xp, content FROM learn_lessons WHERE id = $1`, lessonID,
-	).Scan(&lp.ID, &lp.Title, &lp.XP, &raw); err != nil {
+		`SELECT l.id, l.title, l.xp, l.content, c.lang, u.idx
+		 FROM learn_lessons l
+		 JOIN learn_units u   ON u.id = l.unit_id
+		 JOIN learn_courses c ON c.id = u.course_id
+		 WHERE l.id = $1`, lessonID,
+	).Scan(&lp.ID, &lp.Title, &lp.XP, &raw, &courseLang, &unitIdx); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return LessonPlay{}, ErrNotFound
 		}
@@ -296,10 +337,124 @@ func (s *Store) LessonForPlay(ctx context.Context, lessonID int64, from string) 
 	if err := json.Unmarshal(raw, &content); err != nil {
 		return LessonPlay{}, fmt.Errorf("learn: parse content: %w", err)
 	}
+	// Cibles statiques (pour dédupliquer le vocab injecté).
+	seen := make(map[string]bool, len(content.Items))
 	for _, it := range content.Items {
 		lp.Items = append(lp.Items, PlayItem{Target: it.Target, Meaning: resolveMeaning(it, from)})
+		seen[strings.ToLower(strings.TrimSpace(it.Target))] = true
+	}
+
+	// Carnet de vocabulaire (best-effort : une erreur ne casse pas la leçon).
+	if cands, err := s.vocabCandidates(ctx, userID, courseLang, from, unitIdx, seen); err == nil {
+		lp.Items = append(lp.Items, pickVocab(cands, lessonID, VocabPerLesson)...)
 	}
 	return lp, nil
+}
+
+// vocabBand : bornes (nombre de mots, longueur) des entrées de carnet
+// acceptées selon l'indice d'unité — on vise des mots courts aux débuts et on
+// autorise des expressions plus longues plus loin dans le parcours.
+func vocabBand(unitIdx int) (maxWords, maxLen int) {
+	switch {
+	case unitIdx <= 1:
+		return 1, 12
+	case unitIdx <= 3:
+		return 2, 20
+	default:
+		return 4, 40
+	}
+}
+
+// vocabCandidates : entrées du carnet de l'apprenant pertinentes pour ce cours
+// (paire {langue cible, langue source}), résolues en (cible, sens), filtrées
+// par niveau et dédupliquées contre les items statiques. Les textes du carnet
+// sont stockés HTML-échappés → on les dé-échappe ici (le front re-échappe au
+// rendu via React).
+func (s *Store) vocabCandidates(ctx context.Context, userID int64, courseLang, from string, unitIdx int, exclude map[string]bool) ([]PlayItem, error) {
+	if from == courseLang || userID == 0 {
+		return nil, nil
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT term, translation, source_lang, target_lang
+		 FROM vocab_entries
+		 WHERE user_id = $1
+		   AND ((source_lang = $2 AND target_lang = $3)
+		     OR (source_lang = $3 AND target_lang = $2))
+		 ORDER BY created_at DESC`, userID, from, courseLang)
+	if err != nil {
+		return nil, fmt.Errorf("learn: vocab candidates: %w", err)
+	}
+	defer rows.Close()
+
+	maxWords, maxLen := vocabBand(unitIdx)
+	out := []PlayItem{}
+	picked := map[string]bool{}
+	for rows.Next() {
+		var term, translation, sl, tl string
+		if err := rows.Scan(&term, &translation, &sl, &tl); err != nil {
+			return nil, err
+		}
+		// La cible est le côté en langue du cours ; le sens, le côté en langue
+		// de l'apprenant.
+		target, meaning := term, translation
+		if tl == courseLang {
+			target, meaning = translation, term
+		}
+		target = strings.TrimSpace(html.UnescapeString(target))
+		meaning = strings.TrimSpace(html.UnescapeString(meaning))
+		if target == "" || meaning == "" {
+			continue
+		}
+		key := strings.ToLower(target)
+		if exclude[key] || picked[key] {
+			continue
+		}
+		// Filtre « contient des lettres » : écarte les entrées emoji/ponctuation
+		// seule, qui feraient des exercices absurdes.
+		if !hasLetter(target) {
+			continue
+		}
+		// Filtre de niveau : on écarte les entrées trop longues / trop de mots
+		// (« quitte à décomposer » : les multi-mots restants deviennent des
+		// exercices d'assemblage côté front).
+		if len([]rune(target)) > maxLen || len(strings.Fields(target)) > maxWords {
+			continue
+		}
+		picked[key] = true
+		out = append(out, PlayItem{Target: target, Meaning: meaning})
+	}
+	return out, rows.Err()
+}
+
+// hasLetter : vrai si la chaîne contient au moins une lettre (tous alphabets).
+func hasLetter(s string) bool {
+	for _, r := range s {
+		if unicode.IsLetter(r) {
+			return true
+		}
+	}
+	return false
+}
+
+// pickVocab : sélectionne jusqu'à k candidats de façon stable par leçon (offset
+// dérivé de l'ID de leçon) pour varier les mots d'une leçon à l'autre sans
+// hasard à chaque chargement.
+func pickVocab(cands []PlayItem, lessonID int64, k int) []PlayItem {
+	if len(cands) == 0 || k <= 0 {
+		return nil
+	}
+	if len(cands) <= k {
+		return cands
+	}
+	off := int(lessonID) % len(cands)
+	if off < 0 {
+		off = 0
+	}
+	out := make([]PlayItem, 0, k)
+	for i := 0; i < k; i++ {
+		out = append(out, cands[(off+i)%len(cands)])
+	}
+	return out
 }
 
 // ---------------------------------------------------------------------------
@@ -407,10 +562,11 @@ func (s *Store) State(ctx context.Context, userID int64, premium bool, now time.
 	}
 	st.CanAskHeart = reqToday == 0
 
-	// Demandes de cœur reçues en attente (à accorder).
+	// Demandes de cœur reçues en attente (à accorder), non expirées (TTL 24h).
 	if err := s.pool.QueryRow(ctx,
 		`SELECT count(*) FROM learn_heart_requests
-		 WHERE target_id = $1 AND status = 'pending'`, userID,
+		 WHERE target_id = $1 AND status = 'pending'
+		   AND created_at > now() - interval '24 hours'`, userID,
 	).Scan(&st.IncomingHeartRequests); err != nil {
 		return State{}, fmt.Errorf("learn: incoming count: %w", err)
 	}
@@ -726,6 +882,7 @@ func (s *Store) ListIncomingHeartRequests(ctx context.Context, userID int64) ([]
 	rows, err := s.pool.Query(ctx,
 		`SELECT id, requester_id, created_at FROM learn_heart_requests
 		 WHERE target_id = $1 AND status = 'pending'
+		   AND created_at > now() - interval '24 hours'
 		 ORDER BY created_at DESC`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("learn: incoming reqs: %w", err)
@@ -757,7 +914,8 @@ func (s *Store) GrantHeart(ctx context.Context, targetID, requestID int64, now t
 	var requesterID int64
 	if err := tx.QueryRow(ctx,
 		`SELECT requester_id FROM learn_heart_requests
-		 WHERE id = $1 AND target_id = $2 AND status = 'pending' FOR UPDATE`,
+		 WHERE id = $1 AND target_id = $2 AND status = 'pending'
+		   AND created_at > now() - interval '24 hours' FOR UPDATE`,
 		requestID, targetID,
 	).Scan(&requesterID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

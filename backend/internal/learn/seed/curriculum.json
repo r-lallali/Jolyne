@@ -1,0 +1,328 @@
+{
+  "units": [
+    {
+      "slug": "basics",
+      "title": "Basics",
+      "lessons": [
+        {
+          "slug": "greetings",
+          "title": "Greetings",
+          "items": [
+            { "words": { "fr": "Bonjour", "en": "Hello", "es": "Hola", "de": "Hallo", "pt": "Olá", "it": "Ciao", "zh": "你好", "ja": "こんにちは", "ko": "안녕하세요", "ar": "مرحبا" } },
+            { "words": { "fr": "Au revoir", "en": "Goodbye", "es": "Adiós", "de": "Tschüss", "pt": "Adeus", "it": "Arrivederci", "zh": "再见", "ja": "さようなら", "ko": "안녕히 가세요", "ar": "وداعا" } },
+            { "words": { "fr": "Bonjour", "en": "Good morning", "es": "Buenos días", "de": "Guten Morgen", "pt": "Bom dia", "it": "Buongiorno", "zh": "早上好", "ja": "おはよう", "ko": "좋은 아침", "ar": "صباح الخير" } },
+            { "words": { "fr": "Bonne nuit", "en": "Good night", "es": "Buenas noches", "de": "Gute Nacht", "pt": "Boa noite", "it": "Buonanotte", "zh": "晚安", "ja": "おやすみ", "ko": "안녕히 주무세요", "ar": "تصبح على خير" } }
+          ]
+        },
+        {
+          "slug": "politeness",
+          "title": "Politeness",
+          "items": [
+            { "words": { "fr": "S'il vous plaît", "en": "Please", "es": "Por favor", "de": "Bitte", "pt": "Por favor", "it": "Per favore", "zh": "请", "ja": "お願いします", "ko": "제발", "ar": "من فضلك" } },
+            { "words": { "fr": "Merci", "en": "Thank you", "es": "Gracias", "de": "Danke", "pt": "Obrigado", "it": "Grazie", "zh": "谢谢", "ja": "ありがとう", "ko": "감사합니다", "ar": "شكرا" } },
+            { "words": { "fr": "Désolé", "en": "Sorry", "es": "Lo siento", "de": "Entschuldigung", "pt": "Desculpa", "it": "Scusa", "zh": "对不起", "ja": "ごめんなさい", "ko": "미안해요", "ar": "آسف" } },
+            { "words": { "fr": "Excusez-moi", "en": "Excuse me", "es": "Perdón", "de": "Verzeihung", "pt": "Com licença", "it": "Mi scusi", "zh": "打扰一下", "ja": "すみません", "ko": "실례합니다", "ar": "عذرا" } }
+          ]
+        },
+        {
+          "slug": "yes-no",
+          "title": "Yes & No",
+          "items": [
+            { "words": { "fr": "Oui", "en": "Yes", "es": "Sí", "de": "Ja", "pt": "Sim", "it": "Sì", "zh": "是", "ja": "はい", "ko": "네", "ar": "نعم" } },
+            { "words": { "fr": "Non", "en": "No", "es": "No", "de": "Nein", "pt": "Não", "it": "No", "zh": "不", "ja": "いいえ", "ko": "아니요", "ar": "لا" } },
+            { "words": { "fr": "Peut-être", "en": "Maybe", "es": "Quizás", "de": "Vielleicht", "pt": "Talvez", "it": "Forse", "zh": "也许", "ja": "たぶん", "ko": "아마", "ar": "ربما" } },
+            { "words": { "fr": "D'accord", "en": "Okay", "es": "Vale", "de": "Okay", "pt": "Está bem", "it": "Va bene", "zh": "好的", "ja": "オーケー", "ko": "좋아요", "ar": "حسنا" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "people",
+      "title": "People",
+      "lessons": [
+        {
+          "slug": "pronouns",
+          "title": "Pronouns",
+          "items": [
+            { "words": { "fr": "Je", "en": "I", "es": "Yo", "de": "Ich", "pt": "Eu", "it": "Io", "zh": "我", "ja": "私", "ko": "나", "ar": "أنا" } },
+            { "words": { "fr": "Tu", "en": "You", "es": "Tú", "de": "Du", "pt": "Você", "it": "Tu", "zh": "你", "ja": "あなた", "ko": "너", "ar": "أنت" } },
+            { "words": { "fr": "Il", "en": "He", "es": "Él", "de": "Er", "pt": "Ele", "it": "Lui", "zh": "他", "ja": "彼", "ko": "그", "ar": "هو" } },
+            { "words": { "fr": "Elle", "en": "She", "es": "Ella", "de": "Sie", "pt": "Ela", "it": "Lei", "zh": "她", "ja": "彼女", "ko": "그녀", "ar": "هي" } }
+          ]
+        },
+        {
+          "slug": "family",
+          "title": "Family",
+          "items": [
+            { "words": { "fr": "Mère", "en": "Mother", "es": "Madre", "de": "Mutter", "pt": "Mãe", "it": "Madre", "zh": "妈妈", "ja": "母", "ko": "어머니", "ar": "أم" } },
+            { "words": { "fr": "Père", "en": "Father", "es": "Padre", "de": "Vater", "pt": "Pai", "it": "Padre", "zh": "爸爸", "ja": "父", "ko": "아버지", "ar": "أب" } },
+            { "words": { "fr": "Frère", "en": "Brother", "es": "Hermano", "de": "Bruder", "pt": "Irmão", "it": "Fratello", "zh": "兄弟", "ja": "兄弟", "ko": "형제", "ar": "أخ" } },
+            { "words": { "fr": "Sœur", "en": "Sister", "es": "Hermana", "de": "Schwester", "pt": "Irmã", "it": "Sorella", "zh": "姐妹", "ja": "姉妹", "ko": "자매", "ar": "أخت" } }
+          ]
+        },
+        {
+          "slug": "persons",
+          "title": "Describing people",
+          "items": [
+            { "words": { "fr": "Homme", "en": "Man", "es": "Hombre", "de": "Mann", "pt": "Homem", "it": "Uomo", "zh": "男人", "ja": "男性", "ko": "남자", "ar": "رجل" } },
+            { "words": { "fr": "Femme", "en": "Woman", "es": "Mujer", "de": "Frau", "pt": "Mulher", "it": "Donna", "zh": "女人", "ja": "女性", "ko": "여자", "ar": "امرأة" } },
+            { "words": { "fr": "Enfant", "en": "Child", "es": "Niño", "de": "Kind", "pt": "Criança", "it": "Bambino", "zh": "孩子", "ja": "子供", "ko": "아이", "ar": "طفل" } },
+            { "words": { "fr": "Ami", "en": "Friend", "es": "Amigo", "de": "Freund", "pt": "Amigo", "it": "Amico", "zh": "朋友", "ja": "友達", "ko": "친구", "ar": "صديق" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "numbers",
+      "title": "Numbers",
+      "lessons": [
+        {
+          "slug": "one-four",
+          "title": "1 to 4",
+          "items": [
+            { "words": { "fr": "Un", "en": "One", "es": "Uno", "de": "Eins", "pt": "Um", "it": "Uno", "zh": "一", "ja": "一", "ko": "하나", "ar": "واحد" } },
+            { "words": { "fr": "Deux", "en": "Two", "es": "Dos", "de": "Zwei", "pt": "Dois", "it": "Due", "zh": "二", "ja": "二", "ko": "둘", "ar": "اثنان" } },
+            { "words": { "fr": "Trois", "en": "Three", "es": "Tres", "de": "Drei", "pt": "Três", "it": "Tre", "zh": "三", "ja": "三", "ko": "셋", "ar": "ثلاثة" } },
+            { "words": { "fr": "Quatre", "en": "Four", "es": "Cuatro", "de": "Vier", "pt": "Quatro", "it": "Quattro", "zh": "四", "ja": "四", "ko": "넷", "ar": "أربعة" } }
+          ]
+        },
+        {
+          "slug": "five-eight",
+          "title": "5 to 8",
+          "items": [
+            { "words": { "fr": "Cinq", "en": "Five", "es": "Cinco", "de": "Fünf", "pt": "Cinco", "it": "Cinque", "zh": "五", "ja": "五", "ko": "다섯", "ar": "خمسة" } },
+            { "words": { "fr": "Six", "en": "Six", "es": "Seis", "de": "Sechs", "pt": "Seis", "it": "Sei", "zh": "六", "ja": "六", "ko": "여섯", "ar": "ستة" } },
+            { "words": { "fr": "Sept", "en": "Seven", "es": "Siete", "de": "Sieben", "pt": "Sete", "it": "Sette", "zh": "七", "ja": "七", "ko": "일곱", "ar": "سبعة" } },
+            { "words": { "fr": "Huit", "en": "Eight", "es": "Ocho", "de": "Acht", "pt": "Oito", "it": "Otto", "zh": "八", "ja": "八", "ko": "여덟", "ar": "ثمانية" } }
+          ]
+        },
+        {
+          "slug": "nine-ten",
+          "title": "9, 10 & more",
+          "items": [
+            { "words": { "fr": "Neuf", "en": "Nine", "es": "Nueve", "de": "Neun", "pt": "Nove", "it": "Nove", "zh": "九", "ja": "九", "ko": "아홉", "ar": "تسعة" } },
+            { "words": { "fr": "Dix", "en": "Ten", "es": "Diez", "de": "Zehn", "pt": "Dez", "it": "Dieci", "zh": "十", "ja": "十", "ko": "열", "ar": "عشرة" } },
+            { "words": { "fr": "Zéro", "en": "Zero", "es": "Cero", "de": "Null", "pt": "Zero", "it": "Zero", "zh": "零", "ja": "ゼロ", "ko": "영", "ar": "صفر" } },
+            { "words": { "fr": "Nombre", "en": "Number", "es": "Número", "de": "Zahl", "pt": "Número", "it": "Numero", "zh": "数字", "ja": "数", "ko": "숫자", "ar": "رقم" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "food-drink",
+      "title": "Food & Drink",
+      "lessons": [
+        {
+          "slug": "drinks",
+          "title": "Drinks",
+          "items": [
+            { "words": { "fr": "Eau", "en": "Water", "es": "Agua", "de": "Wasser", "pt": "Água", "it": "Acqua", "zh": "水", "ja": "水", "ko": "물", "ar": "ماء" } },
+            { "words": { "fr": "Café", "en": "Coffee", "es": "Café", "de": "Kaffee", "pt": "Café", "it": "Caffè", "zh": "咖啡", "ja": "コーヒー", "ko": "커피", "ar": "قهوة" } },
+            { "words": { "fr": "Thé", "en": "Tea", "es": "Té", "de": "Tee", "pt": "Chá", "it": "Tè", "zh": "茶", "ja": "お茶", "ko": "차", "ar": "شاي" } },
+            { "words": { "fr": "Lait", "en": "Milk", "es": "Leche", "de": "Milch", "pt": "Leite", "it": "Latte", "zh": "牛奶", "ja": "牛乳", "ko": "우유", "ar": "حليب" } }
+          ]
+        },
+        {
+          "slug": "food",
+          "title": "Food",
+          "items": [
+            { "words": { "fr": "Pain", "en": "Bread", "es": "Pan", "de": "Brot", "pt": "Pão", "it": "Pane", "zh": "面包", "ja": "パン", "ko": "빵", "ar": "خبز" } },
+            { "words": { "fr": "Riz", "en": "Rice", "es": "Arroz", "de": "Reis", "pt": "Arroz", "it": "Riso", "zh": "米饭", "ja": "ご飯", "ko": "밥", "ar": "أرز" } },
+            { "words": { "fr": "Fromage", "en": "Cheese", "es": "Queso", "de": "Käse", "pt": "Queijo", "it": "Formaggio", "zh": "奶酪", "ja": "チーズ", "ko": "치즈", "ar": "جبن" } },
+            { "words": { "fr": "Œuf", "en": "Egg", "es": "Huevo", "de": "Ei", "pt": "Ovo", "it": "Uovo", "zh": "鸡蛋", "ja": "卵", "ko": "계란", "ar": "بيضة" } }
+          ]
+        },
+        {
+          "slug": "fruit",
+          "title": "Fruit",
+          "items": [
+            { "words": { "fr": "Pomme", "en": "Apple", "es": "Manzana", "de": "Apfel", "pt": "Maçã", "it": "Mela", "zh": "苹果", "ja": "りんご", "ko": "사과", "ar": "تفاحة" } },
+            { "words": { "fr": "Banane", "en": "Banana", "es": "Plátano", "de": "Banane", "pt": "Banana", "it": "Banana", "zh": "香蕉", "ja": "バナナ", "ko": "바나나", "ar": "موز" } },
+            { "words": { "fr": "Orange", "en": "Orange", "es": "Naranja", "de": "Orange", "pt": "Laranja", "it": "Arancia", "zh": "橙子", "ja": "オレンジ", "ko": "오렌지", "ar": "برتقال" } },
+            { "words": { "fr": "Citron", "en": "Lemon", "es": "Limón", "de": "Zitrone", "pt": "Limão", "it": "Limone", "zh": "柠檬", "ja": "レモン", "ko": "레몬", "ar": "ليمون" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "colors-animals",
+      "title": "Colors & Animals",
+      "lessons": [
+        {
+          "slug": "colors-1",
+          "title": "Colors 1",
+          "items": [
+            { "words": { "fr": "Rouge", "en": "Red", "es": "Rojo", "de": "Rot", "pt": "Vermelho", "it": "Rosso", "zh": "红色", "ja": "赤", "ko": "빨강", "ar": "أحمر" } },
+            { "words": { "fr": "Bleu", "en": "Blue", "es": "Azul", "de": "Blau", "pt": "Azul", "it": "Blu", "zh": "蓝色", "ja": "青", "ko": "파랑", "ar": "أزرق" } },
+            { "words": { "fr": "Vert", "en": "Green", "es": "Verde", "de": "Grün", "pt": "Verde", "it": "Verde", "zh": "绿色", "ja": "緑", "ko": "초록", "ar": "أخضر" } },
+            { "words": { "fr": "Jaune", "en": "Yellow", "es": "Amarillo", "de": "Gelb", "pt": "Amarelo", "it": "Giallo", "zh": "黄色", "ja": "黄", "ko": "노랑", "ar": "أصفر" } }
+          ]
+        },
+        {
+          "slug": "colors-2",
+          "title": "Colors 2",
+          "items": [
+            { "words": { "fr": "Noir", "en": "Black", "es": "Negro", "de": "Schwarz", "pt": "Preto", "it": "Nero", "zh": "黑色", "ja": "黒", "ko": "검정", "ar": "أسود" } },
+            { "words": { "fr": "Blanc", "en": "White", "es": "Blanco", "de": "Weiß", "pt": "Branco", "it": "Bianco", "zh": "白色", "ja": "白", "ko": "하양", "ar": "أبيض" } },
+            { "words": { "fr": "Marron", "en": "Brown", "es": "Marrón", "de": "Braun", "pt": "Marrom", "it": "Marrone", "zh": "棕色", "ja": "茶色", "ko": "갈색", "ar": "بني" } },
+            { "words": { "fr": "Gris", "en": "Gray", "es": "Gris", "de": "Grau", "pt": "Cinza", "it": "Grigio", "zh": "灰色", "ja": "灰色", "ko": "회색", "ar": "رمادي" } }
+          ]
+        },
+        {
+          "slug": "animals",
+          "title": "Animals",
+          "items": [
+            { "words": { "fr": "Chien", "en": "Dog", "es": "Perro", "de": "Hund", "pt": "Cão", "it": "Cane", "zh": "狗", "ja": "犬", "ko": "개", "ar": "كلب" } },
+            { "words": { "fr": "Chat", "en": "Cat", "es": "Gato", "de": "Katze", "pt": "Gato", "it": "Gatto", "zh": "猫", "ja": "猫", "ko": "고양이", "ar": "قطة" } },
+            { "words": { "fr": "Oiseau", "en": "Bird", "es": "Pájaro", "de": "Vogel", "pt": "Pássaro", "it": "Uccello", "zh": "鸟", "ja": "鳥", "ko": "새", "ar": "طائر" } },
+            { "words": { "fr": "Poisson", "en": "Fish", "es": "Pez", "de": "Fisch", "pt": "Peixe", "it": "Pesce", "zh": "鱼", "ja": "魚", "ko": "물고기", "ar": "سمكة" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "everyday",
+      "title": "Everyday",
+      "lessons": [
+        {
+          "slug": "days",
+          "title": "Days",
+          "items": [
+            { "words": { "fr": "Jour", "en": "Day", "es": "Día", "de": "Tag", "pt": "Dia", "it": "Giorno", "zh": "天", "ja": "日", "ko": "날", "ar": "يوم" } },
+            { "words": { "fr": "Aujourd'hui", "en": "Today", "es": "Hoy", "de": "Heute", "pt": "Hoje", "it": "Oggi", "zh": "今天", "ja": "今日", "ko": "오늘", "ar": "اليوم" } },
+            { "words": { "fr": "Demain", "en": "Tomorrow", "es": "Mañana", "de": "Morgen", "pt": "Amanhã", "it": "Domani", "zh": "明天", "ja": "明日", "ko": "내일", "ar": "غدا" } },
+            { "words": { "fr": "Semaine", "en": "Week", "es": "Semana", "de": "Woche", "pt": "Semana", "it": "Settimana", "zh": "星期", "ja": "週", "ko": "주", "ar": "أسبوع" } }
+          ]
+        },
+        {
+          "slug": "time",
+          "title": "Time",
+          "items": [
+            { "words": { "fr": "Matin", "en": "Morning", "es": "Mañana", "de": "Morgen", "pt": "Manhã", "it": "Mattina", "zh": "早晨", "ja": "朝", "ko": "아침", "ar": "صباح" } },
+            { "words": { "fr": "Soir", "en": "Evening", "es": "Tarde", "de": "Abend", "pt": "Tarde", "it": "Sera", "zh": "晚上", "ja": "夕方", "ko": "저녁", "ar": "مساء" } },
+            { "words": { "fr": "Nuit", "en": "Night", "es": "Noche", "de": "Nacht", "pt": "Noite", "it": "Notte", "zh": "夜晚", "ja": "夜", "ko": "밤", "ar": "ليل" } },
+            { "words": { "fr": "Heure", "en": "Hour", "es": "Hora", "de": "Stunde", "pt": "Hora", "it": "Ora", "zh": "小时", "ja": "時間", "ko": "시간", "ar": "ساعة" } }
+          ]
+        },
+        {
+          "slug": "things",
+          "title": "Things",
+          "items": [
+            { "words": { "fr": "Maison", "en": "House", "es": "Casa", "de": "Haus", "pt": "Casa", "it": "Casa", "zh": "房子", "ja": "家", "ko": "집", "ar": "منزل" } },
+            { "words": { "fr": "Voiture", "en": "Car", "es": "Coche", "de": "Auto", "pt": "Carro", "it": "Auto", "zh": "汽车", "ja": "車", "ko": "자동차", "ar": "سيارة" } },
+            { "words": { "fr": "Livre", "en": "Book", "es": "Libro", "de": "Buch", "pt": "Livro", "it": "Libro", "zh": "书", "ja": "本", "ko": "책", "ar": "كتاب" } },
+            { "words": { "fr": "Argent", "en": "Money", "es": "Dinero", "de": "Geld", "pt": "Dinheiro", "it": "Denaro", "zh": "钱", "ja": "お金", "ko": "돈", "ar": "مال" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "adjectives",
+      "title": "Adjectives",
+      "lessons": [
+        {
+          "slug": "size",
+          "title": "Size",
+          "items": [
+            { "words": { "fr": "Grand", "en": "Big", "es": "Grande", "de": "Groß", "pt": "Grande", "it": "Grande", "zh": "大", "ja": "大きい", "ko": "큰", "ar": "كبير" } },
+            { "words": { "fr": "Petit", "en": "Small", "es": "Pequeño", "de": "Klein", "pt": "Pequeno", "it": "Piccolo", "zh": "小", "ja": "小さい", "ko": "작은", "ar": "صغير" } },
+            { "words": { "fr": "Long", "en": "Long", "es": "Largo", "de": "Lang", "pt": "Longo", "it": "Lungo", "zh": "长", "ja": "長い", "ko": "긴", "ar": "طويل" } },
+            { "words": { "fr": "Court", "en": "Short", "es": "Corto", "de": "Kurz", "pt": "Curto", "it": "Corto", "zh": "短", "ja": "短い", "ko": "짧은", "ar": "قصير" } }
+          ]
+        },
+        {
+          "slug": "quality",
+          "title": "Quality",
+          "items": [
+            { "words": { "fr": "Bon", "en": "Good", "es": "Bueno", "de": "Gut", "pt": "Bom", "it": "Buono", "zh": "好", "ja": "良い", "ko": "좋은", "ar": "جيد" } },
+            { "words": { "fr": "Mauvais", "en": "Bad", "es": "Malo", "de": "Schlecht", "pt": "Mau", "it": "Cattivo", "zh": "坏", "ja": "悪い", "ko": "나쁜", "ar": "سيء" } },
+            { "words": { "fr": "Nouveau", "en": "New", "es": "Nuevo", "de": "Neu", "pt": "Novo", "it": "Nuovo", "zh": "新", "ja": "新しい", "ko": "새", "ar": "جديد" } },
+            { "words": { "fr": "Vieux", "en": "Old", "es": "Viejo", "de": "Alt", "pt": "Velho", "it": "Vecchio", "zh": "旧", "ja": "古い", "ko": "오래된", "ar": "قديم" } }
+          ]
+        },
+        {
+          "slug": "feeling",
+          "title": "Feelings",
+          "items": [
+            { "words": { "fr": "Chaud", "en": "Hot", "es": "Caliente", "de": "Heiß", "pt": "Quente", "it": "Caldo", "zh": "热", "ja": "暑い", "ko": "뜨거운", "ar": "حار" } },
+            { "words": { "fr": "Froid", "en": "Cold", "es": "Frío", "de": "Kalt", "pt": "Frio", "it": "Freddo", "zh": "冷", "ja": "寒い", "ko": "차가운", "ar": "بارد" } },
+            { "words": { "fr": "Heureux", "en": "Happy", "es": "Feliz", "de": "Glücklich", "pt": "Feliz", "it": "Felice", "zh": "高兴", "ja": "嬉しい", "ko": "행복한", "ar": "سعيد" } },
+            { "words": { "fr": "Triste", "en": "Sad", "es": "Triste", "de": "Traurig", "pt": "Triste", "it": "Triste", "zh": "伤心", "ja": "悲しい", "ko": "슬픈", "ar": "حزين" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "body",
+      "title": "The Body",
+      "lessons": [
+        {
+          "slug": "face",
+          "title": "The face",
+          "items": [
+            { "words": { "fr": "Tête", "en": "Head", "es": "Cabeza", "de": "Kopf", "pt": "Cabeça", "it": "Testa", "zh": "头", "ja": "頭", "ko": "머리", "ar": "رأس" } },
+            { "words": { "fr": "Œil", "en": "Eye", "es": "Ojo", "de": "Auge", "pt": "Olho", "it": "Occhio", "zh": "眼睛", "ja": "目", "ko": "눈", "ar": "عين" } },
+            { "words": { "fr": "Nez", "en": "Nose", "es": "Nariz", "de": "Nase", "pt": "Nariz", "it": "Naso", "zh": "鼻子", "ja": "鼻", "ko": "코", "ar": "أنف" } },
+            { "words": { "fr": "Bouche", "en": "Mouth", "es": "Boca", "de": "Mund", "pt": "Boca", "it": "Bocca", "zh": "嘴", "ja": "口", "ko": "입", "ar": "فم" } }
+          ]
+        },
+        {
+          "slug": "limbs",
+          "title": "Limbs",
+          "items": [
+            { "words": { "fr": "Main", "en": "Hand", "es": "Mano", "de": "Hand", "pt": "Mão", "it": "Mano", "zh": "手", "ja": "手", "ko": "손", "ar": "يد" } },
+            { "words": { "fr": "Bras", "en": "Arm", "es": "Brazo", "de": "Arm", "pt": "Braço", "it": "Braccio", "zh": "手臂", "ja": "腕", "ko": "팔", "ar": "ذراع" } },
+            { "words": { "fr": "Pied", "en": "Foot", "es": "Pie", "de": "Fuß", "pt": "Pé", "it": "Piede", "zh": "脚", "ja": "足", "ko": "발", "ar": "قدم" } },
+            { "words": { "fr": "Jambe", "en": "Leg", "es": "Pierna", "de": "Bein", "pt": "Perna", "it": "Gamba", "zh": "腿", "ja": "脚", "ko": "다리", "ar": "ساق" } }
+          ]
+        },
+        {
+          "slug": "body-more",
+          "title": "More body",
+          "items": [
+            { "words": { "fr": "Cheveux", "en": "Hair", "es": "Pelo", "de": "Haare", "pt": "Cabelo", "it": "Capelli", "zh": "头发", "ja": "髪", "ko": "머리카락", "ar": "شعر" } },
+            { "words": { "fr": "Oreille", "en": "Ear", "es": "Oreja", "de": "Ohr", "pt": "Orelha", "it": "Orecchio", "zh": "耳朵", "ja": "耳", "ko": "귀", "ar": "أذن" } },
+            { "words": { "fr": "Dent", "en": "Tooth", "es": "Diente", "de": "Zahn", "pt": "Dente", "it": "Dente", "zh": "牙齿", "ja": "歯", "ko": "이", "ar": "سن" } },
+            { "words": { "fr": "Cœur", "en": "Heart", "es": "Corazón", "de": "Herz", "pt": "Coração", "it": "Cuore", "zh": "心", "ja": "心臓", "ko": "심장", "ar": "قلب" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "nature",
+      "title": "Nature",
+      "lessons": [
+        {
+          "slug": "sky",
+          "title": "The sky",
+          "items": [
+            { "words": { "fr": "Soleil", "en": "Sun", "es": "Sol", "de": "Sonne", "pt": "Sol", "it": "Sole", "zh": "太阳", "ja": "太陽", "ko": "태양", "ar": "شمس" } },
+            { "words": { "fr": "Lune", "en": "Moon", "es": "Luna", "de": "Mond", "pt": "Lua", "it": "Luna", "zh": "月亮", "ja": "月", "ko": "달", "ar": "قمر" } },
+            { "words": { "fr": "Étoile", "en": "Star", "es": "Estrella", "de": "Stern", "pt": "Estrela", "it": "Stella", "zh": "星星", "ja": "星", "ko": "별", "ar": "نجمة" } },
+            { "words": { "fr": "Ciel", "en": "Sky", "es": "Cielo", "de": "Himmel", "pt": "Céu", "it": "Cielo", "zh": "天空", "ja": "空", "ko": "하늘", "ar": "سماء" } }
+          ]
+        },
+        {
+          "slug": "land",
+          "title": "The land",
+          "items": [
+            { "words": { "fr": "Arbre", "en": "Tree", "es": "Árbol", "de": "Baum", "pt": "Árvore", "it": "Albero", "zh": "树", "ja": "木", "ko": "나무", "ar": "شجرة" } },
+            { "words": { "fr": "Fleur", "en": "Flower", "es": "Flor", "de": "Blume", "pt": "Flor", "it": "Fiore", "zh": "花", "ja": "花", "ko": "꽃", "ar": "زهرة" } },
+            { "words": { "fr": "Montagne", "en": "Mountain", "es": "Montaña", "de": "Berg", "pt": "Montanha", "it": "Montagna", "zh": "山", "ja": "山", "ko": "산", "ar": "جبل" } },
+            { "words": { "fr": "Rivière", "en": "River", "es": "Río", "de": "Fluss", "pt": "Rio", "it": "Fiume", "zh": "河", "ja": "川", "ko": "강", "ar": "نهر" } }
+          ]
+        },
+        {
+          "slug": "weather",
+          "title": "Weather",
+          "items": [
+            { "words": { "fr": "Pluie", "en": "Rain", "es": "Lluvia", "de": "Regen", "pt": "Chuva", "it": "Pioggia", "zh": "雨", "ja": "雨", "ko": "비", "ar": "مطر" } },
+            { "words": { "fr": "Neige", "en": "Snow", "es": "Nieve", "de": "Schnee", "pt": "Neve", "it": "Neve", "zh": "雪", "ja": "雪", "ko": "눈", "ar": "ثلج" } },
+            { "words": { "fr": "Vent", "en": "Wind", "es": "Viento", "de": "Wind", "pt": "Vento", "it": "Vento", "zh": "风", "ja": "風", "ko": "바람", "ar": "رياح" } },
+            { "words": { "fr": "Nuage", "en": "Cloud", "es": "Nube", "de": "Wolke", "pt": "Nuvem", "it": "Nuvola", "zh": "云", "ja": "雲", "ko": "구름", "ar": "سحابة" } }
+          ]
+        }
+      ]
+    }
+  ]
+}

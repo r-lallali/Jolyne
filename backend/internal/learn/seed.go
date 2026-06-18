@@ -2,72 +2,119 @@ package learn
 
 import (
 	"context"
-	"embed"
+	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"time"
 )
 
-//go:embed seed/*.json
-var seedFS embed.FS
+// Matrice de curriculum : chaque concept est défini UNE fois avec sa traduction
+// dans les 10 langues. On en dérive les 10 cours (un par langue cible) : le mot
+// cible est `words[lang]`, les sens sont `words` privé de la langue cible. Cela
+// évite d'écrire 10 cours séparément et garantit des traductions cohérentes.
+//
+//go:embed seed/curriculum.json
+var curriculumJSON []byte
 
-// LoadSeedCourses : lit tous les cours embarqués (seed/*.json). Sert au seed
-// au boot et de base de référence au générateur Claude (même schéma JSON).
-func LoadSeedCourses() ([]Course, error) {
-	entries, err := fs.ReadDir(seedFS, "seed")
-	if err != nil {
-		return nil, fmt.Errorf("learn: read seed dir: %w", err)
+// AllLangsOrdered : ordre d'affichage des cours (aligné sur l'i18n front).
+var AllLangsOrdered = []string{"fr", "en", "es", "de", "pt", "it", "zh", "ja", "ko", "ar"}
+
+type curItem struct {
+	Words map[string]string `json:"words"`
+}
+
+type curLesson struct {
+	Slug  string    `json:"slug"`
+	Title string    `json:"title"`
+	Items []curItem `json:"items"`
+}
+
+type curUnit struct {
+	Slug    string      `json:"slug"`
+	Title   string      `json:"title"`
+	Lessons []curLesson `json:"lessons"`
+}
+
+type curriculum struct {
+	Units []curUnit `json:"units"`
+}
+
+func loadCurriculum() (curriculum, error) {
+	var c curriculum
+	if err := json.Unmarshal(curriculumJSON, &c); err != nil {
+		return curriculum{}, fmt.Errorf("learn: parse curriculum: %w", err)
 	}
-	var out []Course
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		b, err := seedFS.ReadFile("seed/" + e.Name())
-		if err != nil {
-			return nil, fmt.Errorf("learn: read seed %s: %w", e.Name(), err)
-		}
-		var c Course
-		if err := json.Unmarshal(b, &c); err != nil {
-			return nil, fmt.Errorf("learn: parse seed %s: %w", e.Name(), err)
+	return c, nil
+}
+
+// BuildCourses : construit les 10 cours à partir de la matrice. Pour chaque
+// langue cible, on prend `words[lang]` comme cible et toutes les autres langues
+// comme sens. Un item dont la langue cible manque est ignoré (la matrice est
+// censée être complète — voir le test).
+func BuildCourses() ([]Course, error) {
+	cur, err := loadCurriculum()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Course, 0, len(AllLangsOrdered))
+	for _, lang := range AllLangsOrdered {
+		c := Course{Lang: lang, Title: targetLangName[lang]}
+		for _, u := range cur.Units {
+			unit := Unit{Slug: u.Slug, Title: u.Title}
+			for _, l := range u.Lessons {
+				lesson := Lesson{Slug: l.Slug, Title: l.Title, XP: 10}
+				for _, it := range l.Items {
+					target := it.Words[lang]
+					if target == "" {
+						continue
+					}
+					tr := make(map[string]string, len(it.Words)-1)
+					for k, v := range it.Words {
+						if k != lang && v != "" {
+							tr[k] = v
+						}
+					}
+					lesson.Items = append(lesson.Items, Item{Target: target, Tr: tr})
+				}
+				if len(lesson.Items) > 0 {
+					unit.Lessons = append(unit.Lessons, lesson)
+				}
+			}
+			if len(unit.Lessons) > 0 {
+				c.Units = append(c.Units, unit)
+			}
 		}
 		out = append(out, c)
 	}
 	return out, nil
 }
 
-// SeedIfEmpty : insère les cours embarqués absents de la base. Idempotent et
-// non destructif — si un cours existe déjà (même langue), on le laisse tel
-// quel pour ne pas écraser un cours plus riche généré par Claude. Appelé au
-// boot du gateway.
-func SeedIfEmpty(ctx context.Context, store *Store, log *slog.Logger) error {
-	courses, err := LoadSeedCourses()
+// SeedCourses : (ré)écrit les 10 cours dérivés de la matrice. Idempotent et
+// non destructif pour la progression jouée (les leçons sont identifiées par
+// slug ; UpsertCourse réconcilie en supprimant uniquement les unités/leçons
+// qui ne sont plus dans la matrice). Appelé au boot du gateway.
+func SeedCourses(ctx context.Context, store *Store, log *slog.Logger) error {
+	courses, err := BuildCourses()
 	if err != nil {
 		return err
 	}
 	for _, c := range courses {
-		exists, err := store.CourseExists(ctx, c.Lang)
-		if err != nil {
-			return err
-		}
-		if exists {
-			continue
-		}
-		cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		err = store.UpsertCourse(cctx, c)
+		cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		err := store.UpsertCourse(cctx, c)
 		cancel()
 		if err != nil {
 			return fmt.Errorf("learn: seed %s: %w", c.Lang, err)
 		}
-		if log != nil {
-			lessons := 0
-			for _, u := range c.Units {
+	}
+	if log != nil {
+		lessons := 0
+		if len(courses) > 0 {
+			for _, u := range courses[0].Units {
 				lessons += len(u.Lessons)
 			}
-			log.Info("learn course seeded", "lang", c.Lang, "units", len(c.Units), "lessons", lessons)
 		}
+		log.Info("learn courses seeded", "courses", len(courses), "lessons_each", lessons)
 	}
 	return nil
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { completeLesson, type CompleteResult, type PlayItem } from "@/lib/learn";
 import { buildExercises, type Exercise } from "@/lib/learnExercises";
@@ -34,11 +34,26 @@ export function LessonPlayer({
   const [mistakes, setMistakes] = useState(0);
   const [result, setResult] = useState<CompleteResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Échec réseau de la validation : on garde la leçon ouverte avec un bouton
+  // « réessayer » plutôt que de tout perdre silencieusement.
+  const [submitError, setSubmitError] = useState<{
+    mistakes: number;
+    failed: boolean;
+  } | null>(null);
 
   const total = exercises.length;
   const current = exercises[idx];
 
+  // Garde-fou : leçon sans exercice exploitable (items vides) → on referme au
+  // lieu de rester bloqué sur l'écran de chargement.
+  useEffect(() => {
+    if (total === 0) onClose(false);
+    // onClose est stable pour la durée de vie du lecteur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total]);
+
   async function finish(finalMistakes: number, failed: boolean) {
+    setSubmitError(null);
     setSubmitting(true);
     try {
       const res = await completeLesson(lessonId, finalMistakes, failed);
@@ -49,8 +64,8 @@ export function LessonPlayer({
       }
       setResult(res);
     } catch {
-      // En cas d'échec réseau on ferme tout de même (progression non comptée).
-      onClose(false);
+      // Échec réseau : on conserve la leçon et on propose de réessayer.
+      setSubmitError({ mistakes: finalMistakes, failed });
     } finally {
       setSubmitting(false);
     }
@@ -77,6 +92,15 @@ export function LessonPlayer({
   }
 
   const heartsLeft = Math.max(0, initialHearts - mistakes);
+
+  if (submitError) {
+    return (
+      <SubmitErrorScreen
+        onRetry={() => void finish(submitError.mistakes, submitError.failed)}
+        onQuit={() => onClose(false)}
+      />
+    );
+  }
 
   if (result) {
     return <LessonResult title={title} result={result} onClose={() => onClose(true)} />;
@@ -150,6 +174,15 @@ function FooterBar({
   onNext: () => void;
 }) {
   const t = useT();
+  // Anti double-tap : « Continuer » ne doit avancer qu'une fois même en cas de
+  // double clic rapide (sinon on saute un exercice / on valide deux fois). Le
+  // composant est remonté à chaque exercice (key=idx) → l'état se réinitialise.
+  const [advancing, setAdvancing] = useState(false);
+  const advance = () => {
+    if (advancing) return;
+    setAdvancing(true);
+    onNext();
+  };
   return (
     <div
       className={
@@ -183,9 +216,10 @@ function FooterBar({
       ) : (
         <button
           type="button"
-          onClick={onNext}
+          onClick={advance}
+          disabled={advancing}
           className={
-            "w-full rounded-xl py-3 text-sm font-bold text-white " +
+            "w-full rounded-xl py-3 text-sm font-bold text-white disabled:opacity-70 " +
             (correct ? "bg-emerald-500" : "bg-rose-500")
           }
         >
@@ -485,6 +519,45 @@ function shuffleIdx(n: number): number[] {
     a[j] = tmp;
   }
   return a;
+}
+
+// ----- Écran d'erreur de validation (retry réseau) -----
+
+function SubmitErrorScreen({
+  onRetry,
+  onQuit,
+}: {
+  onRetry: () => void;
+  onQuit: () => void;
+}) {
+  const t = useT();
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-5 bg-white px-6 text-center dark:bg-neutral-950">
+      <div className="text-5xl">📡</div>
+      <h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
+        {t.errors.genericTitle}
+      </h1>
+      <p className="max-w-sm text-sm text-neutral-500 dark:text-neutral-400">
+        {t.errors.genericHint}
+      </p>
+      <div className="flex w-full max-w-xs flex-col gap-2">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-xl bg-emerald-500 py-3 text-sm font-bold text-white"
+        >
+          {t.errors.retry}
+        </button>
+        <button
+          type="button"
+          onClick={onQuit}
+          className="rounded-xl py-3 text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+        >
+          {t.learn.quit}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // ----- Écran de résultats -----

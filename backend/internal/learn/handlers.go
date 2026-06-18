@@ -92,9 +92,11 @@ func (h *Handlers) HandleTree(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, tree)
 }
 
-// HandleLessonPlay : GET /api/learn/lessons/{id}?from=fr — items résolus.
+// HandleLessonPlay : GET /api/learn/lessons/{id}?from=fr — items résolus,
+// enrichis des mots du carnet de l'apprenant adaptés au niveau.
 func (h *Handlers) HandleLessonPlay(w http.ResponseWriter, r *http.Request) {
-	if _, ok := users.CurrentUser(r.Context()); !ok {
+	user, ok := users.CurrentUser(r.Context())
+	if !ok {
 		http.Error(w, "auth required", http.StatusUnauthorized)
 		return
 	}
@@ -109,7 +111,7 @@ func (h *Handlers) HandleLessonPlay(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	lp, err := h.Store.LessonForPlay(ctx, id, from)
+	lp, err := h.Store.LessonForPlay(ctx, id, user.ID, from)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			http.Error(w, "lesson not found", http.StatusNotFound)

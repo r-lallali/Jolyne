@@ -410,11 +410,12 @@ func run() error {
 		log.Info("vocab endpoints ready")
 
 		// Mode Cours : contenu (cours/leçons) + progression/streak/cœurs/succès.
-		// Dépend de Postgres + auth user. On amorce les cours embarqués absents
-		// de la base (idempotent, non destructif) ; le générateur Claude
-		// (cmd/coursegen) étoffe ensuite hors ligne.
+		// Dépend de Postgres + auth user. On (ré)applique au boot les 10 cours
+		// dérivés de la matrice de curriculum (idempotent, réconcilié par slug —
+		// la progression jouée est préservée). Le générateur Claude
+		// (cmd/coursegen) peut enrichir/remplacer ensuite hors ligne.
 		learnStore := learn.NewStore(svc.pg)
-		if err := learn.SeedIfEmpty(ctx, learnStore, log); err != nil {
+		if err := learn.SeedCourses(ctx, learnStore, log); err != nil {
 			log.Warn("learn seed", "err", err)
 		}
 		svc.learn = &learn.Handlers{

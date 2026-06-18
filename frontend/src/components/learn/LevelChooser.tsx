@@ -18,10 +18,13 @@ export function LevelChooser({
   const t = useT();
 
   // Niveaux nommés → unité de départ, dédupliqués et bornés au nombre d'unités.
+  // Plus le cours est long, plus on propose de paliers distincts.
   const raw = [
     { label: t.learn.levelBeginner, unit: 0 },
     { label: t.learn.levelBasics, unit: 1 },
+    { label: t.learn.levelElementary, unit: 2 },
     { label: t.learn.levelIntermediate, unit: Math.floor(unitCount / 2) },
+    { label: t.learn.levelUpperIntermediate, unit: Math.floor((unitCount * 2) / 3) },
     { label: t.learn.levelAdvanced, unit: unitCount - 1 },
   ].filter((o) => o.unit >= 0 && o.unit < unitCount);
   const seen = new Set<number>();

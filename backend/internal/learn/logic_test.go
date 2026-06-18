@@ -73,18 +73,59 @@ func TestResolveMeaning(t *testing.T) {
 	}
 }
 
-func TestSeedCourseIsValid(t *testing.T) {
-	courses, err := LoadSeedCourses()
-	if err != nil {
-		t.Fatalf("load seed: %v", err)
+func TestVocabBand(t *testing.T) {
+	// Plus l'unité est avancée, plus on autorise de mots / de longueur.
+	cases := []struct {
+		unit, words, length int
+	}{
+		{0, 1, 12}, {1, 1, 12}, {2, 2, 20}, {3, 2, 20}, {4, 4, 40}, {9, 4, 40},
 	}
-	if len(courses) == 0 {
-		t.Fatal("aucun cours embarqué")
+	for _, c := range cases {
+		w, l := vocabBand(c.unit)
+		if w != c.words || l != c.length {
+			t.Fatalf("unit=%d: got (%d,%d), want (%d,%d)", c.unit, w, l, c.words, c.length)
+		}
+	}
+}
+
+func TestPickVocab(t *testing.T) {
+	cands := []PlayItem{
+		{Target: "a"}, {Target: "b"}, {Target: "c"}, {Target: "d"},
+	}
+	// Sélection bornée à k.
+	if got := pickVocab(cands, 0, 2); len(got) != 2 {
+		t.Fatalf("k=2: got %d", len(got))
+	}
+	// Stable et décalée par leçon : la leçon 1 commence un cran plus loin.
+	g0 := pickVocab(cands, 0, 2)
+	g1 := pickVocab(cands, 1, 2)
+	if g0[0].Target == g1[0].Target {
+		t.Fatalf("expected different offset across lessons, both started at %q", g0[0].Target)
+	}
+	// Moins de candidats que k → tout est renvoyé.
+	if got := pickVocab(cands[:1], 0, 2); len(got) != 1 {
+		t.Fatalf("fewer than k: got %d", len(got))
+	}
+	if got := pickVocab(nil, 0, 2); got != nil {
+		t.Fatalf("nil candidates: got %v", got)
+	}
+}
+
+func TestBuiltCoursesAreValid(t *testing.T) {
+	courses, err := BuildCourses()
+	if err != nil {
+		t.Fatalf("build courses: %v", err)
+	}
+	if len(courses) != len(AllLangsOrdered) {
+		t.Fatalf("attendu %d cours, obtenu %d", len(AllLangsOrdered), len(courses))
 	}
 	for _, c := range courses {
 		if !IsSupportedLang(c.Lang) {
 			t.Fatalf("langue non supportée: %q", c.Lang)
 		}
+		// validateCourse exige une traduction pour CHAQUE langue source : ce test
+		// garantit donc que la matrice de curriculum est complète (10/10) pour
+		// chaque concept.
 		sources := sourceLangsFor(c.Lang)
 		if err := validateCourse(c, c.Lang, sources); err != nil {
 			t.Fatalf("cours %q invalide: %v", c.Lang, err)
