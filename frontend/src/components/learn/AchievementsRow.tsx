@@ -43,14 +43,19 @@ export function AchievementsRow({ unlocked }: { unlocked: string[] }) {
             <div
               key={code}
               className={
-                "flex flex-col items-center gap-1 rounded-xl border p-3 text-center transition-colors " +
+                "group flex flex-col items-center gap-1 rounded-xl border p-3 text-center transition-[transform,box-shadow,border-color] duration-300 ease-out hover:-translate-y-0.5 " +
                 (got
-                  ? "border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10"
-                  : "border-neutral-200 bg-neutral-50 opacity-60 dark:border-neutral-800 dark:bg-neutral-900")
+                  ? "border-amber-300/80 bg-amber-50 hover:shadow-[0_8px_24px_-14px_rgba(217,119,6,0.5)] dark:border-amber-500/40 dark:bg-amber-500/10"
+                  : "border-neutral-200 bg-neutral-50 opacity-60 hover:opacity-100 dark:border-neutral-800 dark:bg-neutral-900")
               }
               title={t.learn.ach[code]}
             >
-              <span className={got ? "text-2xl" : "text-2xl grayscale"}>
+              <span
+                className={
+                  "text-2xl transition-transform duration-300 ease-out group-hover:scale-110 " +
+                  (got ? "" : "grayscale")
+                }
+              >
                 {icon}
               </span>
               <span className="text-[11px] font-medium leading-tight text-neutral-600 dark:text-neutral-400">

@@ -160,21 +160,42 @@ export function LearnMode() {
                     <button
                       type="button"
                       onClick={() => openCourse(c.lang)}
-                      className="flex w-full items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-4 text-left transition-colors hover:border-emerald-400 hover:bg-emerald-50/40 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-emerald-500/50 dark:hover:bg-emerald-500/5"
+                      className="group flex w-full items-center gap-4 rounded-2xl border border-neutral-200/80 bg-white px-4 py-3.5 text-left transition-[transform,box-shadow,border-color] duration-300 ease-out hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-[0_10px_30px_-14px_rgba(0,0,0,0.25)] dark:border-neutral-800 dark:bg-neutral-900/70 dark:hover:border-neutral-700 dark:hover:shadow-[0_10px_30px_-14px_rgba(0,0,0,0.7)]"
                     >
-                      <span className="text-3xl" aria-hidden>
+                      <span
+                        aria-hidden
+                        className="grid size-11 shrink-0 place-items-center rounded-xl bg-neutral-100 text-2xl ring-1 ring-inset ring-neutral-200/70 transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110 dark:bg-neutral-800 dark:ring-neutral-700/60"
+                      >
                         {LANG_FLAG[cl] ?? "🌐"}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block font-semibold text-neutral-900 dark:text-neutral-50">
+                        <span className="block truncate font-semibold text-neutral-900 dark:text-neutral-50">
                           {LANG_LABEL[cl] ?? c.title}
                         </span>
-                        <span className="block text-xs text-neutral-500 dark:text-neutral-400">
+                        <span className="mt-0.5 block text-xs tabular-nums text-neutral-400 dark:text-neutral-500">
                           {t.learn.lessonsCount({ count: c.lesson_count })}
                         </span>
                       </span>
-                      <span className="shrink-0 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
-                        {t.learn.courseCta}
+                      <span className="flex shrink-0 items-center gap-2">
+                        <span className="-translate-x-1 text-xs font-medium text-neutral-400 opacity-0 transition-all duration-300 ease-out group-hover:translate-x-0 group-hover:opacity-100 dark:text-neutral-500">
+                          {t.learn.courseCta}
+                        </span>
+                        <span className="grid size-8 place-items-center rounded-full bg-neutral-100 text-neutral-500 transition-colors duration-300 ease-out group-hover:bg-neutral-900 group-hover:text-white dark:bg-neutral-800 dark:text-neutral-400 dark:group-hover:bg-neutral-100 dark:group-hover:text-neutral-900">
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            aria-hidden
+                            className="size-4 transition-transform duration-300 ease-out group-hover:translate-x-0.5"
+                          >
+                            <path
+                              d="M5 12h14M13 6l6 6-6 6"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
                       </span>
                     </button>
                   </li>
