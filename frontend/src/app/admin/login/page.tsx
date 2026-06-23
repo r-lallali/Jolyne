@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { login } from "@/lib/admin";
 
 export default function AdminLoginPage() {
@@ -17,7 +18,7 @@ export default function AdminLoginPage() {
     try {
       const ok = await login(email.trim(), password);
       if (ok) {
-        window.location.href = "/admin/reports";
+        window.location.href = "/admin";
       } else {
         setError(
           "Identifiants invalides ou IP non autorisée. Sans détails (sécurité).",
@@ -30,18 +31,29 @@ export default function AdminLoginPage() {
     }
   };
 
+  const inputCls =
+    "w-full rounded-lg border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100";
+
   return (
-    <main className="flex min-h-dvh items-center justify-center px-6">
+    <main className="flex min-h-dvh items-center justify-center bg-neutral-50 px-6 dark:bg-neutral-950">
       <form
         onSubmit={submit}
-        className="w-full max-w-sm space-y-5 rounded-2xl bg-neutral-100/60 p-8 dark:bg-neutral-900/50"
+        className="w-full max-w-sm space-y-5 rounded-2xl border border-neutral-200/80 bg-white p-8 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
       >
         <header>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-            Admin
-          </h1>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Veuillez entrer vos identifiants.
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-900 text-sm font-bold text-white dark:bg-white dark:text-neutral-900">
+              J
+            </span>
+            <span className="text-base font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
+              Jolyne
+              <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                admin
+              </span>
+            </span>
+          </div>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            Connexion au back-office.
           </p>
         </header>
 
@@ -53,7 +65,7 @@ export default function AdminLoginPage() {
             placeholder="email"
             autoComplete="username"
             required
-            className="w-full rounded-lg bg-white px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-400 dark:bg-neutral-800 dark:text-neutral-100"
+            className={inputCls}
           />
           <div className="relative">
             <input
@@ -63,7 +75,7 @@ export default function AdminLoginPage() {
               placeholder="mot de passe"
               autoComplete="current-password"
               required
-              className="w-full rounded-lg bg-white px-3 py-2.5 pr-11 text-sm text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-400 dark:bg-neutral-800 dark:text-neutral-100"
+              className={`${inputCls} pr-11`}
             />
             <button
               type="button"
@@ -75,9 +87,9 @@ export default function AdminLoginPage() {
                   : "Afficher le mot de passe"
               }
               aria-pressed={showPassword}
-              className="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+              className="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-neutral-400 transition-colors hover:text-neutral-700 dark:hover:text-neutral-200"
             >
-              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
         </div>
@@ -89,49 +101,11 @@ export default function AdminLoginPage() {
         <button
           type="submit"
           disabled={busy || !email || !password}
-          className="w-full rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-neutral-950"
+          className="w-full rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-neutral-950"
         >
           {busy ? "Connexion…" : "Se connecter"}
         </button>
       </form>
     </main>
-  );
-}
-
-function EyeIcon() {
-  return (
-    <svg
-      className="size-4"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function EyeOffIcon() {
-  return (
-    <svg
-      className="size-4"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
-      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
-      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
-      <line x1="2" x2="22" y1="2" y2="22" />
-    </svg>
   );
 }

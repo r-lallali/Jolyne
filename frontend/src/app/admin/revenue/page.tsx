@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowLeftRight, Crown, DollarSign, Percent } from "lucide-react";
 import { fetchRevenue } from "@/lib/adminStats";
 import {
   Card,
   ErrorBox,
   KpiCard,
+  KpiSkeleton,
   PageHeader,
   RangePicker,
-  Spinner,
   rangeFromDays,
   useAuthedData,
 } from "@/components/admin/ui";
@@ -37,8 +38,8 @@ export default function RevenuePage() {
         actions={<RangePicker days={days} onChange={setDays} />}
       />
 
-      {loading && <Spinner />}
       {error && <ErrorBox message={error} />}
+      {loading && <KpiSkeleton count={4} />}
 
       {r && (
         <>
@@ -47,17 +48,20 @@ export default function RevenuePage() {
               label="MRR estimé"
               value={r.mrr_cents > 0 ? euros(r.mrr_cents) : "—"}
               hint={r.mrr_cents > 0 ? undefined : "définir PREMIUM_MONTHLY_CENTS"}
-              accent
+              icon={DollarSign}
+              tone="accent"
             />
-            <KpiCard label="Premium actifs" value={r.active_premium} />
+            <KpiCard label="Premium actifs" value={r.active_premium} icon={Crown} tone="premium" />
             <KpiCard
               label="Conversion"
               value={`${(r.conversion_pct * 100).toFixed(1)}%`}
               hint={`${r.signups_in_range} inscrits / période`}
+              icon={Percent}
             />
             <KpiCard
               label="Activations / churn"
               value={`+${r.activations} / −${r.cancellations}`}
+              icon={ArrowLeftRight}
             />
           </div>
 

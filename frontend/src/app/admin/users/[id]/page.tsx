@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { Activity, Crown, MessageCircle, MessagesSquare } from "lucide-react";
 import {
   banUser,
   deleteUser,
@@ -99,10 +100,10 @@ export default function UserDetailPage({
           )}
 
           <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <KpiCard label="Plan" value={u.plan} accent={u.plan === "premium"} />
-            <KpiCard label="Conversations" value={u.conversations} />
-            <KpiCard label="Messages" value={u.messages} />
-            <KpiCard label="Events" value={u.total_events} />
+            <KpiCard label="Plan" value={u.plan} icon={Crown} tone={u.plan === "premium" ? "premium" : "default"} />
+            <KpiCard label="Conversations" value={u.conversations} icon={MessagesSquare} />
+            <KpiCard label="Messages" value={u.messages} icon={MessageCircle} />
+            <KpiCard label="Events" value={u.total_events} icon={Activity} />
           </div>
 
           <div className="grid gap-3 lg:grid-cols-2">

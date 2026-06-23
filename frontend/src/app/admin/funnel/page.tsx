@@ -4,10 +4,11 @@ import { useState } from "react";
 import { fetchFunnel, statsURL } from "@/lib/adminStats";
 import {
   Card,
+  CsvLink,
   ErrorBox,
   PageHeader,
   RangePicker,
-  Spinner,
+  Skeleton,
   rangeFromDays,
   useAuthedData,
 } from "@/components/admin/ui";
@@ -28,20 +29,15 @@ export default function FunnelPage() {
         title="Funnel"
         subtitle="De la première visite anonyme jusqu'au premium — où décrochent les gens."
         actions={
-          <div className="flex items-center gap-2">
+          <>
             <RangePicker days={days} onChange={setDays} />
-            <a
-              href={statsURL(`/api/admin/stats/funnel?from=${from}&to=${to}&format=csv`)}
-              className="rounded-lg border border-neutral-200 px-2.5 py-1 text-xs text-neutral-500 hover:text-neutral-900 dark:border-neutral-800 dark:hover:text-neutral-100"
-            >
-              CSV
-            </a>
-          </div>
+            <CsvLink href={statsURL(`/api/admin/stats/funnel?from=${from}&to=${to}&format=csv`)} />
+          </>
         }
       />
 
-      {loading && <Spinner />}
       {error && <ErrorBox message={error} />}
+      {loading && <Skeleton className="h-72" />}
 
       {stages && (
         <Card>

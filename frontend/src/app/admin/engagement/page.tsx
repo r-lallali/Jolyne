@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { Bot, Clock, MessageCircle, MessagesSquare, Zap } from "lucide-react";
 import { fetchEngagement } from "@/lib/adminStats";
 import {
   Card,
   ErrorBox,
   KpiCard,
+  KpiSkeleton,
   PageHeader,
   RangePicker,
-  Spinner,
   rangeFromDays,
   useAuthedData,
 } from "@/components/admin/ui";
@@ -35,21 +36,22 @@ export default function EngagementPage() {
         actions={<RangePicker days={days} onChange={setDays} />}
       />
 
-      {loading && <Spinner />}
       {error && <ErrorBox message={error} />}
+      {loading && <KpiSkeleton count={5} />}
 
       {e && (
         <>
           <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <KpiCard label="Matchs" value={e.matches} />
-            <KpiCard label="Messages" value={e.messages} />
-            <KpiCard label="Conversations finies" value={e.conversations_ended} />
-            <KpiCard label="Durée moyenne" value={fmtDuration(e.avg_duration_sec)} />
+            <KpiCard label="Matchs" value={e.matches} icon={MessagesSquare} />
+            <KpiCard label="Messages" value={e.messages} icon={MessageCircle} />
+            <KpiCard label="Conversations finies" value={e.conversations_ended} icon={Zap} />
+            <KpiCard label="Durée moyenne" value={fmtDuration(e.avg_duration_sec)} icon={Clock} />
             <KpiCard
               label="Repli IA"
               value={`${(e.bot_fallback_pct * 100).toFixed(0)}%`}
               hint="matchs servis par un bot"
-              accent={e.bot_fallback_pct > 0.5}
+              icon={Bot}
+              tone={e.bot_fallback_pct > 0.5 ? "danger" : "default"}
             />
           </div>
 

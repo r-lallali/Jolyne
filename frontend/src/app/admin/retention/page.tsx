@@ -6,7 +6,8 @@ import {
   Card,
   ErrorBox,
   PageHeader,
-  Spinner,
+  Segmented,
+  Skeleton,
   useAuthedData,
 } from "@/components/admin/ui";
 
@@ -48,27 +49,19 @@ export default function RetentionPage() {
         title="Rétention par cohorte"
         subtitle="Part des inscrits encore actifs N périodes après leur inscription."
         actions={
-          <div className="flex gap-1 rounded-lg border border-neutral-200 p-0.5 dark:border-neutral-800">
-            {(["weekly", "daily"] as const).map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCohort(c)}
-                className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
-                  cohort === c
-                    ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                    : "text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
-                }`}
-              >
-                {c === "weekly" ? "Hebdo" : "Quotidien"}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            value={cohort}
+            onChange={setCohort}
+            options={[
+              { value: "weekly", label: "Hebdo" },
+              { value: "daily", label: "Quotidien" },
+            ]}
+          />
         }
       />
 
-      {loading && <Spinner />}
       {error && <ErrorBox message={error} />}
+      {loading && <Skeleton className="h-72" />}
 
       {data && data.cohorts.length === 0 && (
         <Card>

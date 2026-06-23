@@ -5,7 +5,7 @@ import {
   Card,
   ErrorBox,
   PageHeader,
-  Spinner,
+  Skeleton,
   useAuthedData,
 } from "@/components/admin/ui";
 
@@ -22,8 +22,8 @@ export default function AuditPage() {
         subtitle="Toutes les actions admin (résolutions, bans, changements de plan, suppressions RGPD)."
       />
 
-      {loading && <Spinner />}
       {error && <ErrorBox message={error} />}
+      {loading && <Skeleton className="h-64" />}
 
       {entries && (
         <Card>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AuthError, listBans, liftBan, logout, type Ban } from "@/lib/admin";
+import { AuthError, listBans, liftBan, type Ban } from "@/lib/admin";
 
 export default function AdminBansPage() {
   const [bans, setBans] = useState<Ban[]>([]);
@@ -38,30 +38,16 @@ export default function AdminBansPage() {
     }
   };
 
-  const onLogout = async () => {
-    await logout();
-    window.location.href = "/admin/login";
-  };
-
   return (
-    <main className="mx-auto max-w-5xl px-6 pb-10 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:pt-10">
-      <header className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-            Bannissements actifs
-          </h1>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Bans non expirés. Les bans levés ou expirés restent en DB pour
-            traçabilité mais ne sont plus en vigueur.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onLogout}
-          className="text-xs text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-        >
-          Se déconnecter
-        </button>
+    <main className="mx-auto max-w-5xl px-6 py-8">
+      <header className="mb-6">
+        <h1 className="text-[22px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
+          Bannissements actifs
+        </h1>
+        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          Bans non expirés. Les bans levés ou expirés restent en DB pour
+          traçabilité mais ne sont plus en vigueur.
+        </p>
       </header>
 
       <nav className="mb-6 flex gap-2">

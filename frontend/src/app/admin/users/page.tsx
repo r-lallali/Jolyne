@@ -5,9 +5,10 @@ import { useState } from "react";
 import { searchUsers, statsURL } from "@/lib/adminStats";
 import {
   Card,
+  CsvLink,
   ErrorBox,
   PageHeader,
-  Spinner,
+  Skeleton,
   useAuthedData,
 } from "@/components/admin/ui";
 
@@ -25,12 +26,7 @@ export default function UsersPage() {
         title="Utilisateurs"
         subtitle="Recherche par email ou id, fiche détaillée et actions."
         actions={
-          <a
-            href={statsURL(`/api/admin/stats/users?q=${encodeURIComponent(query)}&limit=1000&format=csv`)}
-            className="rounded-lg border border-neutral-200 px-2.5 py-1 text-xs text-neutral-500 hover:text-neutral-900 dark:border-neutral-800 dark:hover:text-neutral-100"
-          >
-            CSV
-          </a>
+          <CsvLink href={statsURL(`/api/admin/stats/users?q=${encodeURIComponent(query)}&limit=1000&format=csv`)} />
         }
       />
 
@@ -55,8 +51,8 @@ export default function UsersPage() {
         </button>
       </form>
 
-      {loading && <Spinner />}
       {error && <ErrorBox message={error} />}
+      {loading && <Skeleton className="h-64" />}
 
       {users && (
         <Card>

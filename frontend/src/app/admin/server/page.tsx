@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Clock, Cpu, HardDrive, Radio } from "lucide-react";
 import { fetchServer, type ServerSnapshot } from "@/lib/adminStats";
 import { AuthError } from "@/lib/admin";
 import {
   Card,
   ErrorBox,
   KpiCard,
+  KpiSkeleton,
   PageHeader,
-  Spinner,
 } from "@/components/admin/ui";
 
 function fmtUptime(sec: number): string {
@@ -61,7 +62,7 @@ export default function ServerPage() {
         subtitle="Santé live (rafraîchi toutes les 10 s). Métriques fines : /metrics (Prometheus)."
       />
 
-      {loading && !snap && <Spinner />}
+      {loading && !snap && <KpiSkeleton count={4} />}
       {error && <ErrorBox message={error} />}
 
       {snap && (
@@ -82,10 +83,10 @@ export default function ServerPage() {
           </div>
 
           <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            <KpiCard label="En ligne" value={snap.online_now} hint={`${snap.searching} en recherche`} accent />
-            <KpiCard label="Uptime" value={fmtUptime(snap.uptime_sec)} />
-            <KpiCard label="Goroutines" value={snap.goroutines} />
-            <KpiCard label="Heap" value={`${snap.heap_alloc_mb.toFixed(1)} Mo`} hint={`${snap.num_gc} GC`} />
+            <KpiCard label="En ligne" value={snap.online_now} hint={`${snap.searching} en recherche`} icon={Radio} tone="accent" />
+            <KpiCard label="Uptime" value={fmtUptime(snap.uptime_sec)} icon={Clock} />
+            <KpiCard label="Goroutines" value={snap.goroutines} icon={Cpu} />
+            <KpiCard label="Heap" value={`${snap.heap_alloc_mb.toFixed(1)} Mo`} hint={`${snap.num_gc} GC`} icon={HardDrive} />
           </div>
 
           <div className="grid gap-3 lg:grid-cols-2">
