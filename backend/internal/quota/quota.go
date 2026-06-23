@@ -17,14 +17,16 @@ const (
 	KindNext      Kind = "next"      // nouveaux partenaires (swipe)
 	KindTranslate Kind = "translate" // traductions via /api/translate
 	KindBot       Kind = "bot"       // messages au prof IA (bot Claude)
+	KindBeacon    Kind = "beacon"    // événements analytics du beacon public
 )
 
 // Plafonds gratuits quotidiens (Free). Premium = illimité (passer max=0).
 // Untyped pour s'utiliser indifféremment en int ou int64.
 const (
-	FreeNextDaily      = 10 // nouveaux partenaires / jour
-	FreeTranslateDaily = 10 // traductions / jour
-	FreeBotDaily       = 50 // messages au prof IA / jour
+	FreeNextDaily      = 10   // nouveaux partenaires / jour
+	FreeTranslateDaily = 10   // traductions / jour
+	FreeBotDaily       = 50   // messages au prof IA / jour
+	BeaconDaily        = 1000 // événements beacon / jour / fingerprint (anti-flood)
 )
 
 var ErrQuotaExceeded = errors.New("quota dépassé")

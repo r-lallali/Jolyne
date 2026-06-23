@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,9 +18,15 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
+
 	"github.com/ralys/jolyne/backend/internal/admin"
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/bans"
+	"github.com/ralys/jolyne/backend/internal/billing"
 	"github.com/ralys/jolyne/backend/internal/blocking"
+	"github.com/ralys/jolyne/backend/internal/claudeapi"
 	"github.com/ralys/jolyne/backend/internal/config"
 	"github.com/ralys/jolyne/backend/internal/crypto"
 	"github.com/ralys/jolyne/backend/internal/db"
@@ -26,14 +35,13 @@ import (
 	"github.com/ralys/jolyne/backend/internal/learn"
 	"github.com/ralys/jolyne/backend/internal/mailer"
 	"github.com/ralys/jolyne/backend/internal/matcher"
+	"github.com/ralys/jolyne/backend/internal/metrics"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/obs"
-	"github.com/ralys/jolyne/backend/internal/claudeapi"
 	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/push"
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/redisx"
-	"github.com/ralys/jolyne/backend/internal/billing"
 	"github.com/ralys/jolyne/backend/internal/reports"
 	"github.com/ralys/jolyne/backend/internal/session"
 	"github.com/ralys/jolyne/backend/internal/translate"
@@ -84,6 +92,15 @@ func run() error {
 	defer rdb.Close()
 
 	svc := services{rdb: rdb, publicCORS: cfg.PublicCORSOrigin}
+
+	// Vars partagées entre blocs conditionnels et le câblage final (analytics,
+	// métriques, données live du back-office).
+	startedAt := time.Now()
+	var (
+		resolveUserID  func(r *http.Request) int64 // nil si auth user désactivée
+		adminAllowlist []*net.IPNet                // allowlist admin, réutilisée pour /metrics
+		adminEmails    map[string]struct{}         // emails admin (séparation stricte admin/user)
+	)
 
 	if cfg.LibreTranslateURL != "" {
 		svc.translate = &translate.Handler{
@@ -155,6 +172,11 @@ func run() error {
 		userSessionSecret = s
 	}
 
+	// Tracker analytics : écrit les events (funnel/rétention) en base de façon
+	// asynchrone. Nil-safe si Postgres absent. Flush au shutdown.
+	tracker := analytics.NewTracker(svc.pg, log)
+	defer tracker.Close()
+
 	wsDeps := ws.Deps{
 		RDB:      rdb,
 		Matcher:  matcher.New(rdb),
@@ -164,6 +186,7 @@ func run() error {
 		Reports:  reportSvc,
 		Bans:     banSvc,
 		Blocking: blocking.New(rdb),
+		Tracker:  tracker,
 		Log:      log,
 	}
 	// Le quota traduction partage le même moteur Redis. Branché même sans auth
@@ -200,7 +223,13 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("admin users: %w", err)
 		}
-		allowlist, err := admin.ParseIPAllowlist(cfg.AdminIPAllowlist)
+		// Set des emails admin (déjà en minuscules) — sert à empêcher qu'une
+		// même adresse soit à la fois admin et compte user.
+		adminEmails = make(map[string]struct{}, len(adminUsers))
+		for _, e := range admin.LoadedEmails(adminUsers) {
+			adminEmails[e] = struct{}{}
+		}
+		adminAllowlist, err = admin.ParseIPAllowlist(cfg.AdminIPAllowlist)
 		if err != nil {
 			return fmt.Errorf("admin allowlist: %w", err)
 		}
@@ -216,16 +245,18 @@ func run() error {
 		}
 		svc.admin = &admin.Handlers{
 			Cfg: admin.Config{
-				Users:         adminUsers,
-				IPAllowlist:   allowlist,
-				SessionSecret: secret,
-				CookieDomain:  cfg.AdminCookieDomain,
-				CookieSecure:  cfg.IsProd(),
-				CORSOrigin:    cfg.AdminCORSOrigin,
+				Users:               adminUsers,
+				IPAllowlist:         adminAllowlist,
+				SessionSecret:       secret,
+				CookieDomain:        cfg.AdminCookieDomain,
+				CookieSecure:        cfg.IsProd(),
+				CORSOrigin:          cfg.AdminCORSOrigin,
+				PremiumMonthlyCents: parseEnvCents("PREMIUM_MONTHLY_CENTS"),
 			},
-			Store: admin.NewStore(svc.pg, box),
-			Bans:  banSvc,
-			Log:   log,
+			Store:     admin.NewStore(svc.pg, box),
+			Bans:      banSvc,
+			Log:       log,
+			StartedAt: startedAt,
 		}
 		// Pas d'email en clair dans les logs (règle d'or #6). On garde
 		// uniquement les empreintes (8 octets hex) pour pouvoir corréler
@@ -233,7 +264,7 @@ func run() error {
 		log.Info("admin back-office ready",
 			"users", len(adminUsers),
 			"email_hashes", hashEmails(admin.LoadedEmails(adminUsers)),
-			"ip_allowlist", len(allowlist),
+			"ip_allowlist", len(adminAllowlist),
 			"cookie_domain", cfg.AdminCookieDomain)
 	} else {
 		log.Info("admin back-office disabled — Postgres / ADMIN_USERS / ADMIN_SESSION_SECRET manquants")
@@ -269,6 +300,14 @@ func run() error {
 			CookieSecure:  cfg.IsProd(),
 			PublicURL:     cfg.PublicAppURL,
 			Log:           log,
+			Tracker:       tracker,
+			IsAdminEmail: func(email string) bool {
+				if adminEmails == nil {
+					return false
+				}
+				_, ok := adminEmails[strings.ToLower(strings.TrimSpace(email))]
+				return ok
+			},
 			OnUserAuthenticated: func(ctx context.Context, userID int64, fingerprint string) {
 				friends.ResolvePendingFriendships(ctx, rdb, wsDeps.Friends, userID, fingerprint, log)
 			},
@@ -297,7 +336,7 @@ func run() error {
 		// Résout le user via le cookie de session, pour appliquer le quota par
 		// compte (ou le bypass Premium). Partagé par les handlers translate et
 		// quota (état des compteurs).
-		resolveUserID := func(r *http.Request) int64 {
+		resolveUserID = func(r *http.Request) int64 {
 			c, err := r.Cookie(users.SessionCookieName)
 			if err != nil {
 				return 0
@@ -336,10 +375,12 @@ func run() error {
 					SuccessURL:    successURL,
 					CancelURL:     cancelURL,
 				}),
-				Users:     usersStore,
-				Events:    billing.NewEventStore(svc.pg),
-				ReturnURL: cfg.PublicAppURL + "/account",
-				Log:       log,
+				Users:                 usersStore,
+				Events:                billing.NewEventStore(svc.pg),
+				ReturnURL:             cfg.PublicAppURL + "/account",
+				Log:                   log,
+				Tracker:               tracker,
+				ResolveUserByCustomer: usersStore.UserIDByCustomerID,
 			}
 			log.Info("billing endpoints ready", "price", cfg.StripePriceID)
 		} else {
@@ -420,8 +461,8 @@ func run() error {
 		}
 		svc.learn = &learn.Handlers{
 			Store:     learnStore,
-			IsPremium: isPremium,           // cœurs illimités pour les abonnés
-			Friends:   wsDeps.Friends,      // validation amitié pour les demandes de cœur
+			IsPremium: isPremium,      // cœurs illimités pour les abonnés
+			Friends:   wsDeps.Friends, // validation amitié pour les demandes de cœur
 			Log:       log,
 		}
 		log.Info("learn endpoints ready")
@@ -486,6 +527,39 @@ func run() error {
 		log.Info("user auth disabled — Postgres / USER_SESSION_SECRET manquants")
 	}
 
+	// --- Métriques Prometheus + beacon analytics + données live du back-office.
+	met := metrics.New()
+	met.RegisterPoolStats(svc.pg)
+	if svc.wsHandler != nil {
+		met.RegisterGauge("jolyne_ws_online", "Connexions WebSocket actives.",
+			func() float64 { return float64(svc.wsHandler.Online()) })
+		met.RegisterGauge("jolyne_ws_searching", "Sessions en attente d'un peer.",
+			func() float64 { return float64(wsDeps.Hub.Len()) })
+	}
+	svc.metrics = met
+	svc.metricsAllow = adminAllowlist
+
+	// Beacon public : page_view / signup_started / match_search_started. Présent
+	// dès que le Tracker l'est (Postgres). ResolveUser nil si auth user inactive.
+	if tracker != nil {
+		svc.beacon = &analytics.Beacon{
+			Tracker:     tracker,
+			Quota:       wsDeps.Quota,
+			ResolveUser: resolveUserID,
+			Log:         log,
+		}
+	}
+
+	// Données live du back-office (non persistées). Injectées après finalisation
+	// du wsHandler pour que les jauges lisent le bon pointeur.
+	if svc.admin != nil {
+		svc.admin.Online = func() int { return int(svc.wsHandler.Online()) }
+		svc.admin.Searching = func() int { return wsDeps.Hub.Len() }
+		svc.admin.Queues = func(ctx context.Context) []admin.QueueDepth { return queueDepths(ctx, rdb) }
+		svc.admin.PoolStats = func() map[string]int64 { return poolStats(svc.pg) }
+		svc.admin.Health = func(ctx context.Context) map[string]string { return healthSnapshot(ctx, rdb, svc.pg) }
+	}
+
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
 		Handler:           routes(svc),
@@ -514,6 +588,79 @@ func run() error {
 	}
 	log.Info("gateway stopped")
 	return nil
+}
+
+// parseEnvCents lit une variable d'env en int64 (centimes). 0 si absente ou
+// invalide — sert au calcul du MRR dans le dashboard revenus.
+func parseEnvCents(key string) int64 {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return 0
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+// queueDepths balaie les files de matchmaking Redis (clés `queue:*`) et renvoie
+// la profondeur de chacune. Best-effort, borné à 1 s.
+func queueDepths(ctx context.Context, rdb *redis.Client) []admin.QueueDepth {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	out := []admin.QueueDepth{}
+	var cursor uint64
+	for {
+		keys, next, err := rdb.Scan(ctx, cursor, "queue:*", 100).Result()
+		if err != nil {
+			break
+		}
+		for _, k := range keys {
+			n, err := rdb.LLen(ctx, k).Result()
+			if err != nil || n == 0 {
+				continue
+			}
+			out = append(out, admin.QueueDepth{Pair: strings.TrimPrefix(k, "queue:"), Count: n})
+		}
+		if next == 0 {
+			break
+		}
+		cursor = next
+	}
+	return out
+}
+
+// poolStats expose les compteurs du pool Postgres pour la page /admin/server.
+func poolStats(pool *pgxpool.Pool) map[string]int64 {
+	if pool == nil {
+		return map[string]int64{}
+	}
+	s := pool.Stat()
+	return map[string]int64{
+		"acquired": int64(s.AcquiredConns()),
+		"idle":     int64(s.IdleConns()),
+		"total":    int64(s.TotalConns()),
+		"max":      int64(s.MaxConns()),
+	}
+}
+
+// healthSnapshot pingue Redis et Postgres (si présent) pour la bannière santé.
+func healthSnapshot(ctx context.Context, rdb *redis.Client, pool *pgxpool.Pool) map[string]string {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	out := map[string]string{"redis": "ok", "postgres": "n/a"}
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		out["redis"] = "down"
+	}
+	if pool != nil {
+		if err := pool.Ping(ctx); err != nil {
+			out["postgres"] = "down"
+		} else {
+			out["postgres"] = "ok"
+		}
+	}
+	return out
 }
 
 // hashEmails : SHA-256 tronqué à 8 octets (16 chars hex) par email,

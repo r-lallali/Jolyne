@@ -59,6 +59,14 @@ func (h *Hub) Unregister(sessionID string) {
 	}
 }
 
+// Len renvoie le nombre de sessions actuellement en attente d'un peer
+// (= utilisateurs « en recherche »). Exposé en jauge Prometheus.
+func (h *Hub) Len() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.sessions)
+}
+
 // Lookup renvoie la session si encore enregistrée.
 func (h *Hub) Lookup(sessionID string) (session.Session, bool) {
 	h.mu.RLock()

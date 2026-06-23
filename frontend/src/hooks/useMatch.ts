@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { getFingerprint } from "@/lib/fingerprint";
 import { buzz } from "@/lib/haptics";
 import { sanitizeMessage } from "@/lib/sanitize";
+import { track } from "@/lib/track";
 import { useT } from "@/lib/i18n";
 import { connectMatch, type Connection } from "@/lib/ws";
 import { useChatStore } from "@/stores/chatStore";
@@ -69,6 +70,12 @@ export function useMatch() {
   const start = useCallback(async () => {
     const { pseudo, speaks, wants, ageAccepted, botMode } = session.getState();
     if (!speaks || !wants || !ageAccepted || pseudo.length < 3) return;
+
+    // Analytics : recherche de partenaire lancée (haut du funnel match).
+    void track("match_search_started", {
+      lang_from: speaks ?? undefined,
+      lang_to: wants ?? undefined,
+    });
 
     activeConn?.close();
     activeConn = null;

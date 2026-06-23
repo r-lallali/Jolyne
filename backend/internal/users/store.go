@@ -213,6 +213,18 @@ func (s *Store) IsPremium(ctx context.Context, userID int64) (bool, error) {
 	return premium, nil
 }
 
+// UserIDByCustomerID : résout l'id user depuis son customer Stripe (0 si
+// inconnu). Sert au tracking analytics des events premium reçus par webhook.
+func (s *Store) UserIDByCustomerID(ctx context.Context, customerID string) int64 {
+	var id int64
+	err := s.pool.QueryRow(ctx,
+		`SELECT id FROM users WHERE stripe_customer_id = $1`, customerID).Scan(&id)
+	if err != nil {
+		return 0
+	}
+	return id
+}
+
 // SetCustomerID : lie un customer Stripe au user (posé au 1er checkout).
 func (s *Store) SetCustomerID(ctx context.Context, userID int64, customerID string) error {
 	_, err := s.pool.Exec(ctx,

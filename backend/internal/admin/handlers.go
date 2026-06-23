@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -21,6 +22,15 @@ type Handlers struct {
 	Store *Store
 	Bans  *bans.Service // nil si Postgres absent
 	Log   *slog.Logger  // peut être nil — handlers tolèrent
+
+	// Données « live » non persistées, injectées au câblage (cf. main.go).
+	// Toutes nil-safe : un handler overview tolère leur absence.
+	Online    func() int                                  // utilisateurs connectés (Hub)
+	Searching func() int                                  // en attente d'un peer (Hub)
+	Queues    func(ctx context.Context) []QueueDepth      // profondeur des files Redis
+	PoolStats func() map[string]int64                     // stats du pool Postgres
+	Health    func(ctx context.Context) map[string]string // ping Redis/Postgres
+	StartedAt time.Time                                   // pour calculer l'uptime
 }
 
 func (h *Handlers) log() *slog.Logger {

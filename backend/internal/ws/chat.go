@@ -8,6 +8,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/moderation"
 	"github.com/ralys/jolyne/backend/internal/reports"
 	"github.com/ralys/jolyne/backend/internal/session"
@@ -198,6 +199,17 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 					h.d.Log.Error("room publish", "err", err)
 					return chatDisconnect
 				}
+				// Analytics : on compte le message (jamais son contenu).
+				peerKind := "human"
+				if peer.IsBot {
+					peerKind = "bot"
+				}
+				h.d.Tracker.Emit(analytics.Event{
+					Name:      analytics.EventMessageSent,
+					UserID:    sess.UserID,
+					SessionID: sess.ID,
+					Props:     map[string]any{"peer": peerKind},
+				})
 			case ClientCorrect:
 				if peerGone {
 					continue

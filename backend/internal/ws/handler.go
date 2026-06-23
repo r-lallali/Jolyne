@@ -9,10 +9,12 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/bans"
 	"github.com/ralys/jolyne/backend/internal/blocking"
 	"github.com/ralys/jolyne/backend/internal/friends"
@@ -80,7 +82,10 @@ type Deps struct {
 	// connecte au bout de TriggerDelay, un bot prend la main pour offrir
 	// une expérience de conversation continue.
 	Bot *BotManager
-	Log *slog.Logger
+	// Tracker analytics (optionnel). Émet les events de funnel (match_found,
+	// bot_fallback, message_sent, conversation_ended…). Nil-safe.
+	Tracker *analytics.Tracker
+	Log     *slog.Logger
 }
 
 // UserAuth abstrait les bouts du package users dont le WS a besoin
@@ -95,9 +100,15 @@ type UserAuth struct {
 // AVANT l'upgrade WebSocket : un client invalide se voit refuser en 400
 // JSON et n'établit jamais de socket — meilleure protection contre les
 // connexions zombie côté Redis.
-type Handler struct{ d Deps }
+type Handler struct {
+	d      Deps
+	online atomic.Int64 // connexions WS actives (jauge Prometheus)
+}
 
 func NewHandler(d Deps) *Handler { return &Handler{d: d} }
+
+// Online renvoie le nombre de connexions WebSocket actuellement établies.
+func (h *Handler) Online() int64 { return h.online.Load() }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	params, err := parseParams(r)
@@ -154,6 +165,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	// À partir d'ici la connexion est établie et acceptée : on la compte en
+	// ligne et on émet l'event de présence (decrément + ws_disconnected via
+	// defer à la fermeture).
+	h.online.Add(1)
+	defer h.online.Add(-1)
+	h.d.Tracker.Emit(analytics.Event{
+		Name:      analytics.EventWSConnected,
+		UserID:    sess.UserID,
+		SessionID: sess.ID,
+		IPHash:    sess.IPHash,
+		LangFrom:  string(params.speaks),
+		LangTo:    string(params.wants),
+	})
+	defer h.d.Tracker.Emit(analytics.Event{
+		Name:      analytics.EventWSDisconnected,
+		UserID:    sess.UserID,
+		SessionID: sess.ID,
+	})
 
 	wakeup := h.d.Hub.Register(sess)
 	defer h.d.Hub.Unregister(sess.ID)

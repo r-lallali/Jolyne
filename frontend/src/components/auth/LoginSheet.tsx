@@ -10,6 +10,7 @@ import {
   signup as apiSignup,
 } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { track } from "@/lib/track";
 import { useUserStore } from "@/stores/userStore";
 
 interface Props {
@@ -64,6 +65,10 @@ export function LoginSheet({ open, onClose }: Props) {
   if (!open) return null;
 
   const switchTab = (next: Tab) => {
+    // Analytics : on note quand l'utilisateur entame une inscription.
+    if (next === "signup" && tab !== "signup") {
+      void track("signup_started");
+    }
     setTab(next);
     setSent(false);
     setErr(null);

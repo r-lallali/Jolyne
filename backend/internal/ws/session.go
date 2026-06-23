@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/session"
@@ -215,6 +216,21 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 			}
 		}
 
+		peerType := "human"
+		if peerIsBot {
+			peerType = "bot"
+		}
+		h.d.Tracker.Emit(analytics.Event{
+			Name:      analytics.EventMatchFound,
+			UserID:    sess.UserID,
+			SessionID: sess.ID,
+			LangFrom:  string(speaks),
+			LangTo:    string(wants),
+			IPHash:    sess.IPHash,
+			Props:     map[string]any{"peer": peerType},
+		})
+
+		convStart := time.Now()
 		exit := h.runChat(ctx, conn, sess, chatPeer{
 			ID:          peerID,
 			Nick:        peerNick,
@@ -223,6 +239,15 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 			IsBot:       peerIsBot,
 			UserID:      peerUserID,
 		}, roomID, canNext)
+		h.d.Tracker.Emit(analytics.Event{
+			Name:      analytics.EventConversationEnded,
+			UserID:    sess.UserID,
+			SessionID: sess.ID,
+			Props: map[string]any{
+				"peer":       peerType,
+				"duration_s": int(time.Since(convStart).Seconds()),
+			},
+		})
 		if exit == chatDisconnect {
 			return
 		}

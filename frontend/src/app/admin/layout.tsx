@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AdminChrome from "@/components/admin/AdminChrome";
 
 export const metadata: Metadata = {
   title: "Admin — Jolyne",
@@ -10,5 +11,5 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="min-h-dvh">{children}</div>;
+  return <AdminChrome>{children}</AdminChrome>;
 }

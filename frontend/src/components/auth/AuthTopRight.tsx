@@ -20,6 +20,10 @@ export function AuthTopRight() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Le back-office a sa propre navigation (sidebar + déconnexion admin) : on
+  // n'affiche pas le menu user de l'app par-dessus (ni le lien Dictionnaire).
+  if (pathname?.startsWith("/admin")) return null;
+
   // Avant hydratation on n'affiche rien pour éviter le flash "Se connecter"
   // → "{email}" lors du bootstrap.
   if (!hydrated) return null;

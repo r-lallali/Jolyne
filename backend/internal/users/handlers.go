@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/mailer"
 )
 
@@ -31,6 +32,11 @@ type Handlers struct {
 	PublicURL           string // ex: https://jolyne.ralys.ovh — racine front
 	Log                 *slog.Logger
 	OnUserAuthenticated func(ctx context.Context, userID int64, fingerprint string)
+	Tracker             *analytics.Tracker // optionnel, nil-safe — events de funnel
+	// IsAdminEmail (optionnel) : renvoie true si l'email est celui d'un admin
+	// du back-office. Une adresse admin ne peut pas être aussi un compte user
+	// (séparation stricte). nil = aucune restriction.
+	IsAdminEmail func(email string) bool
 }
 
 // ProfileWriter : sous-ensemble de profile.Store dont users a besoin.
@@ -65,6 +71,12 @@ func (h *Handlers) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	addr, err := mail.ParseAddress(strings.TrimSpace(body.Email))
 	if err != nil || addr.Address == "" {
 		http.Error(w, "invalid email", http.StatusBadRequest)
+		return
+	}
+	// Une adresse admin ne peut pas devenir un compte user. On renvoie le même
+	// 409 qu'un email déjà pris (ne révèle pas qu'il s'agit d'un admin).
+	if h.IsAdminEmail != nil && h.IsAdminEmail(addr.Address) {
+		http.Error(w, "email already used", http.StatusConflict)
 		return
 	}
 	if len(body.Password) < PasswordMinLen {
@@ -111,6 +123,12 @@ func (h *Handlers) HandleSignup(w http.ResponseWriter, r *http.Request) {
 		go h.OnUserAuthenticated(context.Background(), user.ID, body.Fingerprint)
 	}
 
+	h.Tracker.Emit(analytics.Event{
+		Name:   analytics.EventSignupCompleted,
+		UserID: user.ID,
+		AnonID: analytics.HashID(body.Fingerprint),
+	})
+
 	h.writeUser(w, user)
 }
 
@@ -123,6 +141,12 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*1024)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	// Séparation admin/user : une adresse admin ne se connecte jamais côté user
+	// (même réponse que des identifiants invalides — pas de leak).
+	if h.IsAdminEmail != nil && h.IsAdminEmail(body.Email) {
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -139,6 +163,12 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if body.Fingerprint != "" && h.OnUserAuthenticated != nil {
 		go h.OnUserAuthenticated(context.Background(), user.ID, body.Fingerprint)
 	}
+
+	h.Tracker.Emit(analytics.Event{
+		Name:   analytics.EventLogin,
+		UserID: user.ID,
+		AnonID: analytics.HashID(body.Fingerprint),
+	})
 
 	h.writeUser(w, user)
 }
@@ -169,6 +199,10 @@ func (h *Handlers) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.openSession(w, userID)
+	h.Tracker.Emit(analytics.Event{
+		Name:   analytics.EventEmailVerified,
+		UserID: userID,
+	})
 	h.writeUser(w, user)
 }
 

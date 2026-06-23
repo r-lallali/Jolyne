@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -11,11 +12,13 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ralys/jolyne/backend/internal/admin"
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/billing"
 	"github.com/ralys/jolyne/backend/internal/friends"
 	"github.com/ralys/jolyne/backend/internal/grammar"
 	"github.com/ralys/jolyne/backend/internal/learn"
 	"github.com/ralys/jolyne/backend/internal/matcher"
+	"github.com/ralys/jolyne/backend/internal/metrics"
 	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/push"
 	"github.com/ralys/jolyne/backend/internal/quota"
@@ -44,6 +47,9 @@ type services struct {
 	learn           *learn.Handlers   // nil si auth utilisateur désactivée
 	push            *push.Handlers    // nil si VAPID env manquant
 	publicCORS      string            // origin autorisée pour /api/translate et /api/grammar
+	beacon          *analytics.Beacon // nil si Postgres absent — events analytics front
+	metrics         *metrics.Metrics  // nil si désactivé — endpoint Prometheus /metrics
+	metricsAllow    []*net.IPNet      // IP allowlist protégeant /metrics (= allowlist admin)
 }
 
 func routes(s services) http.Handler {
@@ -59,6 +65,19 @@ func routes(s services) http.Handler {
 	mux.Handle("/api/queue-size", publicCORS(s.publicCORS)(http.HandlerFunc(queueSize(s.rdb))))
 	if s.quota != nil {
 		mux.Handle("/api/quota", publicCORS(s.publicCORS)(methodOnly("GET", s.quota)))
+	}
+
+	// Beacon analytics public (page_view, signup_started, match_search_started).
+	// Monté seulement si Postgres est présent (sinon le Tracker est nil).
+	if s.beacon != nil {
+		mux.Handle("/api/events", publicCORS(s.publicCORS)(methodOnly("POST", s.beacon.Handler())))
+	}
+
+	// Endpoint Prometheus, protégé par l'IP allowlist admin (404 sinon, comme
+	// le back-office). On n'expose /metrics QUE si une allowlist est configurée —
+	// sinon il serait public (admin.IPAllowed laisse passer si la liste est vide).
+	if s.metrics != nil && len(s.metricsAllow) > 0 {
+		mux.Handle("GET /metrics", metricsGuard(s.metricsAllow, s.metrics.Handler()))
 	}
 
 	if s.translate != nil {
@@ -278,7 +297,25 @@ func routes(s services) http.Handler {
 	if s.admin != nil {
 		mountAdmin(mux, s.admin)
 	}
+
+	// Le middleware Prometheus enveloppe tout le mux (volume + latence par
+	// route). Transparent vis-à-vis du WS grâce au statusWriter hijackable.
+	if s.metrics != nil {
+		return s.metrics.Middleware(mux)
+	}
 	return mux
+}
+
+// metricsGuard restreint /metrics à l'IP allowlist admin. Hors allowlist →
+// 404 (on ne révèle pas l'endpoint), cohérent avec le back-office.
+func metricsGuard(allow []*net.IPNet, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !admin.IPAllowed(r, allow) {
+			http.NotFound(w, r)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 // queueSize renvoie le nombre de peers déjà en attente qui matchent
@@ -372,6 +409,19 @@ func mountAdmin(mux *http.ServeMux, h *admin.Handlers) {
 		}
 		http.NotFound(w, r)
 	}))))
+
+	// Dashboards analytics (lecture). Tout sous /api/admin/stats/*.
+	mux.Handle("/api/admin/stats/overview", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleStatsOverview)))))
+	mux.Handle("/api/admin/stats/funnel", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleStatsFunnel)))))
+	mux.Handle("/api/admin/stats/retention", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleStatsRetention)))))
+	mux.Handle("/api/admin/stats/timeseries", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleStatsTimeSeries)))))
+	mux.Handle("/api/admin/stats/engagement", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleStatsEngagement)))))
+	mux.Handle("/api/admin/stats/revenue", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleStatsRevenue)))))
+	mux.Handle("/api/admin/stats/server", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleStatsServer)))))
+	mux.Handle("/api/admin/stats/audit", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleAudit)))))
+	mux.Handle("/api/admin/stats/users", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleUsersList)))))
+	// Sous-arbre /api/admin/stats/users/{id}[/premium|/ban|/data] — GET/POST/DELETE.
+	mux.Handle("/api/admin/stats/users/", cors(auth(http.HandlerFunc(h.HandleUsersSubtree))))
 }
 
 func hasAnySuffix(s string, suffixes ...string) bool {

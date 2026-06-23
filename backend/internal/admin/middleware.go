@@ -19,6 +19,9 @@ type Config struct {
 	CookieDomain  string // ex: "ralys.ovh" pour partager entre subdomains
 	CookieSecure  bool   // toujours true en prod
 	CORSOrigin    string // ex: "https://jolyne.ralys.ovh"
+	// PremiumMonthlyCents : prix mensuel Premium (centimes) pour estimer le MRR
+	// dans le dashboard revenus. 0 = MRR non calculé (affiche juste le compte).
+	PremiumMonthlyCents int64
 }
 
 // AuthMiddleware vérifie :

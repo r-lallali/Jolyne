@@ -10,6 +10,7 @@ import (
 
 	"github.com/stripe/stripe-go/v82"
 
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/users"
 )
 
@@ -36,6 +37,10 @@ type Handlers struct {
 	Events    EventLog
 	ReturnURL string // retour du Customer Portal (ex: .../account)
 	Log       *slog.Logger
+	// Tracker analytics (optionnel, nil-safe) + résolveur user→customer pour
+	// attacher les events premium au bon compte dans le webhook.
+	Tracker               *analytics.Tracker
+	ResolveUserByCustomer func(ctx context.Context, customerID string) int64
 }
 
 func (h *Handlers) log() *slog.Logger {
@@ -64,6 +69,10 @@ func (h *Handlers) HandleCheckout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "billing unavailable", http.StatusBadGateway)
 		return
 	}
+	h.Tracker.Emit(analytics.Event{
+		Name:   analytics.EventPremiumCheckout,
+		UserID: user.ID,
+	})
 	writeJSON(w, map[string]string{"url": url})
 }
 
@@ -140,6 +149,7 @@ func (h *Handlers) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal", http.StatusInternalServerError)
 			return
 		}
+		h.trackSubscription(r.Context(), customerID, event.Type, string(sub.Status))
 	}
 
 	if err := h.Events.MarkProcessed(r.Context(), event.ID); err != nil {
@@ -148,6 +158,29 @@ func (h *Handlers) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		h.log().Warn("billing: mark event", "err", err, "event", event.ID)
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+// trackSubscription émet l'event analytics premium correspondant à la
+// transition Stripe. Résout le user via le customer (UserID 0 si indisponible).
+func (h *Handlers) trackSubscription(ctx context.Context, customerID string, evType stripe.EventType, status string) {
+	if h.Tracker == nil {
+		return
+	}
+	var userID int64
+	if h.ResolveUserByCustomer != nil {
+		userID = h.ResolveUserByCustomer(ctx, customerID)
+	}
+	name := analytics.EventPremiumActivated
+	if evType == stripe.EventTypeCustomerSubscriptionDeleted ||
+		status == string(stripe.SubscriptionStatusCanceled) ||
+		status == string(stripe.SubscriptionStatusUnpaid) {
+		name = analytics.EventPremiumCanceled
+	}
+	h.Tracker.Emit(analytics.Event{
+		Name:   name,
+		UserID: userID,
+		Props:  map[string]any{"status": status},
+	})
 }
 
 func (h *Handlers) ensureCustomer(ctx context.Context, user users.User) (string, error) {
