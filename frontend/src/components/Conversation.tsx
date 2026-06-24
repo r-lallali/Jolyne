@@ -42,6 +42,10 @@ export function Conversation() {
   // la gauche). Mémorisé pour qu'AnimatePresence puisse en faire usage
   // dans `custom`.
   const [slideDir, setSlideDir] = useState(1);
+  // Vrai quand une conversation d'ami est ouverte (vue plein écran) : on masque
+  // alors la barre de navigation, redondante avec le header de la conversation.
+  // L'état vit dans FriendsMode, remonté ici via callback.
+  const [friendConvOpen, setFriendConvOpen] = useState(false);
   const switchMode = (next: Mode) => {
     if (next === mode) return;
     setSlideDir(MODES.indexOf(next) > MODES.indexOf(mode) ? 1 : -1);
@@ -128,7 +132,9 @@ export function Conversation() {
   // L'écran de base (choix du pseudo) les garde pour accéder aux
   // conversations. Le swipe reste actif partout (showTabs inchangé).
   const showModeTabs =
-    showTabs && !(mode === "anon" && status === "idle" && isConfigStep);
+    showTabs &&
+    !(mode === "anon" && status === "idle" && isConfigStep) &&
+    !(mode === "friends" && friendConvOpen);
   // En mode "friends", on remplace tout le contenu chat anonyme par la vue
   // amis. Les barres restent visibles au-dessus pour permettre de revenir.
 
@@ -257,7 +263,7 @@ export function Conversation() {
             className="flex w-full justify-center"
           >
             {mode === "friends" && authedUser ? (
-              <FriendsMode />
+              <FriendsMode onConversationChange={setFriendConvOpen} />
             ) : mode === "learn" && authedUser ? (
               <LearnMode />
             ) : (

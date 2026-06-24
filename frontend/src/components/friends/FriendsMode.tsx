@@ -24,7 +24,13 @@ import { ReportModal } from "@/components/chat/ReportModal";
 // suffit largement pour cet usage et soulage DB + batterie mobile.
 const POLL_MS = 60_000;
 
-export function FriendsMode() {
+export function FriendsMode({
+  onConversationChange,
+}: {
+  // Remonte l'ouverture/fermeture d'une conversation au parent (Conversation)
+  // pour qu'il masque la barre de navigation pendant une conv ami.
+  onConversationChange?: (open: boolean) => void;
+}) {
   const t = useT();
   const [friends, setFriends] = useState<FriendSummary[] | null>(null);
   const [cloud, setCloud] = useState("");
@@ -69,6 +75,13 @@ export function FriendsMode() {
       }
     };
   }, [openFriendID]);
+
+  // Signale au parent l'état ouvert/fermé d'une conversation. Le cleanup
+  // remet à false au démontage (changement d'onglet) pour rétablir la nav.
+  useEffect(() => {
+    onConversationChange?.(openFriendID !== null);
+    return () => onConversationChange?.(false);
+  }, [openFriendID, onConversationChange]);
 
   const preloadedRef = useRef<Set<string>>(new Set());
   const refresh = useCallback(async () => {
