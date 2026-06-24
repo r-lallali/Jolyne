@@ -207,9 +207,13 @@ export function SetupView() {
   };
 
   return (
-    <div className="flex w-full max-w-md flex-col items-center justify-center px-4 py-8 sm:p-0">
-      {/* Titre toujours visible */}
-      <header className="mb-10 text-center">
+    <div className="flex w-full max-w-md flex-col items-center justify-start px-4 py-8 sm:p-0">
+      {/* Titre toujours visible. mt-auto/mb-auto (header/footer) centrent le
+          bloc quand il tient dans le viewport mais retombent à 0 quand le
+          contenu déborde (étape config sur mobile) : le titre reste alors en
+          haut et atteignable au scroll, au lieu d'être rogné par un
+          justify-center. */}
+      <header className="mb-10 mt-auto text-center">
         <h1 className="text-4xl font-bold tracking-tight text-neutral-900 dark:text-white">
           Jolyne
         </h1>
@@ -353,7 +357,7 @@ export function SetupView() {
         )}
       </div>
 
-      <footer className="mt-10 flex items-center gap-4 text-center">
+      <footer className="mb-auto mt-10 flex items-center gap-4 text-center">
         <a
           href="/legal"
           className="text-xs text-neutral-500 underline-offset-4 transition-colors hover:text-neutral-900 hover:underline dark:text-neutral-500 dark:hover:text-neutral-100"
