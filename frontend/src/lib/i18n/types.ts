@@ -222,6 +222,31 @@ export interface Messages {
     };
     achLocked: string;
     achDone: string;
+    // Module d'écriture (apprentissage d'un alphabet/script différent)
+    script: {
+      badge: string; // étiquette d'unité d'écriture
+      unitMastered: string; // tag « maîtrisé » sur une unité d'écriture finie
+      newSign: string; // titre de l'intro des nouveaux signes
+      introContinue: string; // bouton « c'est parti » après l'intro
+      recognize: string; // consigne : voir le signe → choisir le son
+      recall: string; // consigne : voir le son → choisir le signe
+      listenPrompt: string; // consigne : entendre → choisir le signe
+      composePrompt: string; // consigne : assembler le bloc (Hangul)
+      formInitial: string; // « au début d'un mot »
+      formMedial: string; // « au milieu d'un mot »
+      formFinal: string; // « à la fin d'un mot »
+      formsPrompt: FormatString<{ position: string }>; // « Quelle forme {position} ? »
+      tracePrompt: string; // consigne de tracé
+      traceClear: string; // bouton effacer le tracé
+      showStrokes: string; // bouton revoir l'ordre des traits
+      matchPrompt: string; // consigne d'association signe ↔ son
+      diagnosticCta: FormatString<{ script: string }>; // « je lis déjà {script} »
+      diagnosticTitle: string; // titre du test de diagnostic
+      diagnosticPass: string; // message de réussite
+      diagnosticFail: string; // message d'échec
+      diagnosticSkip: string; // « sauter quand même »
+      names: { ja: string; ko: string; ar: string; zh: string }; // noms des scripts
+    };
   };
   grammar: {
     suggestionsCount: FormatString<{ count: number }>;

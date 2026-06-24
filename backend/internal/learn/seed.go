@@ -60,6 +60,14 @@ func BuildCourses() ([]Course, error) {
 	out := make([]Course, 0, len(AllLangsOrdered))
 	for _, lang := range AllLangsOrdered {
 		c := Course{Lang: lang, Title: targetLangName[lang]}
+		// Préfixe : unités d'écriture (script non latin) avant le vocabulaire.
+		// Elles prennent les premiers idx → premières du parcours, sautables via
+		// le diagnostic de placement. Aucune pour les langues à alphabet latin.
+		scriptUnits, err := BuildScriptUnits(lang)
+		if err != nil {
+			return nil, err
+		}
+		c.Units = append(c.Units, scriptUnits...)
 		for _, u := range cur.Units {
 			unit := Unit{Slug: u.Slug, Title: u.Title}
 			for _, l := range u.Lessons {

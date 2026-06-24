@@ -111,6 +111,77 @@ func TestPickVocab(t *testing.T) {
 	}
 }
 
+func TestScriptSeedLoads(t *testing.T) {
+	// Chaque langue à module d'écriture charge son seed, et chaque item porte un
+	// signe (Target) + une prononciation (Sound) non vides.
+	for _, lang := range ScriptLangs {
+		units, err := BuildScriptUnits(lang)
+		if err != nil {
+			t.Fatalf("script seed %q: %v", lang, err)
+		}
+		if len(units) == 0 {
+			t.Fatalf("script seed %q: aucune unité", lang)
+		}
+		for _, u := range units {
+			for _, l := range u.Lessons {
+				if l.Kind != LessonKindScript {
+					t.Fatalf("%s/%s/%s: kind=%q, attendu script", lang, u.Slug, l.Slug, l.Kind)
+				}
+				for _, it := range l.Items {
+					if it.Target == "" || it.Sound == "" {
+						t.Fatalf("%s/%s/%s: item sans glyph/sound: %+v", lang, u.Slug, l.Slug, it)
+					}
+					// Cohérence des activités : 4 formes pour l'arabe positionnel.
+					if len(it.Forms) != 0 && len(it.Forms) != 4 {
+						t.Fatalf("%s: %q a %d formes, attendu 4", lang, it.Target, len(it.Forms))
+					}
+				}
+			}
+		}
+	}
+
+	// Une langue à alphabet latin n'a pas de module d'écriture.
+	if units, err := BuildScriptUnits("fr"); err != nil || units != nil {
+		t.Fatalf("fr ne doit pas avoir de script: units=%v err=%v", units, err)
+	}
+}
+
+func TestScriptUnitsPrefixCourse(t *testing.T) {
+	courses, err := BuildCourses()
+	if err != nil {
+		t.Fatalf("build courses: %v", err)
+	}
+	byLang := map[string]Course{}
+	for _, c := range courses {
+		byLang[c.Lang] = c
+	}
+	// Le japonais commence par des unités d'écriture (kind script sur la 1re
+	// leçon), puis enchaîne sur le vocabulaire.
+	ja := byLang["ja"]
+	if len(ja.Units) == 0 || len(ja.Units[0].Lessons) == 0 || ja.Units[0].Lessons[0].Kind != LessonKindScript {
+		t.Fatalf("ja ne commence pas par une unité script: %+v", ja.Units)
+	}
+	sawVocab := false
+	for _, u := range ja.Units {
+		for _, l := range u.Lessons {
+			if l.Kind != LessonKindScript {
+				sawVocab = true
+			}
+		}
+	}
+	if !sawVocab {
+		t.Fatalf("ja devrait aussi contenir des leçons de vocabulaire")
+	}
+	// Le français (alphabet latin) n'a aucune leçon script.
+	for _, u := range byLang["fr"].Units {
+		for _, l := range u.Lessons {
+			if l.Kind == LessonKindScript {
+				t.Fatalf("fr ne doit pas contenir de leçon script (%s)", l.Slug)
+			}
+		}
+	}
+}
+
 func TestBuiltCoursesAreValid(t *testing.T) {
 	courses, err := BuildCourses()
 	if err != nil {

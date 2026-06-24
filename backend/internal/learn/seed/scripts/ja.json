@@ -1,0 +1,178 @@
+{
+  "units": [
+    {
+      "slug": "script-hiragana-1",
+      "title": "ひらがな 1",
+      "lessons": [
+        {
+          "slug": "vowels",
+          "title": "あ い う え お",
+          "items": [
+            { "glyph": "あ", "sound": "a" },
+            { "glyph": "い", "sound": "i" },
+            { "glyph": "う", "sound": "u" },
+            { "glyph": "え", "sound": "e" },
+            { "glyph": "お", "sound": "o" }
+          ]
+        },
+        {
+          "slug": "k-row",
+          "title": "か き く け こ",
+          "items": [
+            { "glyph": "か", "sound": "ka" },
+            { "glyph": "き", "sound": "ki" },
+            { "glyph": "く", "sound": "ku" },
+            { "glyph": "け", "sound": "ke" },
+            { "glyph": "こ", "sound": "ko" }
+          ]
+        },
+        {
+          "slug": "s-row",
+          "title": "さ し す せ そ",
+          "items": [
+            { "glyph": "さ", "sound": "sa" },
+            { "glyph": "し", "sound": "shi" },
+            { "glyph": "す", "sound": "su" },
+            { "glyph": "せ", "sound": "se" },
+            { "glyph": "そ", "sound": "so" }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-hiragana-2",
+      "title": "ひらがな 2",
+      "lessons": [
+        {
+          "slug": "t-row",
+          "title": "た ち つ て と",
+          "items": [
+            { "glyph": "た", "sound": "ta" },
+            { "glyph": "ち", "sound": "chi" },
+            { "glyph": "つ", "sound": "tsu" },
+            { "glyph": "て", "sound": "te" },
+            { "glyph": "と", "sound": "to" }
+          ]
+        },
+        {
+          "slug": "n-row",
+          "title": "な に ぬ ね の",
+          "items": [
+            { "glyph": "な", "sound": "na" },
+            { "glyph": "に", "sound": "ni" },
+            { "glyph": "ぬ", "sound": "nu" },
+            { "glyph": "ね", "sound": "ne" },
+            { "glyph": "の", "sound": "no" }
+          ]
+        },
+        {
+          "slug": "h-row",
+          "title": "は ひ ふ へ ほ",
+          "items": [
+            { "glyph": "は", "sound": "ha" },
+            { "glyph": "ひ", "sound": "hi" },
+            { "glyph": "ふ", "sound": "fu" },
+            { "glyph": "へ", "sound": "he" },
+            { "glyph": "ほ", "sound": "ho" }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-hiragana-3",
+      "title": "ひらがな 3",
+      "lessons": [
+        {
+          "slug": "m-row",
+          "title": "ま み む め も",
+          "items": [
+            { "glyph": "ま", "sound": "ma" },
+            { "glyph": "み", "sound": "mi" },
+            { "glyph": "む", "sound": "mu" },
+            { "glyph": "め", "sound": "me" },
+            { "glyph": "も", "sound": "mo" }
+          ]
+        },
+        {
+          "slug": "yr-row",
+          "title": "や ゆ よ ら り る",
+          "items": [
+            { "glyph": "や", "sound": "ya" },
+            { "glyph": "ゆ", "sound": "yu" },
+            { "glyph": "よ", "sound": "yo" },
+            { "glyph": "ら", "sound": "ra" },
+            { "glyph": "り", "sound": "ri" },
+            { "glyph": "る", "sound": "ru" }
+          ]
+        },
+        {
+          "slug": "wn-row",
+          "title": "れ ろ わ を ん",
+          "items": [
+            { "glyph": "れ", "sound": "re" },
+            { "glyph": "ろ", "sound": "ro" },
+            { "glyph": "わ", "sound": "wa" },
+            { "glyph": "を", "sound": "wo" },
+            { "glyph": "ん", "sound": "n" }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-katakana",
+      "title": "カタカナ",
+      "lessons": [
+        {
+          "slug": "kata-vowels",
+          "title": "ア イ ウ エ オ",
+          "items": [
+            { "glyph": "ア", "sound": "a" },
+            { "glyph": "イ", "sound": "i" },
+            { "glyph": "ウ", "sound": "u" },
+            { "glyph": "エ", "sound": "e" },
+            { "glyph": "オ", "sound": "o" }
+          ]
+        },
+        {
+          "slug": "kata-k-row",
+          "title": "カ キ ク ケ コ",
+          "items": [
+            { "glyph": "カ", "sound": "ka" },
+            { "glyph": "キ", "sound": "ki" },
+            { "glyph": "ク", "sound": "ku" },
+            { "glyph": "ケ", "sound": "ke" },
+            { "glyph": "コ", "sound": "ko" }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-hiragana-reading",
+      "title": "よみ",
+      "lessons": [
+        {
+          "slug": "words-1",
+          "title": "ことば 1",
+          "items": [
+            { "glyph": "すし", "sound": "sushi" },
+            { "glyph": "ねこ", "sound": "neko" },
+            { "glyph": "いぬ", "sound": "inu" },
+            { "glyph": "やま", "sound": "yama" },
+            { "glyph": "うみ", "sound": "umi" }
+          ]
+        },
+        {
+          "slug": "words-2",
+          "title": "ことば 2",
+          "items": [
+            { "glyph": "さかな", "sound": "sakana" },
+            { "glyph": "ひと", "sound": "hito" },
+            { "glyph": "あさ", "sound": "asa" },
+            { "glyph": "そら", "sound": "sora" },
+            { "glyph": "ふね", "sound": "fune" }
+          ]
+        }
+      ]
+    }
+  ]
+}

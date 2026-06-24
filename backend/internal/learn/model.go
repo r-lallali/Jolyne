@@ -26,10 +26,34 @@ func IsSupportedLang(code string) bool {
 
 // Item : une brique pédagogique. `Target` est dans la langue cible du cours ;
 // `Tr` mappe chaque langue source vers la traduction (sens) du terme.
+//
+// Items « script » (apprentissage du système d'écriture) : `Target` porte le
+// signe (kana, jamo, lettre arabe, caractère), `Tr` est inutile (le « sens »
+// d'un signe est sa prononciation, universelle → `Sound`). Champs spécifiques
+// optionnels ci-dessous, ignorés par les leçons de vocabulaire.
 type Item struct {
 	Target string            `json:"target"`
-	Tr     map[string]string `json:"tr"`
+	Tr     map[string]string `json:"tr,omitempty"`
 	Notes  string            `json:"notes,omitempty"`
+
+	// ----- champs script (omitempty : absents des items de vocabulaire) -----
+	// Sound : translittération/prononciation universelle (romaji, RR coréen,
+	// pinyin…). Sert de « sens » pour dériver les exercices signe↔son.
+	Sound string `json:"sound,omitempty"`
+	// Forms : formes positionnelles arabes dans l'ordre
+	// [isolée, initiale, médiane, finale]. Pour l'exercice de reconnaissance
+	// de forme selon la position dans le mot.
+	Forms []string `json:"forms,omitempty"`
+	// Parts : composants ordonnés d'un bloc (jamo Hangul d'une syllabe). Pour
+	// l'exercice de composition (assembler le bloc à partir des jamo).
+	Parts []string `json:"parts,omitempty"`
+	// Strokes : chemins SVG ordonnés (viewBox 0 0 100 100) pour animer l'ordre
+	// des traits en guide de tracé. Optionnel (amélioration progressive).
+	Strokes []string `json:"strokes,omitempty"`
+	// Example / ExampleSound : mot illustrant le signe + sa lecture. Sert à
+	// l'exercice de lecture (mot composé de signes appris → sa prononciation).
+	Example      string `json:"example,omitempty"`
+	ExampleSound string `json:"example_sound,omitempty"`
 }
 
 // LessonContent : forme stockée en JSONB sur learn_lessons.content.
@@ -54,6 +78,9 @@ type Lesson struct {
 	Slug  string `json:"slug"`
 	Title string `json:"title"`
 	XP    int    `json:"xp"`
+	// Kind : "vocab" (défaut) ou "script" (apprentissage de l'écriture). Pilote
+	// le type d'exercices dérivés côté front.
+	Kind  string `json:"kind,omitempty"`
 	Items []Item `json:"items"`
 }
 
@@ -61,10 +88,10 @@ type Lesson struct {
 
 // CourseSummary : un cours disponible (pour la liste de sélection).
 type CourseSummary struct {
-	Lang       string `json:"lang"`
-	Title      string `json:"title"`
-	UnitCount  int    `json:"unit_count"`
-	LessonCount int   `json:"lesson_count"`
+	Lang        string `json:"lang"`
+	Title       string `json:"title"`
+	UnitCount   int    `json:"unit_count"`
+	LessonCount int    `json:"lesson_count"`
 }
 
 // CourseTree : arbre d'un cours décoré de la progression du user. Les leçons
@@ -80,8 +107,12 @@ type CourseTree struct {
 }
 
 type UnitNode struct {
-	Slug    string       `json:"slug"`
-	Title   string       `json:"title"`
+	Slug  string `json:"slug"`
+	Title string `json:"title"`
+	// Kind : "vocab" ou "script" (dérivé de la 1re leçon de l'unité). Le front
+	// décore les unités d'écriture et calcule la frontière script→vocab pour le
+	// diagnostic « je lis déjà ce script ».
+	Kind    string       `json:"kind,omitempty"`
 	Lessons []LessonNode `json:"lessons"`
 }
 
@@ -89,6 +120,7 @@ type LessonNode struct {
 	ID        int64  `json:"id"`
 	Slug      string `json:"slug"`
 	Title     string `json:"title"`
+	Kind      string `json:"kind,omitempty"`
 	XP        int    `json:"xp"`
 	ItemCount int    `json:"item_count"`
 	Stars     int    `json:"stars"`
@@ -99,16 +131,26 @@ type LessonNode struct {
 	Placed bool `json:"placed"`
 }
 
-// PlayItem : item résolu dans la langue de l'apprenant pour la lecture.
+// PlayItem : item résolu dans la langue de l'apprenant pour la lecture. Pour
+// les leçons script, `Meaning` reprend `Sound` (universel) et les champs
+// d'écriture sont propagés pour dériver les exercices côté front.
 type PlayItem struct {
 	Target  string `json:"target"`
 	Meaning string `json:"meaning"`
+	// ----- champs script (omitempty) -----
+	Sound        string   `json:"sound,omitempty"`
+	Forms        []string `json:"forms,omitempty"`
+	Parts        []string `json:"parts,omitempty"`
+	Strokes      []string `json:"strokes,omitempty"`
+	Example      string   `json:"example,omitempty"`
+	ExampleSound string   `json:"example_sound,omitempty"`
 }
 
 // LessonPlay : payload de lecture d'une leçon (items résolus + meta).
 type LessonPlay struct {
 	ID    int64      `json:"id"`
 	Title string     `json:"title"`
+	Kind  string     `json:"kind,omitempty"`
 	XP    int        `json:"xp"`
 	Items []PlayItem `json:"items"`
 }
@@ -160,12 +202,12 @@ type CompleteResult struct {
 // ----- Constantes de gamification -----
 
 const (
-	MaxHearts     = 5
-	HeartRegen    = 30 * time.Minute
-	DefaultGoal   = 20
-	MinGoal       = 5
-	MaxGoal       = 100
-	ReviewXPMax   = 5 // XP plafonné pour une leçon déjà complétée (anti-farm)
+	MaxHearts   = 5
+	HeartRegen  = 30 * time.Minute
+	DefaultGoal = 20
+	MinGoal     = 5
+	MaxGoal     = 100
+	ReviewXPMax = 5 // XP plafonné pour une leçon déjà complétée (anti-farm)
 )
 
 // StreakMilestones : paliers célébrés (popup). Même esprit que friends.

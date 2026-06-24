@@ -7,6 +7,8 @@ import { CoursePath } from "@/components/learn/CoursePath";
 import { HeartRequestsBanner } from "@/components/learn/HeartRequestsBanner";
 import { LearnHeader } from "@/components/learn/LearnHeader";
 import { LessonPlayer } from "@/components/learn/LessonPlayer";
+import { ScriptLessonPlayer } from "@/components/learn/ScriptLessonPlayer";
+import { ScriptDiagnostic } from "@/components/learn/ScriptDiagnostic";
 import { LevelChooser } from "@/components/learn/LevelChooser";
 import { OutOfHearts } from "@/components/learn/OutOfHearts";
 import { useT, useUILang } from "@/lib/i18n";
@@ -29,6 +31,8 @@ interface ActiveLesson {
   id: number;
   title: string;
   items: PlayItem[];
+  // "script" ⇒ lecteur d'écriture ; sinon lecteur de vocabulaire.
+  kind?: string;
 }
 
 // LearnMode : orchestrateur du mode Cours, rendu comme 3e onglet de la home
@@ -47,8 +51,19 @@ export function LearnMode() {
   const [tree, setTree] = useState<CourseTree | null>(null);
   const [active, setActive] = useState<ActiveLesson | null>(null);
   const [outOfHearts, setOutOfHearts] = useState(false);
+  const [diagnostic, setDiagnostic] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+
+  // Module d'écriture : unités "script" en tête de cours. Sert au diagnostic
+  // de saut et à décorer le parcours.
+  const scriptUnits = tree?.units.filter((u) => u.kind === "script") ?? [];
+  const scriptName = lang
+    ? (t.learn.script.names as Record<string, string>)[lang]
+    : undefined;
+  // Leçon représentative pour le diagnostic : la plus avancée du module (lecture).
+  const sampleScriptLessonId =
+    scriptUnits.at(-1)?.lessons.at(-1)?.id ?? scriptUnits[0]?.lessons[0]?.id;
 
   const refreshState = useCallback(
     () => getState().then(setState).catch(() => {}),
@@ -117,11 +132,23 @@ export function LearnMode() {
     setBusy(true);
     try {
       const lp = await getLesson(lesson.id, from);
-      setActive({ id: lp.id, title: lp.title, items: lp.items });
+      setActive({ id: lp.id, title: lp.title, items: lp.items, kind: lp.kind });
     } catch {
       /* silencieux */
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Diagnostic réussi : on saute tout le module d'écriture (placement à la 1re
+  // unité de vocabulaire) puis on rafraîchit le parcours.
+  const skipScript = async () => {
+    setDiagnostic(false);
+    if (!lang || scriptUnits.length === 0) return;
+    try {
+      setTree(await enrollCourse(lang, scriptUnits.length));
+    } catch {
+      /* silencieux */
     }
   };
 
@@ -224,29 +251,52 @@ export function LearnMode() {
             />
           ) : (
             <div className="mt-6">
-              <CoursePath tree={tree} onStart={startLesson} />
+              <CoursePath
+                tree={tree}
+                onStart={startLesson}
+                scriptName={scriptName}
+                onDiagnostic={
+                  sampleScriptLessonId ? () => setDiagnostic(true) : undefined
+                }
+              />
             </div>
           )}
         </>
       )}
 
-      {active && state && lang && (
-        <LessonPlayer
-          lessonId={active.id}
-          targetLang={lang}
-          title={active.title}
-          items={active.items}
-          initialHearts={state.hearts}
-          premium={state.premium}
-          onClose={(completed) => {
-            setActive(null);
-            if (completed) void refreshCourse();
-          }}
-          onOutOfHearts={() => {
-            setActive(null);
-            setOutOfHearts(true);
-            void refreshCourse();
-          }}
+      {active &&
+        state &&
+        lang &&
+        (() => {
+          const Player = active.kind === "script" ? ScriptLessonPlayer : LessonPlayer;
+          return (
+            <Player
+              lessonId={active.id}
+              targetLang={lang}
+              title={active.title}
+              items={active.items}
+              initialHearts={state.hearts}
+              premium={state.premium}
+              onClose={(completed) => {
+                setActive(null);
+                if (completed) void refreshCourse();
+              }}
+              onOutOfHearts={() => {
+                setActive(null);
+                setOutOfHearts(true);
+                void refreshCourse();
+              }}
+            />
+          );
+        })()}
+
+      {diagnostic && lang && scriptName && sampleScriptLessonId && (
+        <ScriptDiagnostic
+          sampleLessonId={sampleScriptLessonId}
+          from={from}
+          scriptName={scriptName}
+          onPass={skipScript}
+          onClose={() => setDiagnostic(false)}
         />
       )}
 

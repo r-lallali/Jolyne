@@ -159,6 +159,15 @@ func validateCourse(c Course, target string, sources []string) error {
 				if strings.TrimSpace(it.Target) == "" {
 					return fmt.Errorf("learn: item sans target (leçon %q)", l.Slug)
 				}
+				// Leçon d'écriture : le « sens » est la prononciation universelle
+				// (Sound), pas une traduction par langue source. On valide Sound
+				// et on saute les contrôles de traduction.
+				if l.Kind == LessonKindScript {
+					if strings.TrimSpace(it.Sound) == "" {
+						return fmt.Errorf("learn: item script %q sans sound (leçon %q)", it.Target, l.Slug)
+					}
+					continue
+				}
 				for _, src := range sources {
 					if strings.TrimSpace(it.Tr[src]) == "" {
 						return fmt.Errorf("learn: item %q sans traduction %q", it.Target, src)

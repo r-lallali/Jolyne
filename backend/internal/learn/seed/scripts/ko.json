@@ -1,0 +1,105 @@
+{
+  "units": [
+    {
+      "slug": "script-hangul-vowels",
+      "title": "한글 모음",
+      "lessons": [
+        {
+          "slug": "vowels-1",
+          "title": "ㅏ ㅑ ㅓ ㅕ ㅗ",
+          "items": [
+            { "glyph": "ㅏ", "sound": "a" },
+            { "glyph": "ㅑ", "sound": "ya" },
+            { "glyph": "ㅓ", "sound": "eo" },
+            { "glyph": "ㅕ", "sound": "yeo" },
+            { "glyph": "ㅗ", "sound": "o" }
+          ]
+        },
+        {
+          "slug": "vowels-2",
+          "title": "ㅛ ㅜ ㅠ ㅡ ㅣ",
+          "items": [
+            { "glyph": "ㅛ", "sound": "yo" },
+            { "glyph": "ㅜ", "sound": "u" },
+            { "glyph": "ㅠ", "sound": "yu" },
+            { "glyph": "ㅡ", "sound": "eu" },
+            { "glyph": "ㅣ", "sound": "i" }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-hangul-consonants",
+      "title": "한글 자음",
+      "lessons": [
+        {
+          "slug": "consonants-1",
+          "title": "ㄱ ㄴ ㄷ ㄹ ㅁ",
+          "items": [
+            { "glyph": "ㄱ", "sound": "g" },
+            { "glyph": "ㄴ", "sound": "n" },
+            { "glyph": "ㄷ", "sound": "d" },
+            { "glyph": "ㄹ", "sound": "r" },
+            { "glyph": "ㅁ", "sound": "m" }
+          ]
+        },
+        {
+          "slug": "consonants-2",
+          "title": "ㅂ ㅅ ㅇ ㅈ ㅎ",
+          "items": [
+            { "glyph": "ㅂ", "sound": "b" },
+            { "glyph": "ㅅ", "sound": "s" },
+            { "glyph": "ㅇ", "sound": "ng" },
+            { "glyph": "ㅈ", "sound": "j" },
+            { "glyph": "ㅎ", "sound": "h" }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-hangul-compose",
+      "title": "글자 만들기",
+      "lessons": [
+        {
+          "slug": "compose-cv",
+          "title": "가 나 다 마",
+          "items": [
+            { "glyph": "가", "sound": "ga", "parts": ["ㄱ", "ㅏ"] },
+            { "glyph": "나", "sound": "na", "parts": ["ㄴ", "ㅏ"] },
+            { "glyph": "다", "sound": "da", "parts": ["ㄷ", "ㅏ"] },
+            { "glyph": "마", "sound": "ma", "parts": ["ㅁ", "ㅏ"] },
+            { "glyph": "보", "sound": "bo", "parts": ["ㅂ", "ㅗ"] }
+          ]
+        },
+        {
+          "slug": "compose-cvc",
+          "title": "안 한 글 곰",
+          "items": [
+            { "glyph": "안", "sound": "an", "parts": ["ㅇ", "ㅏ", "ㄴ"] },
+            { "glyph": "한", "sound": "han", "parts": ["ㅎ", "ㅏ", "ㄴ"] },
+            { "glyph": "글", "sound": "geul", "parts": ["ㄱ", "ㅡ", "ㄹ"] },
+            { "glyph": "곰", "sound": "gom", "parts": ["ㄱ", "ㅗ", "ㅁ"] },
+            { "glyph": "물", "sound": "mul", "parts": ["ㅁ", "ㅜ", "ㄹ"] }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-hangul-reading",
+      "title": "읽기",
+      "lessons": [
+        {
+          "slug": "words-1",
+          "title": "낱말 1",
+          "items": [
+            { "glyph": "안녕", "sound": "annyeong" },
+            { "glyph": "한국", "sound": "hanguk" },
+            { "glyph": "사람", "sound": "saram" },
+            { "glyph": "나라", "sound": "nara" },
+            { "glyph": "바다", "sound": "bada" }
+          ]
+        }
+      ]
+    }
+  ]
+}

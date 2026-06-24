@@ -1,0 +1,96 @@
+{
+  "units": [
+    {
+      "slug": "script-arabic-1",
+      "title": "الحروف ١",
+      "lessons": [
+        {
+          "slug": "letters-1",
+          "title": "ا ب ت ث ج ح خ",
+          "items": [
+            { "glyph": "ا", "sound": "ā", "forms": ["ا", "ا", "ـا", "ـا"] },
+            { "glyph": "ب", "sound": "b", "forms": ["ب", "بـ", "ـبـ", "ـب"] },
+            { "glyph": "ت", "sound": "t", "forms": ["ت", "تـ", "ـتـ", "ـت"] },
+            { "glyph": "ث", "sound": "th", "forms": ["ث", "ثـ", "ـثـ", "ـث"] },
+            { "glyph": "ج", "sound": "j", "forms": ["ج", "جـ", "ـجـ", "ـج"] },
+            { "glyph": "ح", "sound": "ḥ", "forms": ["ح", "حـ", "ـحـ", "ـح"] },
+            { "glyph": "خ", "sound": "kh", "forms": ["خ", "خـ", "ـخـ", "ـخ"] }
+          ]
+        },
+        {
+          "slug": "letters-2",
+          "title": "د ذ ر ز س ش ص",
+          "items": [
+            { "glyph": "د", "sound": "d", "forms": ["د", "د", "ـد", "ـد"] },
+            { "glyph": "ذ", "sound": "dh", "forms": ["ذ", "ذ", "ـذ", "ـذ"] },
+            { "glyph": "ر", "sound": "r", "forms": ["ر", "ر", "ـر", "ـر"] },
+            { "glyph": "ز", "sound": "z", "forms": ["ز", "ز", "ـز", "ـز"] },
+            { "glyph": "س", "sound": "s", "forms": ["س", "سـ", "ـسـ", "ـس"] },
+            { "glyph": "ش", "sound": "sh", "forms": ["ش", "شـ", "ـشـ", "ـش"] },
+            { "glyph": "ص", "sound": "ṣ", "forms": ["ص", "صـ", "ـصـ", "ـص"] }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-arabic-2",
+      "title": "الحروف ٢",
+      "lessons": [
+        {
+          "slug": "letters-3",
+          "title": "ض ط ظ ع غ ف ق",
+          "items": [
+            { "glyph": "ض", "sound": "ḍ", "forms": ["ض", "ضـ", "ـضـ", "ـض"] },
+            { "glyph": "ط", "sound": "ṭ", "forms": ["ط", "طـ", "ـطـ", "ـط"] },
+            { "glyph": "ظ", "sound": "ẓ", "forms": ["ظ", "ظـ", "ـظـ", "ـظ"] },
+            { "glyph": "ع", "sound": "ʿ", "forms": ["ع", "عـ", "ـعـ", "ـع"] },
+            { "glyph": "غ", "sound": "gh", "forms": ["غ", "غـ", "ـغـ", "ـغ"] },
+            { "glyph": "ف", "sound": "f", "forms": ["ف", "فـ", "ـفـ", "ـف"] },
+            { "glyph": "ق", "sound": "q", "forms": ["ق", "قـ", "ـقـ", "ـق"] }
+          ]
+        },
+        {
+          "slug": "letters-4",
+          "title": "ك ل م ن ه و ي",
+          "items": [
+            { "glyph": "ك", "sound": "k", "forms": ["ك", "كـ", "ـكـ", "ـك"] },
+            { "glyph": "ل", "sound": "l", "forms": ["ل", "لـ", "ـلـ", "ـل"] },
+            { "glyph": "م", "sound": "m", "forms": ["م", "مـ", "ـمـ", "ـم"] },
+            { "glyph": "ن", "sound": "n", "forms": ["ن", "نـ", "ـنـ", "ـن"] },
+            { "glyph": "ه", "sound": "h", "forms": ["ه", "هـ", "ـهـ", "ـه"] },
+            { "glyph": "و", "sound": "w", "forms": ["و", "و", "ـو", "ـو"] },
+            { "glyph": "ي", "sound": "y", "forms": ["ي", "يـ", "ـيـ", "ـي"] }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-arabic-reading",
+      "title": "القراءة",
+      "lessons": [
+        {
+          "slug": "words-1",
+          "title": "كلمات ١",
+          "items": [
+            { "glyph": "باب", "sound": "bāb" },
+            { "glyph": "بيت", "sound": "bayt" },
+            { "glyph": "كتاب", "sound": "kitāb" },
+            { "glyph": "ولد", "sound": "walad" },
+            { "glyph": "بنت", "sound": "bint" }
+          ]
+        },
+        {
+          "slug": "words-2",
+          "title": "كلمات ٢",
+          "items": [
+            { "glyph": "شمس", "sound": "shams" },
+            { "glyph": "قمر", "sound": "qamar" },
+            { "glyph": "سلام", "sound": "salām" },
+            { "glyph": "نهر", "sound": "nahr" },
+            { "glyph": "جبل", "sound": "jabal" }
+          ]
+        }
+      ]
+    }
+  ]
+}

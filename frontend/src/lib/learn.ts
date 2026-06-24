@@ -23,6 +23,8 @@ export interface LessonNode {
   id: number;
   slug: string;
   title: string;
+  // "vocab" (défaut) ou "script" (leçon d'écriture). Absent ⇒ vocab.
+  kind?: string;
   xp: number;
   item_count: number;
   stars: number;
@@ -34,6 +36,8 @@ export interface LessonNode {
 export interface UnitNode {
   slug: string;
   title: string;
+  // "script" pour une unité d'apprentissage de l'écriture (dérivé de sa 1re leçon).
+  kind?: string;
   lessons: LessonNode[];
 }
 
@@ -48,11 +52,19 @@ export interface CourseTree {
 export interface PlayItem {
   target: string;
   meaning: string;
+  // ----- champs script (leçons d'écriture) -----
+  sound?: string;
+  forms?: string[];
+  parts?: string[];
+  strokes?: string[];
+  example?: string;
+  example_sound?: string;
 }
 
 export interface LessonPlay {
   id: number;
   title: string;
+  kind?: string;
   xp: number;
   items: PlayItem[];
 }

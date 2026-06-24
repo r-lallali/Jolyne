@@ -71,13 +71,17 @@ func (s *Store) UpsertCourse(ctx context.Context, c Course) error {
 			if xp <= 0 {
 				xp = 10
 			}
+			kind := l.Kind
+			if kind == "" {
+				kind = "vocab"
+			}
 			if _, err := tx.Exec(ctx,
-				`INSERT INTO learn_lessons (unit_id, slug, idx, title, xp, content)
-				 VALUES ($1, $2, $3, $4, $5, $6)
+				`INSERT INTO learn_lessons (unit_id, slug, idx, title, xp, kind, content)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7)
 				 ON CONFLICT (unit_id, slug) DO UPDATE
 				   SET idx = EXCLUDED.idx, title = EXCLUDED.title,
-				       xp = EXCLUDED.xp, content = EXCLUDED.content`,
-				unitID, l.Slug, li, l.Title, xp, content,
+				       xp = EXCLUDED.xp, kind = EXCLUDED.kind, content = EXCLUDED.content`,
+				unitID, l.Slug, li, l.Title, xp, kind, content,
 			); err != nil {
 				return fmt.Errorf("learn: upsert lesson %q: %w", l.Slug, err)
 			}
@@ -161,7 +165,7 @@ func (s *Store) Tree(ctx context.Context, lang string, userID int64) (CourseTree
 	// parcours qui détermine les verrous.
 	const q = `
 		SELECT u.slug, u.title, u.idx,
-		       l.id, l.slug, l.title, l.xp,
+		       l.id, l.slug, l.title, l.kind, l.xp,
 		       COALESCE(jsonb_array_length(l.content->'items'), 0)
 		FROM learn_units u
 		JOIN learn_lessons l ON l.unit_id = u.id
@@ -182,7 +186,7 @@ func (s *Store) Tree(ctx context.Context, lang string, userID int64) (CourseTree
 	for rows.Next() {
 		var f flat
 		if err := rows.Scan(&f.unitSlug, &f.unitTitle, &f.unitIdx,
-			&f.node.ID, &f.node.Slug, &f.node.Title, &f.node.XP, &f.node.ItemCount); err != nil {
+			&f.node.ID, &f.node.Slug, &f.node.Title, &f.node.Kind, &f.node.XP, &f.node.ItemCount); err != nil {
 			return CourseTree{}, err
 		}
 		lessons = append(lessons, f)
@@ -238,7 +242,10 @@ func (s *Store) Tree(ctx context.Context, lang string, userID int64) (CourseTree
 		if !ok {
 			ui = len(tree.Units)
 			idxOf[f.unitSlug] = ui
-			tree.Units = append(tree.Units, UnitNode{Slug: f.unitSlug, Title: f.unitTitle})
+			// Kind de l'unité = kind de sa 1re leçon (ordre global) : script ou
+			// vocab. Sert au front pour décorer les unités d'écriture et calculer
+			// la frontière de saut (diagnostic).
+			tree.Units = append(tree.Units, UnitNode{Slug: f.unitSlug, Title: f.unitTitle, Kind: f.node.Kind})
 		}
 		tree.Units[ui].Lessons = append(tree.Units[ui].Lessons, f.node)
 	}
@@ -322,12 +329,12 @@ func (s *Store) LessonForPlay(ctx context.Context, lessonID, userID int64, from 
 	var courseLang string
 	var unitIdx int
 	if err := s.pool.QueryRow(ctx,
-		`SELECT l.id, l.title, l.xp, l.content, c.lang, u.idx
+		`SELECT l.id, l.title, l.kind, l.xp, l.content, c.lang, u.idx
 		 FROM learn_lessons l
 		 JOIN learn_units u   ON u.id = l.unit_id
 		 JOIN learn_courses c ON c.id = u.course_id
 		 WHERE l.id = $1`, lessonID,
-	).Scan(&lp.ID, &lp.Title, &lp.XP, &raw, &courseLang, &unitIdx); err != nil {
+	).Scan(&lp.ID, &lp.Title, &lp.Kind, &lp.XP, &raw, &courseLang, &unitIdx); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return LessonPlay{}, ErrNotFound
 		}
@@ -337,6 +344,25 @@ func (s *Store) LessonForPlay(ctx context.Context, lessonID, userID int64, from 
 	if err := json.Unmarshal(raw, &content); err != nil {
 		return LessonPlay{}, fmt.Errorf("learn: parse content: %w", err)
 	}
+
+	// Leçon d'écriture : le « sens » d'un signe est sa prononciation (Sound),
+	// universelle. On propage les champs script et on n'injecte PAS de vocab.
+	if lp.Kind == LessonKindScript {
+		for _, it := range content.Items {
+			lp.Items = append(lp.Items, PlayItem{
+				Target:       it.Target,
+				Meaning:      it.Sound,
+				Sound:        it.Sound,
+				Forms:        it.Forms,
+				Parts:        it.Parts,
+				Strokes:      it.Strokes,
+				Example:      it.Example,
+				ExampleSound: it.ExampleSound,
+			})
+		}
+		return lp, nil
+	}
+
 	// Cibles statiques (pour dédupliquer le vocab injecté).
 	seen := make(map[string]bool, len(content.Items))
 	for _, it := range content.Items {

@@ -524,7 +524,7 @@ function shuffleIdx(n: number): number[] {
 
 // ----- Écran d'erreur de validation (retry réseau) -----
 
-function SubmitErrorScreen({
+export function SubmitErrorScreen({
   onRetry,
   onQuit,
 }: {
@@ -563,7 +563,7 @@ function SubmitErrorScreen({
 
 // ----- Écran de résultats -----
 
-function LessonResult({
+export function LessonResult({
   title,
   result,
   onClose,

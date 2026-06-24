@@ -1,0 +1,74 @@
+{
+  "units": [
+    {
+      "slug": "script-zh-numbers",
+      "title": "数字 一〜十",
+      "lessons": [
+        {
+          "slug": "numbers-1-5",
+          "title": "一 二 三 四 五",
+          "items": [
+            { "glyph": "一", "sound": "yī", "strokes": ["M14 50 L86 50"] },
+            { "glyph": "二", "sound": "èr", "strokes": ["M22 34 L78 34", "M12 66 L88 66"] },
+            { "glyph": "三", "sound": "sān", "strokes": ["M24 28 L76 28", "M18 50 L82 50", "M10 72 L90 72"] },
+            { "glyph": "四", "sound": "sì" },
+            { "glyph": "五", "sound": "wǔ" }
+          ]
+        },
+        {
+          "slug": "numbers-6-10",
+          "title": "六 七 八 九 十",
+          "items": [
+            { "glyph": "六", "sound": "liù" },
+            { "glyph": "七", "sound": "qī" },
+            { "glyph": "八", "sound": "bā" },
+            { "glyph": "九", "sound": "jiǔ" },
+            { "glyph": "十", "sound": "shí", "strokes": ["M14 50 L86 50", "M50 14 L50 86"] }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-zh-tones",
+      "title": "声调",
+      "lessons": [
+        {
+          "slug": "four-tones",
+          "title": "妈 麻 马 骂",
+          "items": [
+            { "glyph": "妈", "sound": "mā · 1er ton" },
+            { "glyph": "麻", "sound": "má · 2e ton" },
+            { "glyph": "马", "sound": "mǎ · 3e ton" },
+            { "glyph": "骂", "sound": "mà · 4e ton" }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "script-zh-common",
+      "title": "常用字",
+      "lessons": [
+        {
+          "slug": "common-1",
+          "title": "你 好 我 是",
+          "items": [
+            { "glyph": "你", "sound": "nǐ" },
+            { "glyph": "好", "sound": "hǎo" },
+            { "glyph": "我", "sound": "wǒ" },
+            { "glyph": "是", "sound": "shì" }
+          ]
+        },
+        {
+          "slug": "common-2",
+          "title": "人 大 小 不",
+          "items": [
+            { "glyph": "人", "sound": "rén" },
+            { "glyph": "大", "sound": "dà" },
+            { "glyph": "小", "sound": "xiǎo" },
+            { "glyph": "不", "sound": "bù" }
+          ]
+        }
+      ]
+    }
+  ]
+}
