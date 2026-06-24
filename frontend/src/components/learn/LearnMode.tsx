@@ -128,7 +128,7 @@ export function LearnMode() {
   if (!hydrated || !user) return null;
 
   return (
-    <div className="w-full max-w-2xl px-6 pb-24 pt-[calc(env(safe-area-inset-top)+3.25rem)] sm:pt-16">
+    <div className="w-full max-w-2xl px-6 pb-24 pt-[calc(env(safe-area-inset-top)+4.25rem)] sm:pt-16">
       {state && state.incoming_heart_requests > 0 && (
         <HeartRequestsBanner onChanged={refreshState} />
       )}
