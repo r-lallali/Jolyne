@@ -6,6 +6,11 @@ export const ko: Messages = {
     close: "닫기",
     back: "뒤로",
   },
+  nav: {
+    meet: "만남",
+    messages: "메시지",
+    courses: "강의",
+  },
   setup: {
     chooseNick: "닉네임을 정하세요",
     nickPlaceholder: "닉네임",

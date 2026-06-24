@@ -6,6 +6,11 @@ export const ar: Messages = {
     close: "إغلاق",
     back: "رجوع",
   },
+  nav: {
+    meet: "تعارف",
+    messages: "الرسائل",
+    courses: "دروس",
+  },
   setup: {
     chooseNick: "اختر اسمًا مستعارًا",
     nickPlaceholder: "اسمك المستعار",

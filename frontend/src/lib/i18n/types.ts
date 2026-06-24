@@ -28,6 +28,11 @@ export interface Messages {
     close: string;
     back: string;
   };
+  nav: {
+    meet: string; // onglet chat anonyme (rencontre aléatoire)
+    messages: string; // onglet conversations sauvegardées
+    courses: string; // onglet cours
+  };
   setup: {
     chooseNick: string;
     nickPlaceholder: string;

@@ -6,6 +6,11 @@ export const it: Messages = {
     close: "Chiudi",
     back: "Indietro",
   },
+  nav: {
+    meet: "Incontra",
+    messages: "Messaggi",
+    courses: "Corsi",
+  },
   setup: {
     chooseNick: "Scegli un nickname",
     nickPlaceholder: "il tuo nickname",

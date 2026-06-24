@@ -6,6 +6,11 @@ export const ja: Messages = {
     close: "閉じる",
     back: "戻る",
   },
+  nav: {
+    meet: "出会い",
+    messages: "メッセージ",
+    courses: "コース",
+  },
   setup: {
     chooseNick: "ニックネームを決めよう",
     nickPlaceholder: "ニックネーム",

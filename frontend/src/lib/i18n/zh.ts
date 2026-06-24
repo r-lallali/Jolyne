@@ -6,6 +6,11 @@ export const zh: Messages = {
     close: "关闭",
     back: "返回",
   },
+  nav: {
+    meet: "邂逅",
+    messages: "消息",
+    courses: "课程",
+  },
   setup: {
     chooseNick: "取个昵称",
     nickPlaceholder: "你的昵称",
