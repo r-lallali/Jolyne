@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Award } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { completeLesson, type CompleteResult, type PlayItem } from "@/lib/learn";
 import { buildExercises, type Exercise } from "@/lib/learnExercises";
@@ -646,8 +647,9 @@ function AchievementChip({ code }: { code: string }) {
   const t = useT();
   const labels = t.learn.ach as Record<string, string>;
   return (
-    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-      🏅 {labels[code] ?? code}
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+      <Award size={13} strokeWidth={2.5} />
+      {labels[code] ?? code}
     </span>
   );
 }
