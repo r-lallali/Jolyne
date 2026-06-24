@@ -207,7 +207,7 @@ export function SetupView() {
   };
 
   return (
-    <div className="flex w-full max-w-md flex-col items-center justify-start px-4 py-8 sm:p-0">
+    <div className="flex w-full max-w-md flex-col items-center justify-start px-4 pb-8 pt-[calc(env(safe-area-inset-top)+3.5rem)] sm:p-0">
       {/* Titre toujours visible. mt-auto/mb-auto (header/footer) centrent le
           bloc quand il tient dans le viewport mais retombent à 0 quand le
           contenu déborde (étape config sur mobile) : le titre reste alors en
