@@ -175,6 +175,19 @@ export const de: Messages = {
       streak_7: "7-Tage-Serie",
       streak_30: "30-Tage-Serie",
     },
+    achDesc: {
+      first_lesson: "Schließe deine erste Lektion ab.",
+      lessons_10: "Schließe 10 Lektionen ab.",
+      lessons_50: "Schließe 50 Lektionen ab.",
+      xp_100: "Sammle 100 Erfahrungspunkte.",
+      xp_500: "Sammle 500 Erfahrungspunkte.",
+      xp_1000: "Sammle 1000 Erfahrungspunkte.",
+      streak_3: "Lerne 3 Tage in Folge.",
+      streak_7: "Lerne 7 Tage in Folge.",
+      streak_30: "Lerne 30 Tage in Folge.",
+    },
+    achLocked: "Gesperrt",
+    achDone: "Freigeschaltet",
   },
   grammar: {
     suggestionsCount: ({ count }) =>

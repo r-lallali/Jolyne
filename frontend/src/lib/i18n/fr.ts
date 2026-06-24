@@ -178,6 +178,19 @@ export const fr: Messages = {
       streak_7: "Série de 7 jours",
       streak_30: "Série de 30 jours",
     },
+    achDesc: {
+      first_lesson: "Termine ta première leçon.",
+      lessons_10: "Termine 10 leçons.",
+      lessons_50: "Termine 50 leçons.",
+      xp_100: "Cumule 100 points d'expérience.",
+      xp_500: "Cumule 500 points d'expérience.",
+      xp_1000: "Cumule 1000 points d'expérience.",
+      streak_3: "Apprends 3 jours d'affilée.",
+      streak_7: "Apprends 7 jours d'affilée.",
+      streak_30: "Apprends 30 jours d'affilée.",
+    },
+    achLocked: "À débloquer",
+    achDone: "Débloqué",
   },
   grammar: {
     suggestionsCount: ({ count }) =>

@@ -208,6 +208,20 @@ export interface Messages {
       streak_7: string;
       streak_30: string;
     };
+    // Descriptions « comment débloquer », affichées dans la bulle au clic
+    achDesc: {
+      first_lesson: string;
+      lessons_10: string;
+      lessons_50: string;
+      xp_100: string;
+      xp_500: string;
+      xp_1000: string;
+      streak_3: string;
+      streak_7: string;
+      streak_30: string;
+    };
+    achLocked: string;
+    achDone: string;
   };
   grammar: {
     suggestionsCount: FormatString<{ count: number }>;

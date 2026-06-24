@@ -175,6 +175,19 @@ export const en: Messages = {
       streak_7: "7-day streak",
       streak_30: "30-day streak",
     },
+    achDesc: {
+      first_lesson: "Complete your first lesson.",
+      lessons_10: "Complete 10 lessons.",
+      lessons_50: "Complete 50 lessons.",
+      xp_100: "Earn 100 experience points.",
+      xp_500: "Earn 500 experience points.",
+      xp_1000: "Earn 1000 experience points.",
+      streak_3: "Learn 3 days in a row.",
+      streak_7: "Learn 7 days in a row.",
+      streak_30: "Learn 30 days in a row.",
+    },
+    achLocked: "Locked",
+    achDone: "Unlocked",
   },
   grammar: {
     suggestionsCount: ({ count }) =>
