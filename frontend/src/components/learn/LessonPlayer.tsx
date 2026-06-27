@@ -108,7 +108,9 @@ export function LessonPlayer({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-white dark:bg-neutral-950">
+    // data-no-swipe : les exercices à glisser (assembler/associer) ne doivent pas
+    // déclencher le swipe inter-onglets (listener document de Conversation).
+    <div data-no-swipe className="fixed inset-0 z-[60] flex flex-col bg-white dark:bg-neutral-950">
       {/* Barre supérieure : quitter, progression, cœurs */}
       <div className="flex items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:pt-4">
         <button

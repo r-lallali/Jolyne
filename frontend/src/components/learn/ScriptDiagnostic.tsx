@@ -178,7 +178,11 @@ export function ScriptDiagnostic({
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-1 bg-white px-6 text-center dark:bg-neutral-950">
+    // data-no-swipe : empêche le swipe inter-onglets pendant le diagnostic.
+    <div
+      data-no-swipe
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-1 bg-white px-6 text-center dark:bg-neutral-950"
+    >
       {children}
     </div>
   );

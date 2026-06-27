@@ -101,7 +101,9 @@ export function ScriptLessonPlayer({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-white dark:bg-neutral-950">
+    // data-no-swipe : le tracé/glisser ne doit pas déclencher le swipe inter-onglets
+    // (listener document de Conversation) qui basculerait vers la liste des conversations.
+    <div data-no-swipe className="fixed inset-0 z-[60] flex flex-col bg-white dark:bg-neutral-950">
       <div className="flex items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:pt-4">
         <button
           type="button"
