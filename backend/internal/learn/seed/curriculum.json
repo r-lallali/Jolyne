@@ -323,6 +323,222 @@
           ]
         }
       ]
+    },
+    {
+      "slug": "actions",
+      "title": "Actions",
+      "lessons": [
+        {
+          "slug": "verbs-basic",
+          "title": "First Verbs",
+          "items": [
+            { "words": { "fr": "Manger", "en": "To eat", "es": "Comer", "de": "Essen", "pt": "Comer", "it": "Mangiare", "zh": "吃", "ja": "食べる", "ko": "먹다", "ar": "يأكل" } },
+            { "words": { "fr": "Boire", "en": "To drink", "es": "Beber", "de": "Trinken", "pt": "Beber", "it": "Bere", "zh": "喝", "ja": "飲む", "ko": "마시다", "ar": "يشرب" } },
+            { "words": { "fr": "Aller", "en": "To go", "es": "Ir", "de": "Gehen", "pt": "Ir", "it": "Andare", "zh": "去", "ja": "行く", "ko": "가다", "ar": "يذهب" } },
+            { "words": { "fr": "Dormir", "en": "To sleep", "es": "Dormir", "de": "Schlafen", "pt": "Dormir", "it": "Dormire", "zh": "睡觉", "ja": "寝る", "ko": "자다", "ar": "ينام" } }
+          ]
+        },
+        {
+          "slug": "verbs-mind",
+          "title": "Say & Know",
+          "items": [
+            { "words": { "fr": "Parler", "en": "To speak", "es": "Hablar", "de": "Sprechen", "pt": "Falar", "it": "Parlare", "zh": "说", "ja": "話す", "ko": "말하다", "ar": "يتكلم" } },
+            { "words": { "fr": "Comprendre", "en": "To understand", "es": "Entender", "de": "Verstehen", "pt": "Entender", "it": "Capire", "zh": "懂", "ja": "分かる", "ko": "이해하다", "ar": "يفهم" } },
+            { "words": { "fr": "Savoir", "en": "To know", "es": "Saber", "de": "Wissen", "pt": "Saber", "it": "Sapere", "zh": "知道", "ja": "知る", "ko": "알다", "ar": "يعرف" } },
+            { "words": { "fr": "Vouloir", "en": "To want", "es": "Querer", "de": "Wollen", "pt": "Querer", "it": "Volere", "zh": "想要", "ja": "欲しい", "ko": "원하다", "ar": "يريد" } }
+          ]
+        },
+        {
+          "slug": "first-sentences",
+          "title": "First Sentences",
+          "items": [
+            { "words": { "fr": "Je veux de l'eau", "en": "I want water", "es": "Quiero agua", "de": "Ich will Wasser", "pt": "Eu quero água", "it": "Voglio acqua", "zh": "我要水", "ja": "水がほしいです", "ko": "물을 원해요", "ar": "أريد ماء" } },
+            { "words": { "fr": "Je ne comprends pas", "en": "I don't understand", "es": "No entiendo", "de": "Ich verstehe nicht", "pt": "Eu não entendo", "it": "Non capisco", "zh": "我不懂", "ja": "分かりません", "ko": "이해가 안 돼요", "ar": "لا أفهم" } },
+            { "words": { "fr": "Je parle un peu", "en": "I speak a little", "es": "Hablo un poco", "de": "Ich spreche ein wenig", "pt": "Eu falo um pouco", "it": "Parlo un po'", "zh": "我会说一点", "ja": "少し話せます", "ko": "조금 말할 수 있어요", "ar": "أتكلم قليلا" } },
+            { "words": { "fr": "Je rentre à la maison", "en": "I'm going home", "es": "Voy a casa", "de": "Ich gehe nach Hause", "pt": "Eu vou para casa", "it": "Vado a casa", "zh": "我回家", "ja": "家に帰ります", "ko": "집에 가요", "ar": "أذهب إلى البيت" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "questions",
+      "title": "Questions",
+      "lessons": [
+        {
+          "slug": "question-words",
+          "title": "Question Words",
+          "items": [
+            { "words": { "fr": "Qui", "en": "Who", "es": "Quién", "de": "Wer", "pt": "Quem", "it": "Chi", "zh": "谁", "ja": "だれ", "ko": "누구", "ar": "من" } },
+            { "words": { "fr": "Quoi", "en": "What", "es": "Qué", "de": "Was", "pt": "O quê", "it": "Cosa", "zh": "什么", "ja": "なに", "ko": "무엇", "ar": "ماذا" } },
+            { "words": { "fr": "Où", "en": "Where", "es": "Dónde", "de": "Wo", "pt": "Onde", "it": "Dove", "zh": "哪里", "ja": "どこ", "ko": "어디", "ar": "أين" } },
+            { "words": { "fr": "Quand", "en": "When", "es": "Cuándo", "de": "Wann", "pt": "Quando", "it": "Quando", "zh": "什么时候", "ja": "いつ", "ko": "언제", "ar": "متى" } }
+          ]
+        },
+        {
+          "slug": "more-questions",
+          "title": "More Questions",
+          "items": [
+            { "words": { "fr": "Pourquoi", "en": "Why", "es": "Por qué", "de": "Warum", "pt": "Por quê", "it": "Perché", "zh": "为什么", "ja": "なぜ", "ko": "왜", "ar": "لماذا" } },
+            { "words": { "fr": "Comment", "en": "How", "es": "Cómo", "de": "Wie", "pt": "Como", "it": "Come", "zh": "怎么", "ja": "どうやって", "ko": "어떻게", "ar": "كيف" } },
+            { "words": { "fr": "Combien", "en": "How much", "es": "Cuánto", "de": "Wie viel", "pt": "Quanto", "it": "Quanto", "zh": "多少", "ja": "いくら", "ko": "얼마나", "ar": "كم" } },
+            { "words": { "fr": "Lequel", "en": "Which", "es": "Cuál", "de": "Welcher", "pt": "Qual", "it": "Quale", "zh": "哪个", "ja": "どれ", "ko": "어느 것", "ar": "أي" } }
+          ]
+        },
+        {
+          "slug": "useful-questions",
+          "title": "Useful Questions",
+          "items": [
+            { "words": { "fr": "Où sont les toilettes ?", "en": "Where are the toilets?", "es": "¿Dónde está el baño?", "de": "Wo ist die Toilette?", "pt": "Onde é o banheiro?", "it": "Dov'è il bagno?", "zh": "洗手间在哪里？", "ja": "トイレはどこですか", "ko": "화장실이 어디예요?", "ar": "أين الحمام؟" } },
+            { "words": { "fr": "Quelle heure est-il ?", "en": "What time is it?", "es": "¿Qué hora es?", "de": "Wie spät ist es?", "pt": "Que horas são?", "it": "Che ora è?", "zh": "现在几点？", "ja": "今何時ですか", "ko": "지금 몇 시예요?", "ar": "كم الساعة؟" } },
+            { "words": { "fr": "Peux-tu m'aider ?", "en": "Can you help me?", "es": "¿Puedes ayudarme?", "de": "Kannst du mir helfen?", "pt": "Você pode me ajudar?", "it": "Puoi aiutarmi?", "zh": "你能帮我吗？", "ja": "手伝ってもらえますか", "ko": "도와줄 수 있어요?", "ar": "هل يمكنك مساعدتي؟" } },
+            { "words": { "fr": "Combien ça coûte ?", "en": "How much does it cost?", "es": "¿Cuánto cuesta?", "de": "Wie viel kostet das?", "pt": "Quanto custa?", "it": "Quanto costa?", "zh": "多少钱？", "ja": "いくらですか", "ko": "얼마예요?", "ar": "بكم هذا؟" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "conversation",
+      "title": "Small Talk",
+      "lessons": [
+        {
+          "slug": "meeting",
+          "title": "Meeting Someone",
+          "items": [
+            { "words": { "fr": "Comment tu t'appelles ?", "en": "What's your name?", "es": "¿Cómo te llamas?", "de": "Wie heißt du?", "pt": "Como você se chama?", "it": "Come ti chiami?", "zh": "你叫什么名字？", "ja": "お名前は何ですか", "ko": "이름이 뭐예요?", "ar": "ما اسمك؟" } },
+            { "words": { "fr": "Je m'appelle…", "en": "My name is…", "es": "Me llamo…", "de": "Ich heiße…", "pt": "Eu me chamo…", "it": "Mi chiamo…", "zh": "我叫…", "ja": "私の名前は…です", "ko": "제 이름은…이에요", "ar": "اسمي…" } },
+            { "words": { "fr": "Enchanté", "en": "Nice to meet you", "es": "Mucho gusto", "de": "Freut mich", "pt": "Muito prazer", "it": "Piacere", "zh": "很高兴认识你", "ja": "はじめまして", "ko": "만나서 반가워요", "ar": "تشرفنا" } },
+            { "words": { "fr": "À plus tard", "en": "See you later", "es": "Hasta luego", "de": "Bis später", "pt": "Até logo", "it": "A dopo", "zh": "回头见", "ja": "また後で", "ko": "나중에 봐요", "ar": "أراك لاحقا" } }
+          ]
+        },
+        {
+          "slug": "how-are-you",
+          "title": "How Are You?",
+          "items": [
+            { "words": { "fr": "Comment ça va ?", "en": "How are you?", "es": "¿Cómo estás?", "de": "Wie geht's dir?", "pt": "Como você está?", "it": "Come stai?", "zh": "你好吗？", "ja": "元気ですか", "ko": "잘 지내요?", "ar": "كيف حالك؟" } },
+            { "words": { "fr": "Ça va bien", "en": "I'm fine", "es": "Estoy bien", "de": "Mir geht's gut", "pt": "Estou bem", "it": "Sto bene", "zh": "我很好", "ja": "元気です", "ko": "잘 지내요", "ar": "أنا بخير" } },
+            { "words": { "fr": "Et toi ?", "en": "And you?", "es": "¿Y tú?", "de": "Und dir?", "pt": "E você?", "it": "E tu?", "zh": "你呢？", "ja": "あなたは？", "ko": "당신은요?", "ar": "وأنت؟" } },
+            { "words": { "fr": "Comme ci comme ça", "en": "So-so", "es": "Más o menos", "de": "Es geht so", "pt": "Mais ou menos", "it": "Così così", "zh": "马马虎虎", "ja": "まあまあ", "ko": "그럭저럭", "ar": "لا بأس" } }
+          ]
+        },
+        {
+          "slug": "wishes",
+          "title": "Wishes",
+          "items": [
+            { "words": { "fr": "Félicitations", "en": "Congratulations", "es": "Felicidades", "de": "Herzlichen Glückwunsch", "pt": "Parabéns", "it": "Congratulazioni", "zh": "恭喜", "ja": "おめでとう", "ko": "축하해요", "ar": "مبروك" } },
+            { "words": { "fr": "Bonne chance", "en": "Good luck", "es": "Buena suerte", "de": "Viel Glück", "pt": "Boa sorte", "it": "Buona fortuna", "zh": "祝你好运", "ja": "幸運を", "ko": "행운을 빌어요", "ar": "حظا سعيدا" } },
+            { "words": { "fr": "Joyeux anniversaire", "en": "Happy birthday", "es": "Feliz cumpleaños", "de": "Alles Gute zum Geburtstag", "pt": "Feliz aniversário", "it": "Buon compleanno", "zh": "生日快乐", "ja": "お誕生日おめでとう", "ko": "생일 축하해요", "ar": "عيد ميلاد سعيد" } },
+            { "words": { "fr": "Bienvenue", "en": "Welcome", "es": "Bienvenido", "de": "Willkommen", "pt": "Bem-vindo", "it": "Benvenuto", "zh": "欢迎", "ja": "ようこそ", "ko": "환영해요", "ar": "أهلا وسهلا" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "travel",
+      "title": "Travel",
+      "lessons": [
+        {
+          "slug": "transport",
+          "title": "Transport",
+          "items": [
+            { "words": { "fr": "Train", "en": "Train", "es": "Tren", "de": "Zug", "pt": "Trem", "it": "Treno", "zh": "火车", "ja": "電車", "ko": "기차", "ar": "قطار" } },
+            { "words": { "fr": "Avion", "en": "Plane", "es": "Avión", "de": "Flugzeug", "pt": "Avião", "it": "Aereo", "zh": "飞机", "ja": "飛行機", "ko": "비행기", "ar": "طائرة" } },
+            { "words": { "fr": "Bus", "en": "Bus", "es": "Autobús", "de": "Bus", "pt": "Ônibus", "it": "Autobus", "zh": "公共汽车", "ja": "バス", "ko": "버스", "ar": "حافلة" } },
+            { "words": { "fr": "Taxi", "en": "Taxi", "es": "Taxi", "de": "Taxi", "pt": "Táxi", "it": "Taxi", "zh": "出租车", "ja": "タクシー", "ko": "택시", "ar": "تاكسي" } }
+          ]
+        },
+        {
+          "slug": "directions",
+          "title": "Directions",
+          "items": [
+            { "words": { "fr": "Gauche", "en": "Left", "es": "Izquierda", "de": "Links", "pt": "Esquerda", "it": "Sinistra", "zh": "左", "ja": "左", "ko": "왼쪽", "ar": "يسار" } },
+            { "words": { "fr": "Droite", "en": "Right", "es": "Derecha", "de": "Rechts", "pt": "Direita", "it": "Destra", "zh": "右", "ja": "右", "ko": "오른쪽", "ar": "يمين" } },
+            { "words": { "fr": "Tout droit", "en": "Straight ahead", "es": "Todo recto", "de": "Geradeaus", "pt": "Em frente", "it": "Dritto", "zh": "一直走", "ja": "まっすぐ", "ko": "직진", "ar": "إلى الأمام" } },
+            { "words": { "fr": "Ici", "en": "Here", "es": "Aquí", "de": "Hier", "pt": "Aqui", "it": "Qui", "zh": "这里", "ja": "ここ", "ko": "여기", "ar": "هنا" } }
+          ]
+        },
+        {
+          "slug": "city",
+          "title": "In the City",
+          "items": [
+            { "words": { "fr": "Rue", "en": "Street", "es": "Calle", "de": "Straße", "pt": "Rua", "it": "Strada", "zh": "街", "ja": "通り", "ko": "거리", "ar": "شارع" } },
+            { "words": { "fr": "Gare", "en": "Station", "es": "Estación", "de": "Bahnhof", "pt": "Estação", "it": "Stazione", "zh": "车站", "ja": "駅", "ko": "역", "ar": "محطة" } },
+            { "words": { "fr": "Aéroport", "en": "Airport", "es": "Aeropuerto", "de": "Flughafen", "pt": "Aeroporto", "it": "Aeroporto", "zh": "机场", "ja": "空港", "ko": "공항", "ar": "مطار" } },
+            { "words": { "fr": "Hôtel", "en": "Hotel", "es": "Hotel", "de": "Hotel", "pt": "Hotel", "it": "Albergo", "zh": "酒店", "ja": "ホテル", "ko": "호텔", "ar": "فندق" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "shopping",
+      "title": "Shopping",
+      "lessons": [
+        {
+          "slug": "store",
+          "title": "At the Store",
+          "items": [
+            { "words": { "fr": "Magasin", "en": "Store", "es": "Tienda", "de": "Geschäft", "pt": "Loja", "it": "Negozio", "zh": "商店", "ja": "店", "ko": "가게", "ar": "متجر" } },
+            { "words": { "fr": "Marché", "en": "Market", "es": "Mercado", "de": "Markt", "pt": "Mercado", "it": "Mercato", "zh": "市场", "ja": "市場", "ko": "시장", "ar": "سوق" } },
+            { "words": { "fr": "Prix", "en": "Price", "es": "Precio", "de": "Preis", "pt": "Preço", "it": "Prezzo", "zh": "价格", "ja": "値段", "ko": "가격", "ar": "سعر" } },
+            { "words": { "fr": "Billet", "en": "Ticket", "es": "Billete", "de": "Ticket", "pt": "Bilhete", "it": "Biglietto", "zh": "票", "ja": "切符", "ko": "표", "ar": "تذكرة" } }
+          ]
+        },
+        {
+          "slug": "clothes",
+          "title": "Clothes",
+          "items": [
+            { "words": { "fr": "Chemise", "en": "Shirt", "es": "Camisa", "de": "Hemd", "pt": "Camisa", "it": "Camicia", "zh": "衬衫", "ja": "シャツ", "ko": "셔츠", "ar": "قميص" } },
+            { "words": { "fr": "Pantalon", "en": "Pants", "es": "Pantalones", "de": "Hose", "pt": "Calça", "it": "Pantaloni", "zh": "裤子", "ja": "ズボン", "ko": "바지", "ar": "بنطال" } },
+            { "words": { "fr": "Chaussures", "en": "Shoes", "es": "Zapatos", "de": "Schuhe", "pt": "Sapatos", "it": "Scarpe", "zh": "鞋子", "ja": "靴", "ko": "신발", "ar": "حذاء" } },
+            { "words": { "fr": "Robe", "en": "Dress", "es": "Vestido", "de": "Kleid", "pt": "Vestido", "it": "Vestito", "zh": "连衣裙", "ja": "ワンピース", "ko": "원피스", "ar": "فستان" } }
+          ]
+        },
+        {
+          "slug": "buying",
+          "title": "Buying",
+          "items": [
+            { "words": { "fr": "Je voudrais ça", "en": "I would like this", "es": "Quisiera esto", "de": "Ich hätte gern das", "pt": "Eu queria isto", "it": "Vorrei questo", "zh": "我想要这个", "ja": "これをください", "ko": "이거 주세요", "ar": "أريد هذا" } },
+            { "words": { "fr": "C'est trop cher", "en": "It's too expensive", "es": "Es demasiado caro", "de": "Das ist zu teuer", "pt": "É muito caro", "it": "È troppo caro", "zh": "太贵了", "ja": "高すぎます", "ko": "너무 비싸요", "ar": "هذا غال جدا" } },
+            { "words": { "fr": "Je regarde seulement", "en": "I'm just looking", "es": "Solo estoy mirando", "de": "Ich schaue nur", "pt": "Estou só olhando", "it": "Sto solo guardando", "zh": "我只是看看", "ja": "見ているだけです", "ko": "그냥 구경하고 있어요", "ar": "أنا أتفرج فقط" } },
+            { "words": { "fr": "Vous prenez la carte ?", "en": "Do you take cards?", "es": "¿Aceptan tarjeta?", "de": "Kann ich mit Karte zahlen?", "pt": "Aceita cartão?", "it": "Accettate la carta?", "zh": "可以刷卡吗？", "ja": "カードは使えますか", "ko": "카드 돼요?", "ar": "هل تقبلون البطاقة؟" } }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "work-school",
+      "title": "Work & School",
+      "lessons": [
+        {
+          "slug": "jobs",
+          "title": "Jobs",
+          "items": [
+            { "words": { "fr": "Médecin", "en": "Doctor", "es": "Médico", "de": "Arzt", "pt": "Médico", "it": "Medico", "zh": "医生", "ja": "医者", "ko": "의사", "ar": "طبيب" } },
+            { "words": { "fr": "Professeur", "en": "Teacher", "es": "Profesor", "de": "Lehrer", "pt": "Professor", "it": "Insegnante", "zh": "老师", "ja": "先生", "ko": "선생님", "ar": "معلم" } },
+            { "words": { "fr": "Étudiant", "en": "Student", "es": "Estudiante", "de": "Student", "pt": "Estudante", "it": "Studente", "zh": "学生", "ja": "学生", "ko": "학생", "ar": "طالب" } },
+            { "words": { "fr": "Travail", "en": "Job", "es": "Trabajo", "de": "Arbeit", "pt": "Trabalho", "it": "Lavoro", "zh": "工作", "ja": "仕事", "ko": "일", "ar": "عمل" } }
+          ]
+        },
+        {
+          "slug": "school",
+          "title": "School",
+          "items": [
+            { "words": { "fr": "École", "en": "School", "es": "Escuela", "de": "Schule", "pt": "Escola", "it": "Scuola", "zh": "学校", "ja": "学校", "ko": "학교", "ar": "مدرسة" } },
+            { "words": { "fr": "Stylo", "en": "Pen", "es": "Bolígrafo", "de": "Stift", "pt": "Caneta", "it": "Penna", "zh": "笔", "ja": "ペン", "ko": "펜", "ar": "قلم" } },
+            { "words": { "fr": "Papier", "en": "Paper", "es": "Papel", "de": "Papier", "pt": "Papel", "it": "Carta", "zh": "纸", "ja": "紙", "ko": "종이", "ar": "ورق" } },
+            { "words": { "fr": "Leçon", "en": "Lesson", "es": "Lección", "de": "Lektion", "pt": "Lição", "it": "Lezione", "zh": "课", "ja": "授業", "ko": "수업", "ar": "درس" } }
+          ]
+        },
+        {
+          "slug": "tech",
+          "title": "Technology",
+          "items": [
+            { "words": { "fr": "Téléphone", "en": "Phone", "es": "Teléfono", "de": "Handy", "pt": "Telefone", "it": "Telefono", "zh": "手机", "ja": "電話", "ko": "전화", "ar": "هاتف" } },
+            { "words": { "fr": "Ordinateur", "en": "Computer", "es": "Ordenador", "de": "Computer", "pt": "Computador", "it": "Computer", "zh": "电脑", "ja": "パソコン", "ko": "컴퓨터", "ar": "حاسوب" } },
+            { "words": { "fr": "Internet", "en": "Internet", "es": "Internet", "de": "Internet", "pt": "Internet", "it": "Internet", "zh": "网络", "ja": "インターネット", "ko": "인터넷", "ar": "إنترنت" } },
+            { "words": { "fr": "Message", "en": "Message", "es": "Mensaje", "de": "Nachricht", "pt": "Mensagem", "it": "Messaggio", "zh": "消息", "ja": "メッセージ", "ko": "메시지", "ar": "رسالة" } }
+          ]
+        }
+      ]
     }
   ]
 }
