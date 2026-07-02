@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Volume2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { completeLesson, type CompleteResult, type PlayItem } from "@/lib/learn";
 import { buildScriptExercises, type ScriptExercise } from "@/lib/scriptExercises";
@@ -222,7 +223,7 @@ function ScriptChoose({
                 aria-label={t.learn.listen}
                 className="rounded-full bg-sky-100 p-2 text-sky-600 transition-colors hover:bg-sky-200 dark:bg-sky-500/15 dark:text-sky-400"
               >
-                🔊
+                <Volume2 className="size-5" aria-hidden />
               </button>
             )}
           </>
@@ -231,9 +232,9 @@ function ScriptChoose({
             type="button"
             onClick={() => speak(ex.glyph, targetLang)}
             aria-label={t.learn.listen}
-            className="grid size-24 place-items-center rounded-full bg-sky-100 text-4xl text-sky-600 transition-colors hover:bg-sky-200 dark:bg-sky-500/15 dark:text-sky-400"
+            className="grid size-24 place-items-center rounded-full bg-sky-100 text-sky-600 transition-colors hover:bg-sky-200 dark:bg-sky-500/15 dark:text-sky-400"
           >
-            🔊
+            <Volume2 className="size-9" aria-hidden />
           </button>
         ) : (
           <span className="text-4xl font-bold text-sky-600 dark:text-sky-400">{ex.sound}</span>

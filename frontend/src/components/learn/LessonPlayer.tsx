@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Award } from "lucide-react";
+import { Award, Volume2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { completeLesson, type CompleteResult, type PlayItem } from "@/lib/learn";
 import { buildExercises, type Exercise } from "@/lib/learnExercises";
@@ -263,7 +263,7 @@ function ChooseExercise({
             aria-label={t.learn.listen}
             className="rounded-full bg-sky-100 p-2 text-sky-600 transition-colors hover:bg-sky-200 dark:bg-sky-500/15 dark:text-sky-400"
           >
-            🔊
+            <Volume2 className="size-5" aria-hidden />
           </button>
         )}
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Volume2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import type { PlayItem } from "@/lib/learn";
 import { speak, speechSupported } from "@/lib/speech";
@@ -37,7 +38,7 @@ export function ScriptIntro({
             <span className="mt-1 text-sm font-medium text-sky-600 dark:text-sky-400">
               {it.sound ?? it.meaning}
             </span>
-            {canSpeak && <span className="text-xs text-neutral-400">🔊</span>}
+            {canSpeak && <Volume2 className="size-3.5 text-neutral-400" aria-hidden />}
           </button>
         ))}
       </div>
