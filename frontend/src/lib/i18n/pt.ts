@@ -115,6 +115,23 @@ export const pt: Messages = {
     locked: "Bloqueado",
     lockedHint: "Conclua a lição anterior para desbloquear.",
     empty: "Nenhum curso disponível ainda.",
+    courseTitles: {
+      // Unidades
+      basics: "Básico", people: "Pessoas", numbers: "Números",
+      "food-drink": "Comida e bebida", "colors-animals": "Cores e animais",
+      everyday: "Dia a dia", adjectives: "Adjetivos", body: "O corpo",
+      nature: "Natureza",
+      // Lições
+      greetings: "Saudações", politeness: "Cortesia", "yes-no": "Sim e não",
+      pronouns: "Pronomes", family: "Família", persons: "Descrever pessoas",
+      "one-four": "1 a 4", "five-eight": "5 a 8", "nine-ten": "9, 10 e mais",
+      drinks: "Bebidas", food: "Comida", fruit: "Frutas",
+      "colors-1": "Cores 1", "colors-2": "Cores 2", animals: "Animais",
+      days: "Dias", time: "As horas", things: "Coisas",
+      size: "Tamanho", quality: "Qualidade", feeling: "Emoções",
+      face: "O rosto", limbs: "Membros", "body-more": "Mais corpo",
+      sky: "O céu", land: "A terra", weather: "Tempo",
+    },
     streak: "Sequência",
     streakDays: ({ count }) => `${count} dia${count > 1 ? "s" : ""}`,
     streakAtRisk: "Sua sequência está em risco hoje!",

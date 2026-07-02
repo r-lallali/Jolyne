@@ -143,6 +143,10 @@ export interface Messages {
     locked: string;
     lockedHint: string;
     empty: string;
+    // Titres d'unités/leçons du curriculum, indexés par slug stable. Affichés
+    // dans la langue de l'apprenant (repli sur le titre stocké si slug absent,
+    // ex. cours générés ou unités d'écriture).
+    courseTitles: Record<string, string>;
     // En-tête de gamification
     streak: string;
     streakDays: FormatString<{ count: number }>;

@@ -111,6 +111,23 @@ export const ja: Messages = {
     locked: "ロック中",
     lockedHint: "前のレッスンを終えると解放されます。",
     empty: "利用できるコースはまだありません。",
+    courseTitles: {
+      // ユニット
+      basics: "基礎", people: "人々", numbers: "数字",
+      "food-drink": "食べ物と飲み物", "colors-animals": "色と動物",
+      everyday: "日常", adjectives: "形容詞", body: "体",
+      nature: "自然",
+      // レッスン
+      greetings: "あいさつ", politeness: "礼儀", "yes-no": "はいといいえ",
+      pronouns: "代名詞", family: "家族", persons: "人の描写",
+      "one-four": "1〜4", "five-eight": "5〜8", "nine-ten": "9、10 以上",
+      drinks: "飲み物", food: "食べ物", fruit: "果物",
+      "colors-1": "色 1", "colors-2": "色 2", animals: "動物",
+      days: "日にち", time: "時間", things: "物",
+      size: "大きさ", quality: "良し悪し", feeling: "気持ち",
+      face: "顔", limbs: "手足", "body-more": "体の続き",
+      sky: "空", land: "大地", weather: "天気",
+    },
     streak: "連続記録",
     streakDays: ({ count }) => `${count} 日`,
     streakAtRisk: "今日、連続記録が途切れそうです！",

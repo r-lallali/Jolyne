@@ -114,6 +114,23 @@ export const en: Messages = {
     locked: "Locked",
     lockedHint: "Finish the previous lesson to unlock.",
     empty: "No courses available yet.",
+    courseTitles: {
+      // Units
+      basics: "Basics", people: "People", numbers: "Numbers",
+      "food-drink": "Food & Drink", "colors-animals": "Colors & Animals",
+      everyday: "Everyday", adjectives: "Adjectives", body: "The Body",
+      nature: "Nature",
+      // Lessons
+      greetings: "Greetings", politeness: "Politeness", "yes-no": "Yes & No",
+      pronouns: "Pronouns", family: "Family", persons: "Describing people",
+      "one-four": "1 to 4", "five-eight": "5 to 8", "nine-ten": "9, 10 & more",
+      drinks: "Drinks", food: "Food", fruit: "Fruit",
+      "colors-1": "Colors 1", "colors-2": "Colors 2", animals: "Animals",
+      days: "Days", time: "Time", things: "Things",
+      size: "Size", quality: "Quality", feeling: "Feelings",
+      face: "The face", limbs: "Limbs", "body-more": "More body",
+      sky: "The sky", land: "The land", weather: "Weather",
+    },
     streak: "Streak",
     streakDays: ({ count }) => `${count} day${count > 1 ? "s" : ""}`,
     streakAtRisk: "Your streak is at risk today!",

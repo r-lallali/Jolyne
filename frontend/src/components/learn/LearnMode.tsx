@@ -132,7 +132,9 @@ export function LearnMode() {
     setBusy(true);
     try {
       const lp = await getLesson(lesson.id, from);
-      setActive({ id: lp.id, title: lp.title, items: lp.items, kind: lp.kind });
+      // Titre dans la langue de l'apprenant (repli sur le titre stocké).
+      const title = t.learn.courseTitles[lesson.slug] ?? lp.title;
+      setActive({ id: lp.id, title, items: lp.items, kind: lp.kind });
     } catch {
       /* silencieux */
     } finally {

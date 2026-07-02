@@ -21,6 +21,10 @@ export function CoursePath({
   onDiagnostic?: () => void;
 }) {
   const t = useT();
+  // Titre affiché dans la langue de l'apprenant (repli sur le titre stocké pour
+  // les slugs hors curriculum : cours générés, unités d'écriture).
+  const titleFor = (slug: string, fallback: string) =>
+    t.learn.courseTitles[slug] ?? fallback;
   let globalIdx = 0;
   const firstUnit = tree.units[0];
   const showDiagnostic =
@@ -51,7 +55,7 @@ export function CoursePath({
                 {isScript ? t.learn.script.badge : t.learn.lessonsCount({ count: unit.lessons.length })}
                 {mastered && <span className="text-emerald-400">· {t.learn.script.unitMastered}</span>}
               </p>
-              <h2 className="text-lg font-bold">{unit.title}</h2>
+              <h2 className="text-lg font-bold">{titleFor(unit.slug, unit.title)}</h2>
             </div>
             <div className="flex flex-col items-center gap-5">
               {unit.lessons.map((lesson) => {
@@ -61,7 +65,7 @@ export function CoursePath({
                   <div key={lesson.id} className={`flex flex-col items-center ${offset}`}>
                     <LessonBubble lesson={lesson} onStart={onStart} />
                     <p className="mt-1.5 max-w-[8rem] text-center text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                      {lesson.title}
+                      {titleFor(lesson.slug, lesson.title)}
                     </p>
                     {lesson.completed && !lesson.placed && <Stars count={lesson.stars} />}
                   </div>
@@ -83,6 +87,7 @@ function LessonBubble({
   onStart: (lesson: LessonNode) => void;
 }) {
   const t = useT();
+  const label = t.learn.courseTitles[lesson.slug] ?? lesson.title;
   const base =
     "flex size-16 items-center justify-center rounded-full text-2xl shadow-md transition-transform active:scale-95";
   if (lesson.locked) {
@@ -91,7 +96,7 @@ function LessonBubble({
         type="button"
         disabled
         title={t.learn.lockedHint}
-        aria-label={`${lesson.title} — ${t.learn.locked}`}
+        aria-label={`${label} — ${t.learn.locked}`}
         className={`${base} cursor-not-allowed bg-neutral-200 text-neutral-400 shadow-none dark:bg-neutral-800 dark:text-neutral-600`}
       >
         🔒
@@ -111,7 +116,7 @@ function LessonBubble({
     <button
       type="button"
       onClick={() => onStart(lesson)}
-      aria-label={`${lesson.title} — ${lesson.completed ? t.learn.review : t.learn.start}`}
+      aria-label={`${label} — ${lesson.completed ? t.learn.review : t.learn.start}`}
       className={`${base} ${style}`}
     >
       {lesson.placed ? "✓" : lesson.completed ? "★" : idle}

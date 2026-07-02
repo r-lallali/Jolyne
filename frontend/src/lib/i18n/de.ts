@@ -114,6 +114,23 @@ export const de: Messages = {
     locked: "Gesperrt",
     lockedHint: "Schließe die vorherige Lektion ab, um freizuschalten.",
     empty: "Noch keine Kurse verfügbar.",
+    courseTitles: {
+      // Einheiten
+      basics: "Grundlagen", people: "Menschen", numbers: "Zahlen",
+      "food-drink": "Essen & Trinken", "colors-animals": "Farben & Tiere",
+      everyday: "Alltag", adjectives: "Adjektive", body: "Der Körper",
+      nature: "Natur",
+      // Lektionen
+      greetings: "Begrüßungen", politeness: "Höflichkeit", "yes-no": "Ja & Nein",
+      pronouns: "Pronomen", family: "Familie", persons: "Menschen beschreiben",
+      "one-four": "1 bis 4", "five-eight": "5 bis 8", "nine-ten": "9, 10 & mehr",
+      drinks: "Getränke", food: "Essen", fruit: "Obst",
+      "colors-1": "Farben 1", "colors-2": "Farben 2", animals: "Tiere",
+      days: "Tage", time: "Uhrzeit", things: "Dinge",
+      size: "Größe", quality: "Qualität", feeling: "Gefühle",
+      face: "Das Gesicht", limbs: "Gliedmaßen", "body-more": "Mehr Körper",
+      sky: "Der Himmel", land: "Das Land", weather: "Wetter",
+    },
     streak: "Serie",
     streakDays: ({ count }) => `${count} Tag${count > 1 ? "e" : ""}`,
     streakAtRisk: "Deine Serie steht heute auf dem Spiel!",

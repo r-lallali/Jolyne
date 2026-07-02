@@ -110,6 +110,23 @@ export const zh: Messages = {
     locked: "已锁定",
     lockedHint: "完成上一课即可解锁。",
     empty: "暂无可用课程。",
+    courseTitles: {
+      // 单元
+      basics: "基础", people: "人物", numbers: "数字",
+      "food-drink": "食物和饮料", "colors-animals": "颜色和动物",
+      everyday: "日常", adjectives: "形容词", body: "身体",
+      nature: "自然",
+      // 课程
+      greetings: "问候", politeness: "礼貌", "yes-no": "是与否",
+      pronouns: "代词", family: "家庭", persons: "描述人物",
+      "one-four": "1 到 4", "five-eight": "5 到 8", "nine-ten": "9、10 及更多",
+      drinks: "饮料", food: "食物", fruit: "水果",
+      "colors-1": "颜色 1", "colors-2": "颜色 2", animals: "动物",
+      days: "日子", time: "时间", things: "物品",
+      size: "大小", quality: "好坏", feeling: "感觉",
+      face: "脸部", limbs: "四肢", "body-more": "更多身体部位",
+      sky: "天空", land: "大地", weather: "天气",
+    },
     streak: "连续天数",
     streakDays: ({ count }) => `${count} 天`,
     streakAtRisk: "今天你的连续记录有危险！",

@@ -111,6 +111,23 @@ export const ar: Messages = {
     locked: "مقفل",
     lockedHint: "أكمل الدرس السابق لفتحه.",
     empty: "لا توجد دورات متاحة بعد.",
+    courseTitles: {
+      // الوحدات
+      basics: "الأساسيات", people: "الناس", numbers: "الأرقام",
+      "food-drink": "الطعام والشراب", "colors-animals": "الألوان والحيوانات",
+      everyday: "الحياة اليومية", adjectives: "الصفات", body: "الجسم",
+      nature: "الطبيعة",
+      // الدروس
+      greetings: "التحيات", politeness: "الأدب", "yes-no": "نعم ولا",
+      pronouns: "الضمائر", family: "العائلة", persons: "وصف الأشخاص",
+      "one-four": "١ إلى ٤", "five-eight": "٥ إلى ٨", "nine-ten": "٩، ١٠ وأكثر",
+      drinks: "المشروبات", food: "الطعام", fruit: "الفواكه",
+      "colors-1": "الألوان ١", "colors-2": "الألوان ٢", animals: "الحيوانات",
+      days: "الأيام", time: "الوقت", things: "الأشياء",
+      size: "الحجم", quality: "الجودة", feeling: "المشاعر",
+      face: "الوجه", limbs: "الأطراف", "body-more": "المزيد عن الجسم",
+      sky: "السماء", land: "الأرض", weather: "الطقس",
+    },
     streak: "السلسلة",
     streakDays: ({ count }) => `${count} يوم`,
     streakAtRisk: "سلسلتك في خطر اليوم!",

@@ -110,6 +110,23 @@ export const ko: Messages = {
     locked: "잠김",
     lockedHint: "이전 레슨을 완료하면 잠금이 해제됩니다.",
     empty: "아직 이용 가능한 코스가 없습니다.",
+    courseTitles: {
+      // 단원
+      basics: "기초", people: "사람", numbers: "숫자",
+      "food-drink": "음식과 음료", "colors-animals": "색과 동물",
+      everyday: "일상", adjectives: "형용사", body: "몸",
+      nature: "자연",
+      // 레슨
+      greetings: "인사", politeness: "예의", "yes-no": "예와 아니요",
+      pronouns: "대명사", family: "가족", persons: "사람 묘사",
+      "one-four": "1~4", "five-eight": "5~8", "nine-ten": "9, 10 이상",
+      drinks: "음료", food: "음식", fruit: "과일",
+      "colors-1": "색 1", "colors-2": "색 2", animals: "동물",
+      days: "날짜", time: "시간", things: "사물",
+      size: "크기", quality: "좋고 나쁨", feeling: "감정",
+      face: "얼굴", limbs: "팔다리", "body-more": "몸 더보기",
+      sky: "하늘", land: "땅", weather: "날씨",
+    },
     streak: "연속 학습",
     streakDays: ({ count }) => `${count}일`,
     streakAtRisk: "오늘 연속 기록이 위험해요!",
