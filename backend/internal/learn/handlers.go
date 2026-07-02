@@ -48,15 +48,17 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// HandleListCourses : GET /api/learn/courses — cours disponibles.
+// HandleListCourses : GET /api/learn/courses — cours disponibles, décorés de
+// la progression de l'apprenant.
 func (h *Handlers) HandleListCourses(w http.ResponseWriter, r *http.Request) {
-	if _, ok := users.CurrentUser(r.Context()); !ok {
+	user, ok := users.CurrentUser(r.Context())
+	if !ok {
 		http.Error(w, "auth required", http.StatusUnauthorized)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	courses, err := h.Store.ListCourses(ctx)
+	courses, err := h.Store.ListCourses(ctx, user.ID)
 	if err != nil {
 		h.log().Error("learn list courses", "err", err)
 		http.Error(w, "internal", http.StatusInternalServerError)

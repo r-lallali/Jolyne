@@ -120,18 +120,24 @@ func (s *Store) CourseExists(ctx context.Context, lang string) (bool, error) {
 	return n > 0, err
 }
 
-// ListCourses : cours disponibles (pour l'écran de sélection).
-func (s *Store) ListCourses(ctx context.Context) ([]CourseSummary, error) {
+// ListCourses : cours disponibles (pour l'écran de sélection), décorés de la
+// progression de l'apprenant (leçons complétées + inscription) pour que le
+// front sépare « reprendre » des cours à découvrir. `userID` peut être 0.
+func (s *Store) ListCourses(ctx context.Context, userID int64) ([]CourseSummary, error) {
 	const q = `
 		SELECT c.lang, c.title,
 		       count(DISTINCT u.id),
-		       count(l.id)
+		       count(l.id),
+		       count(p.lesson_id),
+		       bool_or(e.user_id IS NOT NULL)
 		FROM learn_courses c
-		LEFT JOIN learn_units u   ON u.course_id = c.id
-		LEFT JOIN learn_lessons l ON l.unit_id = u.id
+		LEFT JOIN learn_units u       ON u.course_id = c.id
+		LEFT JOIN learn_lessons l     ON l.unit_id = u.id
+		LEFT JOIN learn_progress p    ON p.lesson_id = l.id AND p.user_id = $1
+		LEFT JOIN learn_enrollments e ON e.lang = c.lang AND e.user_id = $1
 		GROUP BY c.id, c.lang, c.title, c.sort_order
 		ORDER BY c.sort_order, c.lang`
-	rows, err := s.pool.Query(ctx, q)
+	rows, err := s.pool.Query(ctx, q, userID)
 	if err != nil {
 		return nil, fmt.Errorf("learn: list courses: %w", err)
 	}
@@ -139,7 +145,8 @@ func (s *Store) ListCourses(ctx context.Context) ([]CourseSummary, error) {
 	out := []CourseSummary{}
 	for rows.Next() {
 		var cs CourseSummary
-		if err := rows.Scan(&cs.Lang, &cs.Title, &cs.UnitCount, &cs.LessonCount); err != nil {
+		if err := rows.Scan(&cs.Lang, &cs.Title, &cs.UnitCount, &cs.LessonCount,
+			&cs.CompletedLessons, &cs.Enrolled); err != nil {
 			return nil, err
 		}
 		out = append(out, cs)
@@ -346,18 +353,25 @@ func (s *Store) LessonForPlay(ctx context.Context, lessonID, userID int64, from 
 	}
 
 	// Leçon d'écriture : le « sens » d'un signe est sa prononciation (Sound),
-	// universelle. On propage les champs script et on n'injecte PAS de vocab.
+	// universelle — sauf pour les mots de lecture qui portent une traduction
+	// (tr), résolue dans la langue de l'apprenant pour l'ajout au carnet. Le
+	// sens du mot d'exemple est résolu de la même façon. Pas de vocab injecté.
 	if lp.Kind == LessonKindScript {
 		for _, it := range content.Items {
+			meaning := resolveMeaning(it, from)
+			if meaning == "" {
+				meaning = it.Sound
+			}
 			lp.Items = append(lp.Items, PlayItem{
-				Target:       it.Target,
-				Meaning:      it.Sound,
-				Sound:        it.Sound,
-				Forms:        it.Forms,
-				Parts:        it.Parts,
-				Strokes:      it.Strokes,
-				Example:      it.Example,
-				ExampleSound: it.ExampleSound,
+				Target:         it.Target,
+				Meaning:        meaning,
+				Sound:          it.Sound,
+				Forms:          it.Forms,
+				Parts:          it.Parts,
+				Strokes:        it.Strokes,
+				Example:        it.Example,
+				ExampleSound:   it.ExampleSound,
+				ExampleMeaning: resolveTr(it.ExampleTr, from),
 			})
 		}
 		return lp, nil
