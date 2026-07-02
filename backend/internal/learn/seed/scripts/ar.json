@@ -8,26 +8,26 @@
           "slug": "letters-1",
           "title": "ا ب ت ث ج ح خ",
           "items": [
-            { "glyph": "ا", "sound": "ā", "forms": ["ا", "ا", "ـا", "ـا"] },
-            { "glyph": "ب", "sound": "b", "forms": ["ب", "بـ", "ـبـ", "ـب"] },
-            { "glyph": "ت", "sound": "t", "forms": ["ت", "تـ", "ـتـ", "ـت"] },
-            { "glyph": "ث", "sound": "th", "forms": ["ث", "ثـ", "ـثـ", "ـث"] },
-            { "glyph": "ج", "sound": "j", "forms": ["ج", "جـ", "ـجـ", "ـج"] },
-            { "glyph": "ح", "sound": "ḥ", "forms": ["ح", "حـ", "ـحـ", "ـح"] },
-            { "glyph": "خ", "sound": "kh", "forms": ["خ", "خـ", "ـخـ", "ـخ"] }
+            { "glyph": "ا", "sound": "ā", "forms": ["ا", "ا", "ـا", "ـا"], "example": "أسد", "example_sound": "asad", "example_tr": { "fr": "Lion", "en": "Lion", "es": "León", "de": "Löwe", "pt": "Leão", "it": "Leone", "zh": "狮子", "ja": "ライオン", "ko": "사자" } },
+            { "glyph": "ب", "sound": "b", "forms": ["ب", "بـ", "ـبـ", "ـب"], "example": "باب", "example_sound": "bāb", "example_tr": { "fr": "Porte", "en": "Door", "es": "Puerta", "de": "Tür", "pt": "Porta", "it": "Porta", "zh": "门", "ja": "ドア", "ko": "문" } },
+            { "glyph": "ت", "sound": "t", "forms": ["ت", "تـ", "ـتـ", "ـت"], "example": "تفاح", "example_sound": "tuffāḥ", "example_tr": { "fr": "Pomme", "en": "Apple", "es": "Manzana", "de": "Apfel", "pt": "Maçã", "it": "Mela", "zh": "苹果", "ja": "りんご", "ko": "사과" } },
+            { "glyph": "ث", "sound": "th", "forms": ["ث", "ثـ", "ـثـ", "ـث"], "example": "ثوم", "example_sound": "thūm", "example_tr": { "fr": "Ail", "en": "Garlic", "es": "Ajo", "de": "Knoblauch", "pt": "Alho", "it": "Aglio", "zh": "大蒜", "ja": "にんにく", "ko": "마늘" } },
+            { "glyph": "ج", "sound": "j", "forms": ["ج", "جـ", "ـجـ", "ـج"], "example": "جمل", "example_sound": "jamal", "example_tr": { "fr": "Chameau", "en": "Camel", "es": "Camello", "de": "Kamel", "pt": "Camelo", "it": "Cammello", "zh": "骆驼", "ja": "ラクダ", "ko": "낙타" } },
+            { "glyph": "ح", "sound": "ḥ", "forms": ["ح", "حـ", "ـحـ", "ـح"], "example": "حليب", "example_sound": "ḥalīb", "example_tr": { "fr": "Lait", "en": "Milk", "es": "Leche", "de": "Milch", "pt": "Leite", "it": "Latte", "zh": "牛奶", "ja": "牛乳", "ko": "우유" } },
+            { "glyph": "خ", "sound": "kh", "forms": ["خ", "خـ", "ـخـ", "ـخ"], "example": "خبز", "example_sound": "khubz", "example_tr": { "fr": "Pain", "en": "Bread", "es": "Pan", "de": "Brot", "pt": "Pão", "it": "Pane", "zh": "面包", "ja": "パン", "ko": "빵" } }
           ]
         },
         {
           "slug": "letters-2",
           "title": "د ذ ر ز س ش ص",
           "items": [
-            { "glyph": "د", "sound": "d", "forms": ["د", "د", "ـد", "ـد"] },
-            { "glyph": "ذ", "sound": "dh", "forms": ["ذ", "ذ", "ـذ", "ـذ"] },
-            { "glyph": "ر", "sound": "r", "forms": ["ر", "ر", "ـر", "ـر"] },
-            { "glyph": "ز", "sound": "z", "forms": ["ز", "ز", "ـز", "ـز"] },
-            { "glyph": "س", "sound": "s", "forms": ["س", "سـ", "ـسـ", "ـس"] },
-            { "glyph": "ش", "sound": "sh", "forms": ["ش", "شـ", "ـشـ", "ـش"] },
-            { "glyph": "ص", "sound": "ṣ", "forms": ["ص", "صـ", "ـصـ", "ـص"] }
+            { "glyph": "د", "sound": "d", "forms": ["د", "د", "ـد", "ـد"], "example": "دار", "example_sound": "dār", "example_tr": { "fr": "Maison", "en": "House", "es": "Casa", "de": "Haus", "pt": "Casa", "it": "Casa", "zh": "房子", "ja": "家", "ko": "집" } },
+            { "glyph": "ذ", "sound": "dh", "forms": ["ذ", "ذ", "ـذ", "ـذ"], "example": "ذهب", "example_sound": "dhahab", "example_tr": { "fr": "Or", "en": "Gold", "es": "Oro", "de": "Gold", "pt": "Ouro", "it": "Oro", "zh": "金子", "ja": "金", "ko": "금" } },
+            { "glyph": "ر", "sound": "r", "forms": ["ر", "ر", "ـر", "ـر"], "example": "رجل", "example_sound": "rajul", "example_tr": { "fr": "Homme", "en": "Man", "es": "Hombre", "de": "Mann", "pt": "Homem", "it": "Uomo", "zh": "男人", "ja": "男性", "ko": "남자" } },
+            { "glyph": "ز", "sound": "z", "forms": ["ز", "ز", "ـز", "ـز"], "example": "زهرة", "example_sound": "zahra", "example_tr": { "fr": "Fleur", "en": "Flower", "es": "Flor", "de": "Blume", "pt": "Flor", "it": "Fiore", "zh": "花", "ja": "花", "ko": "꽃" } },
+            { "glyph": "س", "sound": "s", "forms": ["س", "سـ", "ـسـ", "ـس"], "example": "سمك", "example_sound": "samak", "example_tr": { "fr": "Poisson", "en": "Fish", "es": "Pez", "de": "Fisch", "pt": "Peixe", "it": "Pesce", "zh": "鱼", "ja": "魚", "ko": "물고기" } },
+            { "glyph": "ش", "sound": "sh", "forms": ["ش", "شـ", "ـشـ", "ـش"], "example": "شمس", "example_sound": "shams", "example_tr": { "fr": "Soleil", "en": "Sun", "es": "Sol", "de": "Sonne", "pt": "Sol", "it": "Sole", "zh": "太阳", "ja": "太陽", "ko": "태양" } },
+            { "glyph": "ص", "sound": "ṣ", "forms": ["ص", "صـ", "ـصـ", "ـص"], "example": "صباح", "example_sound": "ṣabāḥ", "example_tr": { "fr": "Matin", "en": "Morning", "es": "Mañana", "de": "Morgen", "pt": "Manhã", "it": "Mattina", "zh": "早晨", "ja": "朝", "ko": "아침" } }
           ]
         }
       ]
@@ -40,26 +40,26 @@
           "slug": "letters-3",
           "title": "ض ط ظ ع غ ف ق",
           "items": [
-            { "glyph": "ض", "sound": "ḍ", "forms": ["ض", "ضـ", "ـضـ", "ـض"] },
-            { "glyph": "ط", "sound": "ṭ", "forms": ["ط", "طـ", "ـطـ", "ـط"] },
-            { "glyph": "ظ", "sound": "ẓ", "forms": ["ظ", "ظـ", "ـظـ", "ـظ"] },
-            { "glyph": "ع", "sound": "ʿ", "forms": ["ع", "عـ", "ـعـ", "ـع"] },
-            { "glyph": "غ", "sound": "gh", "forms": ["غ", "غـ", "ـغـ", "ـغ"] },
-            { "glyph": "ف", "sound": "f", "forms": ["ف", "فـ", "ـفـ", "ـف"] },
-            { "glyph": "ق", "sound": "q", "forms": ["ق", "قـ", "ـقـ", "ـق"] }
+            { "glyph": "ض", "sound": "ḍ", "forms": ["ض", "ضـ", "ـضـ", "ـض"], "example": "ضوء", "example_sound": "ḍawʾ", "example_tr": { "fr": "Lumière", "en": "Light", "es": "Luz", "de": "Licht", "pt": "Luz", "it": "Luce", "zh": "光", "ja": "光", "ko": "빛" } },
+            { "glyph": "ط", "sound": "ṭ", "forms": ["ط", "طـ", "ـطـ", "ـط"], "example": "طائر", "example_sound": "ṭāʾir", "example_tr": { "fr": "Oiseau", "en": "Bird", "es": "Pájaro", "de": "Vogel", "pt": "Pássaro", "it": "Uccello", "zh": "鸟", "ja": "鳥", "ko": "새" } },
+            { "glyph": "ظ", "sound": "ẓ", "forms": ["ظ", "ظـ", "ـظـ", "ـظ"], "example": "ظل", "example_sound": "ẓill", "example_tr": { "fr": "Ombre", "en": "Shadow", "es": "Sombra", "de": "Schatten", "pt": "Sombra", "it": "Ombra", "zh": "影子", "ja": "影", "ko": "그림자" } },
+            { "glyph": "ع", "sound": "ʿ", "forms": ["ع", "عـ", "ـعـ", "ـع"], "example": "عين", "example_sound": "ʿayn", "example_tr": { "fr": "Œil", "en": "Eye", "es": "Ojo", "de": "Auge", "pt": "Olho", "it": "Occhio", "zh": "眼睛", "ja": "目", "ko": "눈" } },
+            { "glyph": "غ", "sound": "gh", "forms": ["غ", "غـ", "ـغـ", "ـغ"], "example": "غابة", "example_sound": "ghāba", "example_tr": { "fr": "Forêt", "en": "Forest", "es": "Bosque", "de": "Wald", "pt": "Floresta", "it": "Foresta", "zh": "森林", "ja": "森", "ko": "숲" } },
+            { "glyph": "ف", "sound": "f", "forms": ["ف", "فـ", "ـفـ", "ـف"], "example": "فيل", "example_sound": "fīl", "example_tr": { "fr": "Éléphant", "en": "Elephant", "es": "Elefante", "de": "Elefant", "pt": "Elefante", "it": "Elefante", "zh": "大象", "ja": "ゾウ", "ko": "코끼리" } },
+            { "glyph": "ق", "sound": "q", "forms": ["ق", "قـ", "ـقـ", "ـق"], "example": "قلم", "example_sound": "qalam", "example_tr": { "fr": "Stylo", "en": "Pen", "es": "Bolígrafo", "de": "Stift", "pt": "Caneta", "it": "Penna", "zh": "笔", "ja": "ペン", "ko": "펜" } }
           ]
         },
         {
           "slug": "letters-4",
           "title": "ك ل م ن ه و ي",
           "items": [
-            { "glyph": "ك", "sound": "k", "forms": ["ك", "كـ", "ـكـ", "ـك"] },
-            { "glyph": "ل", "sound": "l", "forms": ["ل", "لـ", "ـلـ", "ـل"] },
-            { "glyph": "م", "sound": "m", "forms": ["م", "مـ", "ـمـ", "ـم"] },
-            { "glyph": "ن", "sound": "n", "forms": ["ن", "نـ", "ـنـ", "ـن"] },
-            { "glyph": "ه", "sound": "h", "forms": ["ه", "هـ", "ـهـ", "ـه"] },
-            { "glyph": "و", "sound": "w", "forms": ["و", "و", "ـو", "ـو"] },
-            { "glyph": "ي", "sound": "y", "forms": ["ي", "يـ", "ـيـ", "ـي"] }
+            { "glyph": "ك", "sound": "k", "forms": ["ك", "كـ", "ـكـ", "ـك"], "example": "كلب", "example_sound": "kalb", "example_tr": { "fr": "Chien", "en": "Dog", "es": "Perro", "de": "Hund", "pt": "Cão", "it": "Cane", "zh": "狗", "ja": "犬", "ko": "개" } },
+            { "glyph": "ل", "sound": "l", "forms": ["ل", "لـ", "ـلـ", "ـل"], "example": "ليل", "example_sound": "layl", "example_tr": { "fr": "Nuit", "en": "Night", "es": "Noche", "de": "Nacht", "pt": "Noite", "it": "Notte", "zh": "夜晚", "ja": "夜", "ko": "밤" } },
+            { "glyph": "م", "sound": "m", "forms": ["م", "مـ", "ـمـ", "ـم"], "example": "ماء", "example_sound": "māʾ", "example_tr": { "fr": "Eau", "en": "Water", "es": "Agua", "de": "Wasser", "pt": "Água", "it": "Acqua", "zh": "水", "ja": "水", "ko": "물" } },
+            { "glyph": "ن", "sound": "n", "forms": ["ن", "نـ", "ـنـ", "ـن"], "example": "نجمة", "example_sound": "najma", "example_tr": { "fr": "Étoile", "en": "Star", "es": "Estrella", "de": "Stern", "pt": "Estrela", "it": "Stella", "zh": "星星", "ja": "星", "ko": "별" } },
+            { "glyph": "ه", "sound": "h", "forms": ["ه", "هـ", "ـهـ", "ـه"], "example": "هلال", "example_sound": "hilāl", "example_tr": { "fr": "Croissant de lune", "en": "Crescent moon", "es": "Media luna", "de": "Halbmond", "pt": "Meia-lua", "it": "Mezzaluna", "zh": "月牙", "ja": "三日月", "ko": "초승달" } },
+            { "glyph": "و", "sound": "w", "forms": ["و", "و", "ـو", "ـو"], "example": "وردة", "example_sound": "warda", "example_tr": { "fr": "Rose", "en": "Rose", "es": "Rosa", "de": "Rose", "pt": "Rosa", "it": "Rosa", "zh": "玫瑰", "ja": "バラ", "ko": "장미" } },
+            { "glyph": "ي", "sound": "y", "forms": ["ي", "يـ", "ـيـ", "ـي"], "example": "يد", "example_sound": "yad", "example_tr": { "fr": "Main", "en": "Hand", "es": "Mano", "de": "Hand", "pt": "Mão", "it": "Mano", "zh": "手", "ja": "手", "ko": "손" } }
           ]
         }
       ]
@@ -72,22 +72,22 @@
           "slug": "words-1",
           "title": "كلمات ١",
           "items": [
-            { "glyph": "باب", "sound": "bāb" },
-            { "glyph": "بيت", "sound": "bayt" },
-            { "glyph": "كتاب", "sound": "kitāb" },
-            { "glyph": "ولد", "sound": "walad" },
-            { "glyph": "بنت", "sound": "bint" }
+            { "glyph": "باب", "sound": "bāb", "tr": { "fr": "Porte", "en": "Door", "es": "Puerta", "de": "Tür", "pt": "Porta", "it": "Porta", "zh": "门", "ja": "ドア", "ko": "문" } },
+            { "glyph": "بيت", "sound": "bayt", "tr": { "fr": "Maison", "en": "House", "es": "Casa", "de": "Haus", "pt": "Casa", "it": "Casa", "zh": "房子", "ja": "家", "ko": "집" } },
+            { "glyph": "كتاب", "sound": "kitāb", "tr": { "fr": "Livre", "en": "Book", "es": "Libro", "de": "Buch", "pt": "Livro", "it": "Libro", "zh": "书", "ja": "本", "ko": "책" } },
+            { "glyph": "ولد", "sound": "walad", "tr": { "fr": "Garçon", "en": "Boy", "es": "Niño", "de": "Junge", "pt": "Menino", "it": "Ragazzo", "zh": "男孩", "ja": "男の子", "ko": "소년" } },
+            { "glyph": "بنت", "sound": "bint", "tr": { "fr": "Fille", "en": "Girl", "es": "Niña", "de": "Mädchen", "pt": "Menina", "it": "Ragazza", "zh": "女孩", "ja": "女の子", "ko": "소녀" } }
           ]
         },
         {
           "slug": "words-2",
           "title": "كلمات ٢",
           "items": [
-            { "glyph": "شمس", "sound": "shams" },
-            { "glyph": "قمر", "sound": "qamar" },
-            { "glyph": "سلام", "sound": "salām" },
-            { "glyph": "نهر", "sound": "nahr" },
-            { "glyph": "جبل", "sound": "jabal" }
+            { "glyph": "شمس", "sound": "shams", "tr": { "fr": "Soleil", "en": "Sun", "es": "Sol", "de": "Sonne", "pt": "Sol", "it": "Sole", "zh": "太阳", "ja": "太陽", "ko": "태양" } },
+            { "glyph": "قمر", "sound": "qamar", "tr": { "fr": "Lune", "en": "Moon", "es": "Luna", "de": "Mond", "pt": "Lua", "it": "Luna", "zh": "月亮", "ja": "月", "ko": "달" } },
+            { "glyph": "سلام", "sound": "salām", "tr": { "fr": "Paix", "en": "Peace", "es": "Paz", "de": "Frieden", "pt": "Paz", "it": "Pace", "zh": "和平", "ja": "平和", "ko": "평화" } },
+            { "glyph": "نهر", "sound": "nahr", "tr": { "fr": "Rivière", "en": "River", "es": "Río", "de": "Fluss", "pt": "Rio", "it": "Fiume", "zh": "河", "ja": "川", "ko": "강" } },
+            { "glyph": "جبل", "sound": "jabal", "tr": { "fr": "Montagne", "en": "Mountain", "es": "Montaña", "de": "Berg", "pt": "Montanha", "it": "Montagna", "zh": "山", "ja": "山", "ko": "산" } }
           ]
         }
       ]

@@ -135,6 +135,11 @@ func TestScriptSeedLoads(t *testing.T) {
 					if len(it.Forms) != 0 && len(it.Forms) != 4 {
 						t.Fatalf("%s: %q a %d formes, attendu 4", lang, it.Target, len(it.Forms))
 					}
+					// Un mot d'exemple doit être ajoutable au carnet : lecture
+					// (example_sound) et sens traduit (example_tr) obligatoires.
+					if it.Example != "" && (it.ExampleSound == "" || len(it.ExampleTr) == 0) {
+						t.Fatalf("%s: exemple %q sans sound/tr", lang, it.Example)
+					}
 				}
 			}
 		}

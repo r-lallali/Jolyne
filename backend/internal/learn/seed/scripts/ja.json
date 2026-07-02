@@ -8,33 +8,33 @@
           "slug": "vowels",
           "title": "あ い う え お",
           "items": [
-            { "glyph": "あ", "sound": "a" },
-            { "glyph": "い", "sound": "i" },
-            { "glyph": "う", "sound": "u" },
-            { "glyph": "え", "sound": "e" },
-            { "glyph": "お", "sound": "o" }
+            { "glyph": "あ", "sound": "a", "example": "あめ", "example_sound": "ame", "example_tr": { "fr": "Pluie", "en": "Rain", "es": "Lluvia", "de": "Regen", "pt": "Chuva", "it": "Pioggia", "zh": "雨", "ko": "비", "ar": "مطر" } },
+            { "glyph": "い", "sound": "i", "example": "いぬ", "example_sound": "inu", "example_tr": { "fr": "Chien", "en": "Dog", "es": "Perro", "de": "Hund", "pt": "Cão", "it": "Cane", "zh": "狗", "ko": "개", "ar": "كلب" } },
+            { "glyph": "う", "sound": "u", "example": "うみ", "example_sound": "umi", "example_tr": { "fr": "Mer", "en": "Sea", "es": "Mar", "de": "Meer", "pt": "Mar", "it": "Mare", "zh": "海", "ko": "바다", "ar": "بحر" } },
+            { "glyph": "え", "sound": "e", "example": "えき", "example_sound": "eki", "example_tr": { "fr": "Gare", "en": "Station", "es": "Estación", "de": "Bahnhof", "pt": "Estação", "it": "Stazione", "zh": "车站", "ko": "역", "ar": "محطة" } },
+            { "glyph": "お", "sound": "o", "example": "おちゃ", "example_sound": "ocha", "example_tr": { "fr": "Thé", "en": "Tea", "es": "Té", "de": "Tee", "pt": "Chá", "it": "Tè", "zh": "茶", "ko": "차", "ar": "شاي" } }
           ]
         },
         {
           "slug": "k-row",
           "title": "か き く け こ",
           "items": [
-            { "glyph": "か", "sound": "ka" },
-            { "glyph": "き", "sound": "ki" },
-            { "glyph": "く", "sound": "ku" },
-            { "glyph": "け", "sound": "ke" },
-            { "glyph": "こ", "sound": "ko" }
+            { "glyph": "か", "sound": "ka", "example": "かわ", "example_sound": "kawa", "example_tr": { "fr": "Rivière", "en": "River", "es": "Río", "de": "Fluss", "pt": "Rio", "it": "Fiume", "zh": "河", "ko": "강", "ar": "نهر" } },
+            { "glyph": "き", "sound": "ki", "example": "きもの", "example_sound": "kimono", "example_tr": { "fr": "Kimono", "en": "Kimono", "es": "Kimono", "de": "Kimono", "pt": "Quimono", "it": "Kimono", "zh": "和服", "ko": "기모노", "ar": "كيمونو" } },
+            { "glyph": "く", "sound": "ku", "example": "くも", "example_sound": "kumo", "example_tr": { "fr": "Nuage", "en": "Cloud", "es": "Nube", "de": "Wolke", "pt": "Nuvem", "it": "Nuvola", "zh": "云", "ko": "구름", "ar": "سحابة" } },
+            { "glyph": "け", "sound": "ke", "example": "けいさつ", "example_sound": "keisatsu", "example_tr": { "fr": "Police", "en": "Police", "es": "Policía", "de": "Polizei", "pt": "Polícia", "it": "Polizia", "zh": "警察", "ko": "경찰", "ar": "شرطة" } },
+            { "glyph": "こ", "sound": "ko", "example": "こども", "example_sound": "kodomo", "example_tr": { "fr": "Enfant", "en": "Child", "es": "Niño", "de": "Kind", "pt": "Criança", "it": "Bambino", "zh": "孩子", "ko": "아이", "ar": "طفل" } }
           ]
         },
         {
           "slug": "s-row",
           "title": "さ し す せ そ",
           "items": [
-            { "glyph": "さ", "sound": "sa" },
-            { "glyph": "し", "sound": "shi" },
-            { "glyph": "す", "sound": "su" },
-            { "glyph": "せ", "sound": "se" },
-            { "glyph": "そ", "sound": "so" }
+            { "glyph": "さ", "sound": "sa", "example": "さかな", "example_sound": "sakana", "example_tr": { "fr": "Poisson", "en": "Fish", "es": "Pez", "de": "Fisch", "pt": "Peixe", "it": "Pesce", "zh": "鱼", "ko": "물고기", "ar": "سمكة" } },
+            { "glyph": "し", "sound": "shi", "example": "しろ", "example_sound": "shiro", "example_tr": { "fr": "Blanc", "en": "White", "es": "Blanco", "de": "Weiß", "pt": "Branco", "it": "Bianco", "zh": "白色", "ko": "하양", "ar": "أبيض" } },
+            { "glyph": "す", "sound": "su", "example": "すし", "example_sound": "sushi", "example_tr": { "fr": "Sushi", "en": "Sushi", "es": "Sushi", "de": "Sushi", "pt": "Sushi", "it": "Sushi", "zh": "寿司", "ko": "초밥", "ar": "سوشي" } },
+            { "glyph": "せ", "sound": "se", "example": "せかい", "example_sound": "sekai", "example_tr": { "fr": "Monde", "en": "World", "es": "Mundo", "de": "Welt", "pt": "Mundo", "it": "Mondo", "zh": "世界", "ko": "세계", "ar": "عالم" } },
+            { "glyph": "そ", "sound": "so", "example": "そら", "example_sound": "sora", "example_tr": { "fr": "Ciel", "en": "Sky", "es": "Cielo", "de": "Himmel", "pt": "Céu", "it": "Cielo", "zh": "天空", "ko": "하늘", "ar": "سماء" } }
           ]
         }
       ]
@@ -47,33 +47,33 @@
           "slug": "t-row",
           "title": "た ち つ て と",
           "items": [
-            { "glyph": "た", "sound": "ta" },
-            { "glyph": "ち", "sound": "chi" },
-            { "glyph": "つ", "sound": "tsu" },
-            { "glyph": "て", "sound": "te" },
-            { "glyph": "と", "sound": "to" }
+            { "glyph": "た", "sound": "ta", "example": "たまご", "example_sound": "tamago", "example_tr": { "fr": "Œuf", "en": "Egg", "es": "Huevo", "de": "Ei", "pt": "Ovo", "it": "Uovo", "zh": "鸡蛋", "ko": "계란", "ar": "بيضة" } },
+            { "glyph": "ち", "sound": "chi", "example": "ちず", "example_sound": "chizu", "example_tr": { "fr": "Carte", "en": "Map", "es": "Mapa", "de": "Karte", "pt": "Mapa", "it": "Mappa", "zh": "地图", "ko": "지도", "ar": "خريطة" } },
+            { "glyph": "つ", "sound": "tsu", "example": "つき", "example_sound": "tsuki", "example_tr": { "fr": "Lune", "en": "Moon", "es": "Luna", "de": "Mond", "pt": "Lua", "it": "Luna", "zh": "月亮", "ko": "달", "ar": "قمر" } },
+            { "glyph": "て", "sound": "te", "example": "て", "example_sound": "te", "example_tr": { "fr": "Main", "en": "Hand", "es": "Mano", "de": "Hand", "pt": "Mão", "it": "Mano", "zh": "手", "ko": "손", "ar": "يد" } },
+            { "glyph": "と", "sound": "to", "example": "とり", "example_sound": "tori", "example_tr": { "fr": "Oiseau", "en": "Bird", "es": "Pájaro", "de": "Vogel", "pt": "Pássaro", "it": "Uccello", "zh": "鸟", "ko": "새", "ar": "طائر" } }
           ]
         },
         {
           "slug": "n-row",
           "title": "な に ぬ ね の",
           "items": [
-            { "glyph": "な", "sound": "na" },
-            { "glyph": "に", "sound": "ni" },
-            { "glyph": "ぬ", "sound": "nu" },
-            { "glyph": "ね", "sound": "ne" },
-            { "glyph": "の", "sound": "no" }
+            { "glyph": "な", "sound": "na", "example": "なつ", "example_sound": "natsu", "example_tr": { "fr": "Été", "en": "Summer", "es": "Verano", "de": "Sommer", "pt": "Verão", "it": "Estate", "zh": "夏天", "ko": "여름", "ar": "صيف" } },
+            { "glyph": "に", "sound": "ni", "example": "にく", "example_sound": "niku", "example_tr": { "fr": "Viande", "en": "Meat", "es": "Carne", "de": "Fleisch", "pt": "Carne", "it": "Carne", "zh": "肉", "ko": "고기", "ar": "لحم" } },
+            { "glyph": "ぬ", "sound": "nu", "example": "ぬの", "example_sound": "nuno", "example_tr": { "fr": "Tissu", "en": "Cloth", "es": "Tela", "de": "Stoff", "pt": "Tecido", "it": "Tessuto", "zh": "布", "ko": "천", "ar": "قماش" } },
+            { "glyph": "ね", "sound": "ne", "example": "ねこ", "example_sound": "neko", "example_tr": { "fr": "Chat", "en": "Cat", "es": "Gato", "de": "Katze", "pt": "Gato", "it": "Gatto", "zh": "猫", "ko": "고양이", "ar": "قطة" } },
+            { "glyph": "の", "sound": "no", "example": "のり", "example_sound": "nori", "example_tr": { "fr": "Algue", "en": "Seaweed", "es": "Alga", "de": "Alge", "pt": "Alga", "it": "Alga", "zh": "海苔", "ko": "김", "ar": "طحلب" } }
           ]
         },
         {
           "slug": "h-row",
           "title": "は ひ ふ へ ほ",
           "items": [
-            { "glyph": "は", "sound": "ha" },
-            { "glyph": "ひ", "sound": "hi" },
-            { "glyph": "ふ", "sound": "fu" },
-            { "glyph": "へ", "sound": "he" },
-            { "glyph": "ほ", "sound": "ho" }
+            { "glyph": "は", "sound": "ha", "example": "はな", "example_sound": "hana", "example_tr": { "fr": "Fleur", "en": "Flower", "es": "Flor", "de": "Blume", "pt": "Flor", "it": "Fiore", "zh": "花", "ko": "꽃", "ar": "زهرة" } },
+            { "glyph": "ひ", "sound": "hi", "example": "ひと", "example_sound": "hito", "example_tr": { "fr": "Personne", "en": "Person", "es": "Persona", "de": "Person", "pt": "Pessoa", "it": "Persona", "zh": "人", "ko": "사람", "ar": "شخص" } },
+            { "glyph": "ふ", "sound": "fu", "example": "ふゆ", "example_sound": "fuyu", "example_tr": { "fr": "Hiver", "en": "Winter", "es": "Invierno", "de": "Winter", "pt": "Inverno", "it": "Inverno", "zh": "冬天", "ko": "겨울", "ar": "شتاء" } },
+            { "glyph": "へ", "sound": "he", "example": "へや", "example_sound": "heya", "example_tr": { "fr": "Chambre", "en": "Room", "es": "Habitación", "de": "Zimmer", "pt": "Quarto", "it": "Stanza", "zh": "房间", "ko": "방", "ar": "غرفة" } },
+            { "glyph": "ほ", "sound": "ho", "example": "ほし", "example_sound": "hoshi", "example_tr": { "fr": "Étoile", "en": "Star", "es": "Estrella", "de": "Stern", "pt": "Estrela", "it": "Stella", "zh": "星星", "ko": "별", "ar": "نجمة" } }
           ]
         }
       ]
@@ -86,34 +86,34 @@
           "slug": "m-row",
           "title": "ま み む め も",
           "items": [
-            { "glyph": "ま", "sound": "ma" },
-            { "glyph": "み", "sound": "mi" },
-            { "glyph": "む", "sound": "mu" },
-            { "glyph": "め", "sound": "me" },
-            { "glyph": "も", "sound": "mo" }
+            { "glyph": "ま", "sound": "ma", "example": "まち", "example_sound": "machi", "example_tr": { "fr": "Ville", "en": "Town", "es": "Ciudad", "de": "Stadt", "pt": "Cidade", "it": "Città", "zh": "城市", "ko": "도시", "ar": "مدينة" } },
+            { "glyph": "み", "sound": "mi", "example": "みず", "example_sound": "mizu", "example_tr": { "fr": "Eau", "en": "Water", "es": "Agua", "de": "Wasser", "pt": "Água", "it": "Acqua", "zh": "水", "ko": "물", "ar": "ماء" } },
+            { "glyph": "む", "sound": "mu", "example": "むし", "example_sound": "mushi", "example_tr": { "fr": "Insecte", "en": "Insect", "es": "Insecto", "de": "Insekt", "pt": "Inseto", "it": "Insetto", "zh": "虫子", "ko": "벌레", "ar": "حشرة" } },
+            { "glyph": "め", "sound": "me", "example": "め", "example_sound": "me", "example_tr": { "fr": "Œil", "en": "Eye", "es": "Ojo", "de": "Auge", "pt": "Olho", "it": "Occhio", "zh": "眼睛", "ko": "눈", "ar": "عين" } },
+            { "glyph": "も", "sound": "mo", "example": "もり", "example_sound": "mori", "example_tr": { "fr": "Forêt", "en": "Forest", "es": "Bosque", "de": "Wald", "pt": "Floresta", "it": "Foresta", "zh": "森林", "ko": "숲", "ar": "غابة" } }
           ]
         },
         {
           "slug": "yr-row",
           "title": "や ゆ よ ら り る",
           "items": [
-            { "glyph": "や", "sound": "ya" },
-            { "glyph": "ゆ", "sound": "yu" },
-            { "glyph": "よ", "sound": "yo" },
-            { "glyph": "ら", "sound": "ra" },
-            { "glyph": "り", "sound": "ri" },
-            { "glyph": "る", "sound": "ru" }
+            { "glyph": "や", "sound": "ya", "example": "やま", "example_sound": "yama", "example_tr": { "fr": "Montagne", "en": "Mountain", "es": "Montaña", "de": "Berg", "pt": "Montanha", "it": "Montagna", "zh": "山", "ko": "산", "ar": "جبل" } },
+            { "glyph": "ゆ", "sound": "yu", "example": "ゆき", "example_sound": "yuki", "example_tr": { "fr": "Neige", "en": "Snow", "es": "Nieve", "de": "Schnee", "pt": "Neve", "it": "Neve", "zh": "雪", "ko": "눈", "ar": "ثلج" } },
+            { "glyph": "よ", "sound": "yo", "example": "よる", "example_sound": "yoru", "example_tr": { "fr": "Nuit", "en": "Night", "es": "Noche", "de": "Nacht", "pt": "Noite", "it": "Notte", "zh": "夜晚", "ko": "밤", "ar": "ليل" } },
+            { "glyph": "ら", "sound": "ra", "example": "らくだ", "example_sound": "rakuda", "example_tr": { "fr": "Chameau", "en": "Camel", "es": "Camello", "de": "Kamel", "pt": "Camelo", "it": "Cammello", "zh": "骆驼", "ko": "낙타", "ar": "جمل" } },
+            { "glyph": "り", "sound": "ri", "example": "りんご", "example_sound": "ringo", "example_tr": { "fr": "Pomme", "en": "Apple", "es": "Manzana", "de": "Apfel", "pt": "Maçã", "it": "Mela", "zh": "苹果", "ko": "사과", "ar": "تفاحة" } },
+            { "glyph": "る", "sound": "ru", "example": "はる", "example_sound": "haru", "example_tr": { "fr": "Printemps", "en": "Spring", "es": "Primavera", "de": "Frühling", "pt": "Primavera", "it": "Primavera", "zh": "春天", "ko": "봄", "ar": "ربيع" } }
           ]
         },
         {
           "slug": "wn-row",
           "title": "れ ろ わ を ん",
           "items": [
-            { "glyph": "れ", "sound": "re" },
-            { "glyph": "ろ", "sound": "ro" },
-            { "glyph": "わ", "sound": "wa" },
+            { "glyph": "れ", "sound": "re", "example": "れきし", "example_sound": "rekishi", "example_tr": { "fr": "Histoire", "en": "History", "es": "Historia", "de": "Geschichte", "pt": "História", "it": "Storia", "zh": "历史", "ko": "역사", "ar": "تاريخ" } },
+            { "glyph": "ろ", "sound": "ro", "example": "ろうそく", "example_sound": "rōsoku", "example_tr": { "fr": "Bougie", "en": "Candle", "es": "Vela", "de": "Kerze", "pt": "Vela", "it": "Candela", "zh": "蜡烛", "ko": "양초", "ar": "شمعة" } },
+            { "glyph": "わ", "sound": "wa", "example": "わたし", "example_sound": "watashi", "example_tr": { "fr": "Je", "en": "I", "es": "Yo", "de": "Ich", "pt": "Eu", "it": "Io", "zh": "我", "ko": "나", "ar": "أنا" } },
             { "glyph": "を", "sound": "wo" },
-            { "glyph": "ん", "sound": "n" }
+            { "glyph": "ん", "sound": "n", "example": "ほん", "example_sound": "hon", "example_tr": { "fr": "Livre", "en": "Book", "es": "Libro", "de": "Buch", "pt": "Livro", "it": "Libro", "zh": "书", "ko": "책", "ar": "كتاب" } }
           ]
         }
       ]
@@ -126,22 +126,22 @@
           "slug": "kata-vowels",
           "title": "ア イ ウ エ オ",
           "items": [
-            { "glyph": "ア", "sound": "a" },
-            { "glyph": "イ", "sound": "i" },
-            { "glyph": "ウ", "sound": "u" },
-            { "glyph": "エ", "sound": "e" },
-            { "glyph": "オ", "sound": "o" }
+            { "glyph": "ア", "sound": "a", "example": "アメリカ", "example_sound": "amerika", "example_tr": { "fr": "Amérique", "en": "America", "es": "América", "de": "Amerika", "pt": "América", "it": "America", "zh": "美国", "ko": "미국", "ar": "أمريكا" } },
+            { "glyph": "イ", "sound": "i", "example": "イタリア", "example_sound": "itaria", "example_tr": { "fr": "Italie", "en": "Italy", "es": "Italia", "de": "Italien", "pt": "Itália", "it": "Italia", "zh": "意大利", "ko": "이탈리아", "ar": "إيطاليا" } },
+            { "glyph": "ウ", "sound": "u", "example": "ウール", "example_sound": "ūru", "example_tr": { "fr": "Laine", "en": "Wool", "es": "Lana", "de": "Wolle", "pt": "Lã", "it": "Lana", "zh": "羊毛", "ko": "양모", "ar": "صوف" } },
+            { "glyph": "エ", "sound": "e", "example": "エレベーター", "example_sound": "erebētā", "example_tr": { "fr": "Ascenseur", "en": "Elevator", "es": "Ascensor", "de": "Aufzug", "pt": "Elevador", "it": "Ascensore", "zh": "电梯", "ko": "엘리베이터", "ar": "مصعد" } },
+            { "glyph": "オ", "sound": "o", "example": "オレンジ", "example_sound": "orenji", "example_tr": { "fr": "Orange", "en": "Orange", "es": "Naranja", "de": "Orange", "pt": "Laranja", "it": "Arancia", "zh": "橙子", "ko": "오렌지", "ar": "برتقال" } }
           ]
         },
         {
           "slug": "kata-k-row",
           "title": "カ キ ク ケ コ",
           "items": [
-            { "glyph": "カ", "sound": "ka" },
-            { "glyph": "キ", "sound": "ki" },
-            { "glyph": "ク", "sound": "ku" },
-            { "glyph": "ケ", "sound": "ke" },
-            { "glyph": "コ", "sound": "ko" }
+            { "glyph": "カ", "sound": "ka", "example": "カメラ", "example_sound": "kamera", "example_tr": { "fr": "Appareil photo", "en": "Camera", "es": "Cámara", "de": "Kamera", "pt": "Câmera", "it": "Fotocamera", "zh": "相机", "ko": "카메라", "ar": "كاميرا" } },
+            { "glyph": "キ", "sound": "ki", "example": "キッチン", "example_sound": "kitchin", "example_tr": { "fr": "Cuisine", "en": "Kitchen", "es": "Cocina", "de": "Küche", "pt": "Cozinha", "it": "Cucina", "zh": "厨房", "ko": "부엌", "ar": "مطبخ" } },
+            { "glyph": "ク", "sound": "ku", "example": "クラス", "example_sound": "kurasu", "example_tr": { "fr": "Classe", "en": "Class", "es": "Clase", "de": "Klasse", "pt": "Classe", "it": "Classe", "zh": "班级", "ko": "반", "ar": "صف" } },
+            { "glyph": "ケ", "sound": "ke", "example": "ケーキ", "example_sound": "kēki", "example_tr": { "fr": "Gâteau", "en": "Cake", "es": "Pastel", "de": "Kuchen", "pt": "Bolo", "it": "Torta", "zh": "蛋糕", "ko": "케이크", "ar": "كعكة" } },
+            { "glyph": "コ", "sound": "ko", "example": "コーヒー", "example_sound": "kōhī", "example_tr": { "fr": "Café", "en": "Coffee", "es": "Café", "de": "Kaffee", "pt": "Café", "it": "Caffè", "zh": "咖啡", "ko": "커피", "ar": "قهوة" } }
           ]
         }
       ]
@@ -154,22 +154,22 @@
           "slug": "words-1",
           "title": "ことば 1",
           "items": [
-            { "glyph": "すし", "sound": "sushi" },
-            { "glyph": "ねこ", "sound": "neko" },
-            { "glyph": "いぬ", "sound": "inu" },
-            { "glyph": "やま", "sound": "yama" },
-            { "glyph": "うみ", "sound": "umi" }
+            { "glyph": "すし", "sound": "sushi", "tr": { "fr": "Sushi", "en": "Sushi", "es": "Sushi", "de": "Sushi", "pt": "Sushi", "it": "Sushi", "zh": "寿司", "ko": "초밥", "ar": "سوشي" } },
+            { "glyph": "ねこ", "sound": "neko", "tr": { "fr": "Chat", "en": "Cat", "es": "Gato", "de": "Katze", "pt": "Gato", "it": "Gatto", "zh": "猫", "ko": "고양이", "ar": "قطة" } },
+            { "glyph": "いぬ", "sound": "inu", "tr": { "fr": "Chien", "en": "Dog", "es": "Perro", "de": "Hund", "pt": "Cão", "it": "Cane", "zh": "狗", "ko": "개", "ar": "كلب" } },
+            { "glyph": "やま", "sound": "yama", "tr": { "fr": "Montagne", "en": "Mountain", "es": "Montaña", "de": "Berg", "pt": "Montanha", "it": "Montagna", "zh": "山", "ko": "산", "ar": "جبل" } },
+            { "glyph": "うみ", "sound": "umi", "tr": { "fr": "Mer", "en": "Sea", "es": "Mar", "de": "Meer", "pt": "Mar", "it": "Mare", "zh": "海", "ko": "바다", "ar": "بحر" } }
           ]
         },
         {
           "slug": "words-2",
           "title": "ことば 2",
           "items": [
-            { "glyph": "さかな", "sound": "sakana" },
-            { "glyph": "ひと", "sound": "hito" },
-            { "glyph": "あさ", "sound": "asa" },
-            { "glyph": "そら", "sound": "sora" },
-            { "glyph": "ふね", "sound": "fune" }
+            { "glyph": "さかな", "sound": "sakana", "tr": { "fr": "Poisson", "en": "Fish", "es": "Pez", "de": "Fisch", "pt": "Peixe", "it": "Pesce", "zh": "鱼", "ko": "물고기", "ar": "سمكة" } },
+            { "glyph": "ひと", "sound": "hito", "tr": { "fr": "Personne", "en": "Person", "es": "Persona", "de": "Person", "pt": "Pessoa", "it": "Persona", "zh": "人", "ko": "사람", "ar": "شخص" } },
+            { "glyph": "あさ", "sound": "asa", "tr": { "fr": "Matin", "en": "Morning", "es": "Mañana", "de": "Morgen", "pt": "Manhã", "it": "Mattina", "zh": "早晨", "ko": "아침", "ar": "صباح" } },
+            { "glyph": "そら", "sound": "sora", "tr": { "fr": "Ciel", "en": "Sky", "es": "Cielo", "de": "Himmel", "pt": "Céu", "it": "Cielo", "zh": "天空", "ko": "하늘", "ar": "سماء" } },
+            { "glyph": "ふね", "sound": "fune", "tr": { "fr": "Bateau", "en": "Boat", "es": "Barco", "de": "Boot", "pt": "Barco", "it": "Barca", "zh": "船", "ko": "배", "ar": "قارب" } }
           ]
         }
       ]

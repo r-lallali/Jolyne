@@ -25,14 +25,18 @@ const LessonKindScript = "script"
 // scriptItem : item du seed script. `glyph` devient Item.Target ; `sound` la
 // prononciation universelle (Item.Sound). Les champs forms/parts/strokes sont
 // propres à certaines activités (formes arabes, composition Hangul, tracé).
+// `tr` (sens d'un mot de lecture) et `example`/`example_tr` (mot illustrant un
+// signe + son sens) rendent ces mots ajoutables au carnet de vocabulaire.
 type scriptItem struct {
-	Glyph        string   `json:"glyph"`
-	Sound        string   `json:"sound"`
-	Forms        []string `json:"forms,omitempty"`
-	Parts        []string `json:"parts,omitempty"`
-	Strokes      []string `json:"strokes,omitempty"`
-	Example      string   `json:"example,omitempty"`
-	ExampleSound string   `json:"example_sound,omitempty"`
+	Glyph        string            `json:"glyph"`
+	Sound        string            `json:"sound"`
+	Tr           map[string]string `json:"tr,omitempty"`
+	Forms        []string          `json:"forms,omitempty"`
+	Parts        []string          `json:"parts,omitempty"`
+	Strokes      []string          `json:"strokes,omitempty"`
+	Example      string            `json:"example,omitempty"`
+	ExampleSound string            `json:"example_sound,omitempty"`
+	ExampleTr    map[string]string `json:"example_tr,omitempty"`
 }
 
 type scriptLesson struct {
@@ -88,11 +92,13 @@ func BuildScriptUnits(lang string) ([]Unit, error) {
 				lesson.Items = append(lesson.Items, Item{
 					Target:       it.Glyph,
 					Sound:        it.Sound,
+					Tr:           it.Tr,
 					Forms:        it.Forms,
 					Parts:        it.Parts,
 					Strokes:      it.Strokes,
 					Example:      it.Example,
 					ExampleSound: it.ExampleSound,
+					ExampleTr:    it.ExampleTr,
 				})
 			}
 			if len(lesson.Items) > 0 {

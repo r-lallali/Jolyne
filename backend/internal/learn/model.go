@@ -54,6 +54,9 @@ type Item struct {
 	// l'exercice de lecture (mot composé de signes appris → sa prononciation).
 	Example      string `json:"example,omitempty"`
 	ExampleSound string `json:"example_sound,omitempty"`
+	// ExampleTr : sens du mot d'exemple par langue source. Permet d'ajouter le
+	// mot au carnet de vocabulaire depuis la leçon d'écriture.
+	ExampleTr map[string]string `json:"example_tr,omitempty"`
 }
 
 // LessonContent : forme stockée en JSONB sur learn_lessons.content.
@@ -86,12 +89,18 @@ type Lesson struct {
 
 // ----- Vues renvoyées au front -----
 
-// CourseSummary : un cours disponible (pour la liste de sélection).
+// CourseSummary : un cours disponible (pour la liste de sélection), décoré de
+// la progression de l'apprenant — le front sépare « reprendre » (cours
+// entamés, avec avancement) des autres cours.
 type CourseSummary struct {
 	Lang        string `json:"lang"`
 	Title       string `json:"title"`
 	UnitCount   int    `json:"unit_count"`
 	LessonCount int    `json:"lesson_count"`
+	// CompletedLessons : leçons complétées (jouées ou placées) par l'apprenant.
+	CompletedLessons int `json:"completed_lessons"`
+	// Enrolled : l'apprenant a choisi son niveau de départ pour ce cours.
+	Enrolled bool `json:"enrolled"`
 }
 
 // CourseTree : arbre d'un cours décoré de la progression du user. Les leçons
@@ -132,8 +141,9 @@ type LessonNode struct {
 }
 
 // PlayItem : item résolu dans la langue de l'apprenant pour la lecture. Pour
-// les leçons script, `Meaning` reprend `Sound` (universel) et les champs
-// d'écriture sont propagés pour dériver les exercices côté front.
+// les leçons script, `Meaning` reprend le sens traduit s'il existe (mots de
+// lecture), sinon `Sound` (universel) ; les champs d'écriture sont propagés
+// pour dériver les exercices côté front.
 type PlayItem struct {
 	Target  string `json:"target"`
 	Meaning string `json:"meaning"`
@@ -144,6 +154,9 @@ type PlayItem struct {
 	Strokes      []string `json:"strokes,omitempty"`
 	Example      string   `json:"example,omitempty"`
 	ExampleSound string   `json:"example_sound,omitempty"`
+	// ExampleMeaning : sens du mot d'exemple dans la langue de l'apprenant
+	// (résolu depuis ExampleTr). Permet l'ajout au carnet depuis la leçon.
+	ExampleMeaning string `json:"example_meaning,omitempty"`
 }
 
 // LessonPlay : payload de lecture d'une leçon (items résolus + meta).
@@ -258,13 +271,19 @@ func starsFromMistakes(mistakes int) int {
 // resolveMeaning : traduction d'un item dans la langue source `from`, avec
 // repli sur l'anglais puis sur n'importe quelle traduction disponible.
 func resolveMeaning(it Item, from string) string {
-	if m, ok := it.Tr[from]; ok && m != "" {
+	return resolveTr(it.Tr, from)
+}
+
+// resolveTr : même résolution (langue demandée → anglais → n'importe laquelle)
+// pour une map de traductions quelconque (Tr d'un item, ExampleTr d'un signe).
+func resolveTr(tr map[string]string, from string) string {
+	if m, ok := tr[from]; ok && m != "" {
 		return m
 	}
-	if m, ok := it.Tr["en"]; ok && m != "" {
+	if m, ok := tr["en"]; ok && m != "" {
 		return m
 	}
-	for _, m := range it.Tr {
+	for _, m := range tr {
 		if m != "" {
 			return m
 		}

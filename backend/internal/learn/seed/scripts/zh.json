@@ -8,22 +8,22 @@
           "slug": "numbers-1-5",
           "title": "一 二 三 四 五",
           "items": [
-            { "glyph": "一", "sound": "yī", "strokes": ["M14 50 L86 50"] },
-            { "glyph": "二", "sound": "èr", "strokes": ["M22 34 L78 34", "M12 66 L88 66"] },
-            { "glyph": "三", "sound": "sān", "strokes": ["M24 28 L76 28", "M18 50 L82 50", "M10 72 L90 72"] },
-            { "glyph": "四", "sound": "sì" },
-            { "glyph": "五", "sound": "wǔ" }
+            { "glyph": "一", "sound": "yī", "strokes": ["M14 50 L86 50"], "tr": { "fr": "Un", "en": "One", "es": "Uno", "de": "Eins", "pt": "Um", "it": "Uno", "ja": "一", "ko": "하나", "ar": "واحد" } },
+            { "glyph": "二", "sound": "èr", "strokes": ["M22 34 L78 34", "M12 66 L88 66"], "tr": { "fr": "Deux", "en": "Two", "es": "Dos", "de": "Zwei", "pt": "Dois", "it": "Due", "ja": "二", "ko": "둘", "ar": "اثنان" } },
+            { "glyph": "三", "sound": "sān", "strokes": ["M24 28 L76 28", "M18 50 L82 50", "M10 72 L90 72"], "tr": { "fr": "Trois", "en": "Three", "es": "Tres", "de": "Drei", "pt": "Três", "it": "Tre", "ja": "三", "ko": "셋", "ar": "ثلاثة" } },
+            { "glyph": "四", "sound": "sì", "tr": { "fr": "Quatre", "en": "Four", "es": "Cuatro", "de": "Vier", "pt": "Quatro", "it": "Quattro", "ja": "四", "ko": "넷", "ar": "أربعة" } },
+            { "glyph": "五", "sound": "wǔ", "tr": { "fr": "Cinq", "en": "Five", "es": "Cinco", "de": "Fünf", "pt": "Cinco", "it": "Cinque", "ja": "五", "ko": "다섯", "ar": "خمسة" } }
           ]
         },
         {
           "slug": "numbers-6-10",
           "title": "六 七 八 九 十",
           "items": [
-            { "glyph": "六", "sound": "liù" },
-            { "glyph": "七", "sound": "qī" },
-            { "glyph": "八", "sound": "bā" },
-            { "glyph": "九", "sound": "jiǔ" },
-            { "glyph": "十", "sound": "shí", "strokes": ["M14 50 L86 50", "M50 14 L50 86"] }
+            { "glyph": "六", "sound": "liù", "tr": { "fr": "Six", "en": "Six", "es": "Seis", "de": "Sechs", "pt": "Seis", "it": "Sei", "ja": "六", "ko": "여섯", "ar": "ستة" } },
+            { "glyph": "七", "sound": "qī", "tr": { "fr": "Sept", "en": "Seven", "es": "Siete", "de": "Sieben", "pt": "Sete", "it": "Sette", "ja": "七", "ko": "일곱", "ar": "سبعة" } },
+            { "glyph": "八", "sound": "bā", "tr": { "fr": "Huit", "en": "Eight", "es": "Ocho", "de": "Acht", "pt": "Oito", "it": "Otto", "ja": "八", "ko": "여덟", "ar": "ثمانية" } },
+            { "glyph": "九", "sound": "jiǔ", "tr": { "fr": "Neuf", "en": "Nine", "es": "Nueve", "de": "Neun", "pt": "Nove", "it": "Nove", "ja": "九", "ko": "아홉", "ar": "تسعة" } },
+            { "glyph": "十", "sound": "shí", "strokes": ["M14 50 L86 50", "M50 14 L50 86"], "tr": { "fr": "Dix", "en": "Ten", "es": "Diez", "de": "Zehn", "pt": "Dez", "it": "Dieci", "ja": "十", "ko": "열", "ar": "عشرة" } }
           ]
         }
       ]
@@ -36,10 +36,10 @@
           "slug": "four-tones",
           "title": "妈 麻 马 骂",
           "items": [
-            { "glyph": "妈", "sound": "mā · 1er ton" },
-            { "glyph": "麻", "sound": "má · 2e ton" },
-            { "glyph": "马", "sound": "mǎ · 3e ton" },
-            { "glyph": "骂", "sound": "mà · 4e ton" }
+            { "glyph": "妈", "sound": "mā · 1er ton", "tr": { "fr": "Mère", "en": "Mother", "es": "Madre", "de": "Mutter", "pt": "Mãe", "it": "Madre", "ja": "母", "ko": "어머니", "ar": "أم" } },
+            { "glyph": "麻", "sound": "má · 2e ton", "tr": { "fr": "Chanvre", "en": "Hemp", "es": "Cáñamo", "de": "Hanf", "pt": "Cânhamo", "it": "Canapa", "ja": "麻", "ko": "삼", "ar": "قنب" } },
+            { "glyph": "马", "sound": "mǎ · 3e ton", "tr": { "fr": "Cheval", "en": "Horse", "es": "Caballo", "de": "Pferd", "pt": "Cavalo", "it": "Cavallo", "ja": "馬", "ko": "말", "ar": "حصان" } },
+            { "glyph": "骂", "sound": "mà · 4e ton", "tr": { "fr": "Gronder", "en": "To scold", "es": "Regañar", "de": "Schimpfen", "pt": "Repreender", "it": "Sgridare", "ja": "叱る", "ko": "꾸짖다", "ar": "يوبخ" } }
           ]
         }
       ]
@@ -52,20 +52,20 @@
           "slug": "common-1",
           "title": "你 好 我 是",
           "items": [
-            { "glyph": "你", "sound": "nǐ" },
-            { "glyph": "好", "sound": "hǎo" },
-            { "glyph": "我", "sound": "wǒ" },
-            { "glyph": "是", "sound": "shì" }
+            { "glyph": "你", "sound": "nǐ", "tr": { "fr": "Tu", "en": "You", "es": "Tú", "de": "Du", "pt": "Você", "it": "Tu", "ja": "あなた", "ko": "너", "ar": "أنت" } },
+            { "glyph": "好", "sound": "hǎo", "tr": { "fr": "Bon", "en": "Good", "es": "Bueno", "de": "Gut", "pt": "Bom", "it": "Buono", "ja": "良い", "ko": "좋은", "ar": "جيد" } },
+            { "glyph": "我", "sound": "wǒ", "tr": { "fr": "Je", "en": "I", "es": "Yo", "de": "Ich", "pt": "Eu", "it": "Io", "ja": "私", "ko": "나", "ar": "أنا" } },
+            { "glyph": "是", "sound": "shì", "tr": { "fr": "Être", "en": "To be", "es": "Ser", "de": "Sein", "pt": "Ser", "it": "Essere", "ja": "です", "ko": "이다", "ar": "يكون" } }
           ]
         },
         {
           "slug": "common-2",
           "title": "人 大 小 不",
           "items": [
-            { "glyph": "人", "sound": "rén" },
-            { "glyph": "大", "sound": "dà" },
-            { "glyph": "小", "sound": "xiǎo" },
-            { "glyph": "不", "sound": "bù" }
+            { "glyph": "人", "sound": "rén", "tr": { "fr": "Personne", "en": "Person", "es": "Persona", "de": "Person", "pt": "Pessoa", "it": "Persona", "ja": "人", "ko": "사람", "ar": "شخص" } },
+            { "glyph": "大", "sound": "dà", "tr": { "fr": "Grand", "en": "Big", "es": "Grande", "de": "Groß", "pt": "Grande", "it": "Grande", "ja": "大きい", "ko": "큰", "ar": "كبير" } },
+            { "glyph": "小", "sound": "xiǎo", "tr": { "fr": "Petit", "en": "Small", "es": "Pequeño", "de": "Klein", "pt": "Pequeno", "it": "Piccolo", "ja": "小さい", "ko": "작은", "ar": "صغير" } },
+            { "glyph": "不", "sound": "bù", "tr": { "fr": "Non", "en": "No", "es": "No", "de": "Nein", "pt": "Não", "it": "No", "ja": "いいえ", "ko": "아니요", "ar": "لا" } }
           ]
         }
       ]

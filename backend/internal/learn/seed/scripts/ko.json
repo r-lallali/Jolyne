@@ -8,22 +8,22 @@
           "slug": "vowels-1",
           "title": "ㅏ ㅑ ㅓ ㅕ ㅗ",
           "items": [
-            { "glyph": "ㅏ", "sound": "a" },
-            { "glyph": "ㅑ", "sound": "ya" },
-            { "glyph": "ㅓ", "sound": "eo" },
-            { "glyph": "ㅕ", "sound": "yeo" },
-            { "glyph": "ㅗ", "sound": "o" }
+            { "glyph": "ㅏ", "sound": "a", "example": "아이", "example_sound": "ai", "example_tr": { "fr": "Enfant", "en": "Child", "es": "Niño", "de": "Kind", "pt": "Criança", "it": "Bambino", "zh": "孩子", "ja": "子供", "ar": "طفل" } },
+            { "glyph": "ㅑ", "sound": "ya", "example": "야구", "example_sound": "yagu", "example_tr": { "fr": "Baseball", "en": "Baseball", "es": "Béisbol", "de": "Baseball", "pt": "Beisebol", "it": "Baseball", "zh": "棒球", "ja": "野球", "ar": "بيسبول" } },
+            { "glyph": "ㅓ", "sound": "eo", "example": "어머니", "example_sound": "eomeoni", "example_tr": { "fr": "Mère", "en": "Mother", "es": "Madre", "de": "Mutter", "pt": "Mãe", "it": "Madre", "zh": "妈妈", "ja": "母", "ar": "أم" } },
+            { "glyph": "ㅕ", "sound": "yeo", "example": "여름", "example_sound": "yeoreum", "example_tr": { "fr": "Été", "en": "Summer", "es": "Verano", "de": "Sommer", "pt": "Verão", "it": "Estate", "zh": "夏天", "ja": "夏", "ar": "صيف" } },
+            { "glyph": "ㅗ", "sound": "o", "example": "오이", "example_sound": "oi", "example_tr": { "fr": "Concombre", "en": "Cucumber", "es": "Pepino", "de": "Gurke", "pt": "Pepino", "it": "Cetriolo", "zh": "黄瓜", "ja": "きゅうり", "ar": "خيار" } }
           ]
         },
         {
           "slug": "vowels-2",
           "title": "ㅛ ㅜ ㅠ ㅡ ㅣ",
           "items": [
-            { "glyph": "ㅛ", "sound": "yo" },
-            { "glyph": "ㅜ", "sound": "u" },
-            { "glyph": "ㅠ", "sound": "yu" },
-            { "glyph": "ㅡ", "sound": "eu" },
-            { "glyph": "ㅣ", "sound": "i" }
+            { "glyph": "ㅛ", "sound": "yo", "example": "요가", "example_sound": "yoga", "example_tr": { "fr": "Yoga", "en": "Yoga", "es": "Yoga", "de": "Yoga", "pt": "Ioga", "it": "Yoga", "zh": "瑜伽", "ja": "ヨガ", "ar": "يوغا" } },
+            { "glyph": "ㅜ", "sound": "u", "example": "우유", "example_sound": "uyu", "example_tr": { "fr": "Lait", "en": "Milk", "es": "Leche", "de": "Milch", "pt": "Leite", "it": "Latte", "zh": "牛奶", "ja": "牛乳", "ar": "حليب" } },
+            { "glyph": "ㅠ", "sound": "yu", "example": "유리", "example_sound": "yuri", "example_tr": { "fr": "Verre", "en": "Glass", "es": "Vidrio", "de": "Glas", "pt": "Vidro", "it": "Vetro", "zh": "玻璃", "ja": "ガラス", "ar": "زجاج" } },
+            { "glyph": "ㅡ", "sound": "eu", "example": "음악", "example_sound": "eumak", "example_tr": { "fr": "Musique", "en": "Music", "es": "Música", "de": "Musik", "pt": "Música", "it": "Musica", "zh": "音乐", "ja": "音楽", "ar": "موسيقى" } },
+            { "glyph": "ㅣ", "sound": "i", "example": "이름", "example_sound": "ireum", "example_tr": { "fr": "Nom", "en": "Name", "es": "Nombre", "de": "Name", "pt": "Nome", "it": "Nome", "zh": "名字", "ja": "名前", "ar": "اسم" } }
           ]
         }
       ]
@@ -36,22 +36,22 @@
           "slug": "consonants-1",
           "title": "ㄱ ㄴ ㄷ ㄹ ㅁ",
           "items": [
-            { "glyph": "ㄱ", "sound": "g" },
-            { "glyph": "ㄴ", "sound": "n" },
-            { "glyph": "ㄷ", "sound": "d" },
-            { "glyph": "ㄹ", "sound": "r" },
-            { "glyph": "ㅁ", "sound": "m" }
+            { "glyph": "ㄱ", "sound": "g", "example": "가방", "example_sound": "gabang", "example_tr": { "fr": "Sac", "en": "Bag", "es": "Bolso", "de": "Tasche", "pt": "Bolsa", "it": "Borsa", "zh": "包", "ja": "かばん", "ar": "حقيبة" } },
+            { "glyph": "ㄴ", "sound": "n", "example": "나무", "example_sound": "namu", "example_tr": { "fr": "Arbre", "en": "Tree", "es": "Árbol", "de": "Baum", "pt": "Árvore", "it": "Albero", "zh": "树", "ja": "木", "ar": "شجرة" } },
+            { "glyph": "ㄷ", "sound": "d", "example": "달", "example_sound": "dal", "example_tr": { "fr": "Lune", "en": "Moon", "es": "Luna", "de": "Mond", "pt": "Lua", "it": "Luna", "zh": "月亮", "ja": "月", "ar": "قمر" } },
+            { "glyph": "ㄹ", "sound": "r", "example": "라면", "example_sound": "ramyeon", "example_tr": { "fr": "Ramen", "en": "Ramen", "es": "Ramen", "de": "Ramen", "pt": "Lámen", "it": "Ramen", "zh": "拉面", "ja": "ラーメン", "ar": "رامن" } },
+            { "glyph": "ㅁ", "sound": "m", "example": "문", "example_sound": "mun", "example_tr": { "fr": "Porte", "en": "Door", "es": "Puerta", "de": "Tür", "pt": "Porta", "it": "Porta", "zh": "门", "ja": "ドア", "ar": "باب" } }
           ]
         },
         {
           "slug": "consonants-2",
           "title": "ㅂ ㅅ ㅇ ㅈ ㅎ",
           "items": [
-            { "glyph": "ㅂ", "sound": "b" },
-            { "glyph": "ㅅ", "sound": "s" },
-            { "glyph": "ㅇ", "sound": "ng" },
-            { "glyph": "ㅈ", "sound": "j" },
-            { "glyph": "ㅎ", "sound": "h" }
+            { "glyph": "ㅂ", "sound": "b", "example": "밥", "example_sound": "bap", "example_tr": { "fr": "Riz", "en": "Rice", "es": "Arroz", "de": "Reis", "pt": "Arroz", "it": "Riso", "zh": "米饭", "ja": "ご飯", "ar": "أرز" } },
+            { "glyph": "ㅅ", "sound": "s", "example": "산", "example_sound": "san", "example_tr": { "fr": "Montagne", "en": "Mountain", "es": "Montaña", "de": "Berg", "pt": "Montanha", "it": "Montagna", "zh": "山", "ja": "山", "ar": "جبل" } },
+            { "glyph": "ㅇ", "sound": "ng", "example": "강", "example_sound": "gang", "example_tr": { "fr": "Rivière", "en": "River", "es": "Río", "de": "Fluss", "pt": "Rio", "it": "Fiume", "zh": "河", "ja": "川", "ar": "نهر" } },
+            { "glyph": "ㅈ", "sound": "j", "example": "집", "example_sound": "jip", "example_tr": { "fr": "Maison", "en": "House", "es": "Casa", "de": "Haus", "pt": "Casa", "it": "Casa", "zh": "房子", "ja": "家", "ar": "منزل" } },
+            { "glyph": "ㅎ", "sound": "h", "example": "하늘", "example_sound": "haneul", "example_tr": { "fr": "Ciel", "en": "Sky", "es": "Cielo", "de": "Himmel", "pt": "Céu", "it": "Cielo", "zh": "天空", "ja": "空", "ar": "سماء" } }
           ]
         }
       ]
@@ -78,8 +78,8 @@
             { "glyph": "안", "sound": "an", "parts": ["ㅇ", "ㅏ", "ㄴ"] },
             { "glyph": "한", "sound": "han", "parts": ["ㅎ", "ㅏ", "ㄴ"] },
             { "glyph": "글", "sound": "geul", "parts": ["ㄱ", "ㅡ", "ㄹ"] },
-            { "glyph": "곰", "sound": "gom", "parts": ["ㄱ", "ㅗ", "ㅁ"] },
-            { "glyph": "물", "sound": "mul", "parts": ["ㅁ", "ㅜ", "ㄹ"] }
+            { "glyph": "곰", "sound": "gom", "parts": ["ㄱ", "ㅗ", "ㅁ"], "tr": { "fr": "Ours", "en": "Bear", "es": "Oso", "de": "Bär", "pt": "Urso", "it": "Orso", "zh": "熊", "ja": "クマ", "ar": "دب" } },
+            { "glyph": "물", "sound": "mul", "parts": ["ㅁ", "ㅜ", "ㄹ"], "tr": { "fr": "Eau", "en": "Water", "es": "Agua", "de": "Wasser", "pt": "Água", "it": "Acqua", "zh": "水", "ja": "水", "ar": "ماء" } }
           ]
         }
       ]
@@ -92,11 +92,11 @@
           "slug": "words-1",
           "title": "낱말 1",
           "items": [
-            { "glyph": "안녕", "sound": "annyeong" },
-            { "glyph": "한국", "sound": "hanguk" },
-            { "glyph": "사람", "sound": "saram" },
-            { "glyph": "나라", "sound": "nara" },
-            { "glyph": "바다", "sound": "bada" }
+            { "glyph": "안녕", "sound": "annyeong", "tr": { "fr": "Bonjour", "en": "Hello", "es": "Hola", "de": "Hallo", "pt": "Olá", "it": "Ciao", "zh": "你好", "ja": "こんにちは", "ar": "مرحبا" } },
+            { "glyph": "한국", "sound": "hanguk", "tr": { "fr": "Corée", "en": "Korea", "es": "Corea", "de": "Korea", "pt": "Coreia", "it": "Corea", "zh": "韩国", "ja": "韓国", "ar": "كوريا" } },
+            { "glyph": "사람", "sound": "saram", "tr": { "fr": "Personne", "en": "Person", "es": "Persona", "de": "Person", "pt": "Pessoa", "it": "Persona", "zh": "人", "ja": "人", "ar": "شخص" } },
+            { "glyph": "나라", "sound": "nara", "tr": { "fr": "Pays", "en": "Country", "es": "País", "de": "Land", "pt": "País", "it": "Paese", "zh": "国家", "ja": "国", "ar": "بلد" } },
+            { "glyph": "바다", "sound": "bada", "tr": { "fr": "Mer", "en": "Sea", "es": "Mar", "de": "Meer", "pt": "Mar", "it": "Mare", "zh": "海", "ja": "海", "ar": "بحر" } }
           ]
         }
       ]
