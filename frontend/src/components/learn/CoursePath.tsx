@@ -32,8 +32,31 @@ export function CoursePath({
     !!scriptName &&
     firstUnit?.kind === "script" &&
     !firstUnit.lessons.some((l) => l.completed || l.placed);
+  // Reprise en un geste : première leçon jouable non complétée (ordre global).
+  const allLessons = tree.units.flatMap((u) => u.lessons);
+  const next = allLessons.find((l) => !l.locked && !l.completed);
+  const started = allLessons.some((l) => l.completed && !l.placed);
   return (
     <div className="space-y-10">
+      {next && (
+        <button
+          type="button"
+          onClick={() => onStart(next)}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl bg-emerald-500 px-5 py-3.5 text-left text-white shadow-md transition-transform hover:scale-[1.01] active:scale-[0.99]"
+        >
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold uppercase tracking-wider opacity-80">
+              {started ? t.learn.continueLesson : t.learn.start}
+            </span>
+            <span className="block truncate text-base font-bold">
+              {titleFor(next.slug, next.title)}
+            </span>
+          </span>
+          <span aria-hidden className="shrink-0 text-xl">
+            ▶
+          </span>
+        </button>
+      )}
       {showDiagnostic && (
         <button
           type="button"
