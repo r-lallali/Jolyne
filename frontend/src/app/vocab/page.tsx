@@ -1,18 +1,29 @@
 "use client";
 
 import { notFound } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Volume2 } from "lucide-react";
 import { BackButton } from "@/components/ui/BackButton";
-import { useT } from "@/lib/i18n";
-import { listVocab, deleteVocab, type VocabEntry } from "@/lib/vocab";
+import { PracticePlayer } from "@/components/learn/PracticePlayer";
+import type { LessonWord } from "@/components/learn/LessonPlayer";
+import { useT, useUILang } from "@/lib/i18n";
+import { LANG_FLAG, LANG_LABEL, type LangCode } from "@/lib/langs";
+import { speak, speechSupported } from "@/lib/speech";
+import { listVocab, deleteVocab, practiceItems, type VocabEntry } from "@/lib/vocab";
 import { useUserStore } from "@/stores/userStore";
+
+// Seuil d'entrées par langue pour proposer la révision (assez de distracteurs).
+const PRACTICE_MIN_WORDS = 4;
 
 export default function VocabPage() {
   const t = useT();
+  const uiLang = useUILang();
   const user = useUserStore((s) => s.user);
   const hydrated = useUserStore((s) => s.hydrated);
   const [list, setList] = useState<VocabEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [practice, setPractice] = useState<{ lang: string; words: LessonWord[] } | null>(null);
+  const canSpeak = speechSupported();
 
   useEffect(() => {
     if (!hydrated || !user) return;
@@ -21,6 +32,19 @@ export default function VocabPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [hydrated, user]);
+
+  // Langues révisables : côté étranger des entrées (≠ langue d'interface),
+  // avec assez de mots pour construire des exercices.
+  const practicable = useMemo(() => {
+    const langs = new Set<string>();
+    for (const e of list) {
+      if (e.source_lang !== uiLang) langs.add(e.source_lang);
+      if (e.target_lang !== uiLang) langs.add(e.target_lang);
+    }
+    return [...langs]
+      .map((lang) => ({ lang, items: practiceItems(list, lang) }))
+      .filter(({ items }) => items.length >= PRACTICE_MIN_WORDS);
+  }, [list, uiLang]);
 
   // Suppression optimiste : on retire localement, puis on confirme côté API.
   // En cas d'échec réseau, on restaure l'entrée.
@@ -33,6 +57,13 @@ export default function VocabPage() {
       setList(prev);
     }
   };
+
+  // Côté « étranger » d'une entrée (mot à prononcer) : le terme si sa langue
+  // n'est pas celle de l'interface, sinon la traduction.
+  const foreignSide = (e: VocabEntry): { text: string; lang: string } =>
+    e.source_lang !== uiLang
+      ? { text: e.term, lang: e.source_lang }
+      : { text: e.translation, lang: e.target_lang };
 
   if (!hydrated) return null;
   if (!user) notFound();
@@ -51,6 +82,29 @@ export default function VocabPage() {
         )}
       </div>
 
+      {/* Révision par langue : mêmes exercices que le mode Cours, sans enjeu. */}
+      {practicable.length > 0 && (
+        <div className="mt-5 flex flex-wrap gap-2">
+          {practicable.map(({ lang, items }) => (
+            <button
+              key={lang}
+              type="button"
+              onClick={() =>
+                setPractice({
+                  lang,
+                  words: items.map((p) => ({ term: p.target, translation: p.meaning })),
+                })
+              }
+              className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50/60 px-3.5 py-1.5 text-sm font-medium text-sky-700 transition-colors hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/15"
+            >
+              <span aria-hidden>{LANG_FLAG[lang as LangCode] ?? "🌐"}</span>
+              {t.vocab.practice} · {LANG_LABEL[lang as LangCode] ?? lang}
+              <span className="text-xs tabular-nums opacity-70">{items.length}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <p className="mt-8 text-sm text-neutral-500 dark:text-neutral-400">…</p>
       ) : list.length === 0 ? (
@@ -59,46 +113,67 @@ export default function VocabPage() {
         </p>
       ) : (
         <ul className="mt-6 space-y-1">
-          {list.map((e) => (
-            <li
-              key={e.id}
-              className="flex items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-900"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-50">
-                  {e.term}
-                </p>
-                <p className="truncate text-sm text-neutral-500 dark:text-neutral-400">
-                  {e.translation}
-                </p>
-              </div>
-              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-                {e.source_lang} → {e.target_lang}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleDelete(e.id)}
-                aria-label={t.vocab.delete}
-                className="shrink-0 rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-red-600 dark:hover:bg-neutral-800 dark:hover:text-red-400"
+          {list.map((e) => {
+            const f = foreignSide(e);
+            return (
+              <li
+                key={e.id}
+                className="flex items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-900"
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="size-4"
-                  aria-hidden
+                {canSpeak && (
+                  <button
+                    type="button"
+                    onClick={() => speak(f.text, f.lang)}
+                    aria-label={t.learn.listen}
+                    className="shrink-0 rounded-lg p-1.5 text-sky-500 transition-colors hover:bg-sky-50 dark:hover:bg-sky-500/10"
+                  >
+                    <Volume2 className="size-4" aria-hidden />
+                  </button>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-50">
+                    {e.term}
+                  </p>
+                  <p className="truncate text-sm text-neutral-500 dark:text-neutral-400">
+                    {e.translation}
+                  </p>
+                </div>
+                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+                  {e.source_lang} → {e.target_lang}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(e.id)}
+                  aria-label={t.vocab.delete}
+                  className="shrink-0 rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-red-600 dark:hover:bg-neutral-800 dark:hover:text-red-400"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                  />
-                </svg>
-              </button>
-            </li>
-          ))}
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="size-4"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                    />
+                  </svg>
+                </button>
+              </li>
+            );
+          })}
         </ul>
+      )}
+
+      {practice && (
+        <PracticePlayer
+          targetLang={practice.lang}
+          words={practice.words}
+          onClose={() => setPractice(null)}
+        />
       )}
     </main>
   );

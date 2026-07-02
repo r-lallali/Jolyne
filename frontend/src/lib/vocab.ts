@@ -68,3 +68,34 @@ export async function deleteVocab(id: number): Promise<void> {
   });
   if (!res.ok) throw new VocabError(`vocab: ${res.status}`, res.status);
 }
+
+// practiceItems : entrées du carnet exploitables pour réviser la langue `lang`
+// (quel que soit le sens d'enregistrement), sous forme (mot cible, sens),
+// dédupliquées par cible. Alimente le lecteur de révision (buildExercises).
+export function practiceItems(
+  entries: VocabEntry[],
+  lang: string,
+): { target: string; meaning: string }[] {
+  const seen = new Set<string>();
+  const out: { target: string; meaning: string }[] = [];
+  for (const e of entries) {
+    let target = "";
+    let meaning = "";
+    if (e.source_lang === lang) {
+      target = e.term;
+      meaning = e.translation;
+    } else if (e.target_lang === lang) {
+      target = e.translation;
+      meaning = e.term;
+    } else {
+      continue;
+    }
+    target = target.trim();
+    meaning = meaning.trim();
+    const key = target.toLowerCase();
+    if (!target || !meaning || seen.has(key)) continue;
+    seen.add(key);
+    out.push({ target, meaning });
+  }
+  return out;
+}
