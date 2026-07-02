@@ -17,6 +17,10 @@ export interface CourseSummary {
   title: string;
   unit_count: number;
   lesson_count: number;
+  // Progression de l'apprenant : leçons complétées (jouées ou placées) et
+  // inscription — sert à séparer « reprendre » des cours à découvrir.
+  completed_lessons: number;
+  enrolled: boolean;
 }
 
 export interface LessonNode {
@@ -59,6 +63,8 @@ export interface PlayItem {
   strokes?: string[];
   example?: string;
   example_sound?: string;
+  // Sens du mot d'exemple dans la langue de l'apprenant (ajout au carnet).
+  example_meaning?: string;
 }
 
 export interface LessonPlay {

@@ -11,6 +11,8 @@ export function ScriptFooter({
   correct,
   canCheck,
   answer,
+  note,
+  extra,
   onCheck,
   onNext,
 }: {
@@ -18,6 +20,10 @@ export function ScriptFooter({
   correct: boolean;
   canCheck: boolean;
   answer?: string;
+  // note : information contextuelle affichée au feedback (ex. sens du mot lu).
+  note?: string;
+  // extra : action contextuelle affichée au feedback (ex. ajout au carnet).
+  extra?: React.ReactNode;
   onCheck: () => void;
   onNext: () => void;
 }) {
@@ -40,16 +46,24 @@ export function ScriptFooter({
       }
     >
       {checked && (
-        <p
-          className={
-            "mb-3 text-sm font-semibold " +
-            (correct
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-rose-600 dark:text-rose-400")
-          }
-        >
-          {correct ? t.learn.correct : t.learn.incorrect({ answer: answer ?? "" })}
-        </p>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p
+            className={
+              "text-sm font-semibold " +
+              (correct
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400")
+            }
+          >
+            {correct ? t.learn.correct : t.learn.incorrect({ answer: answer ?? "" })}
+            {note && (
+              <span className="ml-1.5 font-normal text-neutral-500 dark:text-neutral-400">
+                · {note}
+              </span>
+            )}
+          </p>
+          {extra}
+        </div>
       )}
       {!checked ? (
         <button

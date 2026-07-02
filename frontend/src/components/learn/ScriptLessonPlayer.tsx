@@ -8,6 +8,7 @@ import { buildScriptExercises, type ScriptExercise } from "@/lib/scriptExercises
 import { speak, speechSupported } from "@/lib/speech";
 import { ScriptFooter } from "@/components/learn/ScriptFooter";
 import { ScriptIntro } from "@/components/learn/ScriptIntro";
+import { SaveWordButton } from "@/components/learn/SaveWordButton";
 import { GlyphTrace } from "@/components/learn/GlyphTrace";
 import { HangulCompose } from "@/components/learn/HangulCompose";
 import { ArabicForms } from "@/components/learn/ArabicForms";
@@ -98,7 +99,27 @@ export function ScriptLessonPlayer({
     );
   }
   if (result) {
-    return <LessonResult title={title} result={result} onClose={() => onClose(true)} />;
+    // Récap : mots de lecture traduits (sens ≠ prononciation) + mots d'exemple
+    // des signes — tous audibles et ajoutables au carnet.
+    const words = items.flatMap((it) => {
+      const out: { term: string; translation: string }[] = [];
+      if (it.meaning && it.meaning !== (it.sound ?? "")) {
+        out.push({ term: it.target, translation: it.meaning });
+      }
+      if (it.example && it.example_meaning) {
+        out.push({ term: it.example, translation: it.example_meaning });
+      }
+      return out;
+    });
+    return (
+      <LessonResult
+        title={title}
+        result={result}
+        words={words}
+        targetLang={targetLang}
+        onClose={() => onClose(true)}
+      />
+    );
   }
 
   return (
@@ -275,6 +296,12 @@ function ScriptChoose({
         correct={correct}
         canCheck={selected !== null}
         answer={answer}
+        note={ex.meaning}
+        extra={
+          ex.meaning ? (
+            <SaveWordButton term={ex.glyph} translation={ex.meaning} lang={targetLang} />
+          ) : undefined
+        }
         onCheck={() => setChecked(true)}
         onNext={() => onDone(correct ? 0 : 1)}
       />

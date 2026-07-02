@@ -125,6 +125,7 @@ export interface Messages {
     delete: string; // aria-label suppression d'une entrée
     link: string; // libellé du lien depuis /account
     count: FormatString<{ count: number }>;
+    practice: string; // CTA de révision d'une langue depuis le carnet
   };
   // Mode Cours (apprentissage type Duolingo).
   learn: {
@@ -134,6 +135,11 @@ export interface Messages {
     chooseCourse: string;
     courseCta: string; // "Apprendre <langue>" sur une carte de cours
     lessonsCount: FormatString<{ count: number }>;
+    // Liste des cours : section « reprendre » (cours entamés, avec avancement)
+    // séparée de « tous les cours ».
+    yourCourses: string;
+    allCourses: string;
+    progressLessons: FormatString<{ done: number; total: number }>;
     backToCourses: string;
     backToPath: string;
     // Parcours
@@ -171,6 +177,9 @@ export interface Messages {
     incorrect: FormatString<{ answer: string }>;
     tapToType: string;
     listen: string;
+    // Astuce affichée après vérification d'un assemblage : les jetons
+    // deviennent traduisibles au tap (popover de traduction).
+    tapTranslateHint: string;
     quit: string;
     quitConfirm: string;
     // Résultats
@@ -178,6 +187,12 @@ export interface Messages {
     xpEarned: FormatString<{ xp: number }>;
     accuracy: FormatString<{ percent: number }>;
     streakMilestone: FormatString<{ count: number }>;
+    // Récap des mots de la leçon (écoute + ajout au carnet) et révision libre
+    // du carnet (mêmes exercices, sans vies ni XP).
+    lessonWords: string;
+    practice: string;
+    practiceNote: string;
+    practiceDone: string;
     // Cœurs premium + niveau + plus-de-vies
     premiumHearts: string;
     chooseLevel: string;

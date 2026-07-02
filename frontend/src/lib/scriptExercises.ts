@@ -22,18 +22,23 @@ export type ScriptExercise =
       glyph: string;
       sound: string;
       options: string[];
+      // meaning : sens du mot dans la langue de l'apprenant (mots de lecture
+      // uniquement). Affiché au feedback + ajout au carnet.
+      meaning?: string;
     }
   | {
       kind: "recall";
       sound: string;
       glyph: string;
       options: string[];
+      meaning?: string;
     }
   | {
       kind: "listen";
       glyph: string;
       sound: string;
       options: string[];
+      meaning?: string;
     }
   | {
       kind: "compose";
@@ -140,6 +145,10 @@ export function buildScriptExercises(items: PlayItem[]): ScriptExercise[] {
       ]);
       ex.push({ kind: "forms", glyph: it.target, sound: s, position, answer, options });
     } else {
+      // Sens traduit (mots de lecture) : propagé pour le feedback et l'ajout
+      // au carnet. Les signes isolés n'en ont pas (meaning == sound).
+      const meaning =
+        it.meaning && it.meaning !== s ? it.meaning : undefined;
       // Alternance reconnaissance / rappel / écoute.
       const mode = i % 3;
       if (mode === 0) {
@@ -148,6 +157,7 @@ export function buildScriptExercises(items: PlayItem[]): ScriptExercise[] {
           glyph: it.target,
           sound: s,
           options: shuffle([s, ...sampleDistinct(sounds, s, 3)]),
+          meaning,
         });
       } else if (mode === 1 || !canListen) {
         ex.push({
@@ -155,6 +165,7 @@ export function buildScriptExercises(items: PlayItem[]): ScriptExercise[] {
           sound: s,
           glyph: it.target,
           options: shuffle([it.target, ...sampleDistinct(glyphs, it.target, 3)]),
+          meaning,
         });
       } else {
         ex.push({
@@ -162,6 +173,7 @@ export function buildScriptExercises(items: PlayItem[]): ScriptExercise[] {
           glyph: it.target,
           sound: s,
           options: shuffle([it.target, ...sampleDistinct(glyphs, it.target, 3)]),
+          meaning,
         });
       }
     }
