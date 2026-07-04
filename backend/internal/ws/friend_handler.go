@@ -44,7 +44,6 @@ const (
 	friendClientMsg friendClientType = "msg"
 )
 
-
 type friendServerType string
 
 const (
@@ -591,15 +590,7 @@ func (h *FriendHandler) publish(ctx context.Context, chanName string, env friend
 }
 
 func (h *FriendHandler) resolveUser(r *http.Request) int64 {
-	c, err := r.Cookie(h.d.UserAuth.CookieName)
-	if err != nil {
-		return 0
-	}
-	uid, err := h.d.UserAuth.Verify(c.Value, h.d.UserAuth.SessionSecret)
-	if err != nil {
-		return 0
-	}
-	return uid
+	return h.d.UserAuth.Resolve(r.Context(), r)
 }
 
 func parseFriendIDFromPath(path string) (int64, error) {

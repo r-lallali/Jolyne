@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"net"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/friends"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/moderation"
+	"github.com/ralys/jolyne/backend/internal/netx"
 	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/reports"
@@ -82,10 +82,21 @@ type Deps struct {
 	// connecte au bout de TriggerDelay, un bot prend la main pour offrir
 	// une expérience de conversation continue.
 	Bot *BotManager
+	// Toxicity (optionnel). Si présent, chaque message du chat anonyme est
+	// classé en arrière-plan par Claude ; les récidivistes sont avertis puis
+	// suspendus. nil = seule la blocklist statique s'applique.
+	Toxicity *ToxicityGuard
+	// Summarizer (optionnel). Si présent, la fin d'une conversation (compte
+	// authentifié) déclenche l'extraction IA du vocabulaire vers le carnet.
+	Summarizer *Summarizer
 	// Tracker analytics (optionnel). Émet les events de funnel (match_found,
 	// bot_fallback, message_sent, conversation_ended…). Nil-safe.
 	Tracker *analytics.Tracker
-	Log     *slog.Logger
+	// TrustedProxies : nombre de reverse-proxies frontaux (Caddy = 1). Sert à
+	// résoudre l'IP cliente réelle pour le hash IP (bans/report) — sans ça,
+	// r.RemoteAddr = IP du conteneur Caddy, identique pour toutes les sessions.
+	TrustedProxies int
+	Log            *slog.Logger
 }
 
 // UserAuth abstrait les bouts du package users dont le WS a besoin
@@ -93,7 +104,33 @@ type Deps struct {
 type UserAuth struct {
 	CookieName    string
 	SessionSecret []byte
-	Verify        func(token string, secret []byte) (int64, error)
+	// Verify décode le token et renvoie l'userID + la version de session signée.
+	Verify func(token string, secret []byte) (userID int64, version int64, err error)
+	// ValidateVersion (optionnel) : confronte la version signée à la version
+	// courante en DB (bumpée au reset de mot de passe). nil = pas de check
+	// (dev / compat). false → session révoquée, le WS reste anonyme.
+	ValidateVersion func(ctx context.Context, userID, version int64) bool
+}
+
+// Resolve lit le cookie de session et renvoie l'userID si la signature est
+// valide ET la version non révoquée. 0 sinon. Best-effort : un échec ne bloque
+// jamais l'upgrade (le WS anonyme reste possible côté match public).
+func (a *UserAuth) Resolve(ctx context.Context, r *http.Request) int64 {
+	if a == nil {
+		return 0
+	}
+	c, err := r.Cookie(a.CookieName)
+	if err != nil {
+		return 0
+	}
+	uid, version, err := a.Verify(c.Value, a.SessionSecret)
+	if err != nil {
+		return 0
+	}
+	if a.ValidateVersion != nil && !a.ValidateVersion(ctx, uid, version) {
+		return 0
+	}
+	return uid
 }
 
 // Handler sert la route /ws/match. La validation des paramètres se fait
@@ -141,7 +178,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		string(params.speaks),
 		string(params.wants),
 		params.fingerprint,
-		hashIP(r),
+		h.hashIP(r),
 		session.PlanFree,
 	)
 	sess.UserID = userID
@@ -208,31 +245,20 @@ func banMessage(b *bans.Ban) string {
 }
 
 // resolveUserID lit le cookie de session user du request et renvoie le
-// UserID si valide. 0 si pas de cookie / auth désactivée / cookie invalide.
-// Best-effort : un échec ne bloque pas l'upgrade — la WS reste anonyme.
+// UserID si valide. 0 si pas de cookie / auth désactivée / cookie invalide /
+// session révoquée. Best-effort : un échec ne bloque pas l'upgrade — la WS
+// reste anonyme.
 func (h *Handler) resolveUserID(r *http.Request) int64 {
-	if h.d.UserAuth == nil {
-		return 0
-	}
-	c, err := r.Cookie(h.d.UserAuth.CookieName)
-	if err != nil {
-		return 0
-	}
-	uid, err := h.d.UserAuth.Verify(c.Value, h.d.UserAuth.SessionSecret)
-	if err != nil {
-		return 0
-	}
-	return uid
+	return h.d.UserAuth.Resolve(r.Context(), r)
 }
 
 // hashIP hashe l'IP cliente avec SHA-256. Les logs ou la télémétrie ne
-// doivent jamais voir l'IP brute (CLAUDE.md règle d'or #6).
-func hashIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	sum := sha256.Sum256([]byte(host))
+// doivent jamais voir l'IP brute (CLAUDE.md règle d'or #6). L'IP réelle est
+// résolue via netx en tenant compte des proxies frontaux — sinon toutes les
+// sessions partageraient le hash de l'IP de Caddy et les bans/report par IP
+// seraient inopérants (ou globaux).
+func (h *Handler) hashIP(r *http.Request) string {
+	sum := sha256.Sum256([]byte(netx.ClientIP(r, h.d.TrustedProxies)))
 	return hex.EncodeToString(sum[:8])
 }
 

@@ -227,15 +227,7 @@ func (h *InboxHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *InboxHandler) resolveUser(r *http.Request) int64 {
-	c, err := r.Cookie(h.d.UserAuth.CookieName)
-	if err != nil {
-		return 0
-	}
-	uid, err := h.d.UserAuth.Verify(c.Value, h.d.UserAuth.SessionSecret)
-	if err != nil {
-		return 0
-	}
-	return uid
+	return h.d.UserAuth.Resolve(r.Context(), r)
 }
 
 func parseFriendChannel(name string) (int64, bool) {

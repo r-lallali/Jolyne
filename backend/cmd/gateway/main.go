@@ -37,6 +37,7 @@ import (
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/metrics"
 	"github.com/ralys/jolyne/backend/internal/moderation"
+	"github.com/ralys/jolyne/backend/internal/netx"
 	"github.com/ralys/jolyne/backend/internal/obs"
 	"github.com/ralys/jolyne/backend/internal/profile"
 	"github.com/ralys/jolyne/backend/internal/push"
@@ -177,17 +178,27 @@ func run() error {
 	tracker := analytics.NewTracker(svc.pg, log)
 	defer tracker.Close()
 
+	// IP cliente réelle : source unique (netx) tenant compte des proxies
+	// frontaux. Configuré ici pour l'admin (package var), puis passé au WS et
+	// au beacon via leurs structs respectives.
+	admin.SetTrustedProxies(cfg.TrustedProxies)
+
+	// Anti-CSWSH : le handshake WS n'est accepté que depuis l'origine du front
+	// public (et l'origine admin). Vide en dev → contrôle désactivé.
+	ws.SetAllowedOrigins([]string{cfg.PublicCORSOrigin, cfg.AdminCORSOrigin, cfg.PublicAppURL})
+
 	wsDeps := ws.Deps{
-		RDB:      rdb,
-		Matcher:  matcher.New(rdb),
-		Hub:      ws.NewHub(),
-		Quota:    quota.NewEngine(rdb, nil),
-		Block:    moderation.DefaultBlocklist(),
-		Reports:  reportSvc,
-		Bans:     banSvc,
-		Blocking: blocking.New(rdb),
-		Tracker:  tracker,
-		Log:      log,
+		RDB:            rdb,
+		Matcher:        matcher.New(rdb),
+		Hub:            ws.NewHub(),
+		Quota:          quota.NewEngine(rdb, nil),
+		Block:          moderation.DefaultBlocklist(),
+		Reports:        reportSvc,
+		Bans:           banSvc,
+		Blocking:       blocking.New(rdb),
+		Tracker:        tracker,
+		TrustedProxies: cfg.TrustedProxies,
+		Log:            log,
 	}
 	// Le quota traduction partage le même moteur Redis. Branché même sans auth
 	// user : les anonymes sont décomptés par fingerprint (en-tête X-Device-FP).
@@ -205,13 +216,14 @@ func run() error {
 		wsDeps.UserAuth = &ws.UserAuth{
 			CookieName:    users.SessionCookieName,
 			SessionSecret: userSessionSecret,
-			Verify: func(token string, secret []byte) (int64, error) {
+			Verify: func(token string, secret []byte) (int64, int64, error) {
 				s, err := users.VerifySession(token, secret)
 				if err != nil {
-					return 0, err
+					return 0, 0, err
 				}
-				return s.UserID, nil
+				return s.UserID, s.Version, nil
 			},
+			// ValidateVersion est branché plus bas, une fois usersStore créé.
 		}
 	}
 	svc.wsHandler = ws.NewHandler(wsDeps)
@@ -291,6 +303,20 @@ func run() error {
 		}
 		profileStore := profile.NewStore(svc.pg)
 		usersStore := users.NewStore(svc.pg)
+
+		// Révocation de session côté WS : le cookie porte une version signée,
+		// confrontée à la version courante en base (bumpée au reset de mot de
+		// passe). Fail-open sur erreur DB (la signature reste vérifiée) pour ne
+		// pas déconnecter tout le monde sur un hoquet Postgres.
+		if wsDeps.UserAuth != nil {
+			wsDeps.UserAuth.ValidateVersion = func(ctx context.Context, userID, version int64) bool {
+				cur, err := usersStore.SessionVersion(ctx, userID)
+				if err != nil {
+					return true
+				}
+				return version == cur
+			}
+		}
 		svc.users = &users.Handlers{
 			Store:         usersStore,
 			Profile:       profileStore,
@@ -308,6 +334,10 @@ func run() error {
 				_, ok := adminEmails[strings.ToLower(strings.TrimSpace(email))]
 				return ok
 			},
+			// Rate-limit anti-abus (brute-force login, spam signup, email-bombing
+			// forgot) partageant le moteur quota Redis, clé par IP réelle.
+			RateLimiter: wsDeps.Quota,
+			ClientIP:    func(r *http.Request) string { return netx.ClientIP(r, cfg.TrustedProxies) },
 			OnUserAuthenticated: func(ctx context.Context, userID int64, fingerprint string) {
 				friends.ResolvePendingFriendships(ctx, rdb, wsDeps.Friends, userID, fingerprint, log)
 			},
@@ -398,6 +428,10 @@ func run() error {
 		// peer_profile au match quand le peer est authentifié.
 		wsDeps.Profiles = profileStore
 
+		// Store carnet créé tôt : partagé par les endpoints /api/vocab ET le
+		// résumé IA de fin de conversation (câblé dans le bloc bot ci-dessous).
+		vocabStore := vocab.NewStore(svc.pg)
+
 		// Bot prof IA : si ANTHROPIC_API_KEY est posée, on instancie un
 		// BotManager qui spawnera des bots après TriggerDelaySec si aucun
 		// peer humain ne se connecte. Sinon comportement chat = avant.
@@ -416,6 +450,30 @@ func run() error {
 				TriggerDelay:  time.Duration(cfg.BotTriggerDelaySec) * time.Second,
 				MaxConcurrent: cfg.BotMaxConcurrent,
 			})
+			// Modération IA du chat anonyme (hors chemin critique) : réutilise le
+			// même client Claude. Avertit puis suspend les récidivistes.
+			wsDeps.Toxicity = &ws.ToxicityGuard{
+				Classifier: moderation.NewClassifier(claudeClient, log),
+				RDB:        rdb,
+				Bans:       banSvc,
+				Tracker:    tracker,
+				Log:        log,
+			}
+			// Résumé IA de fin de conversation → carnet de vocabulaire.
+			// Réutilise le même client Claude et le store carnet partagé.
+			wsDeps.Summarizer = &ws.Summarizer{
+				Claude: claudeClient,
+				Save: func(ctx context.Context, userID int64, term, translation, sourceLang, targetLang string) error {
+					_, err := vocabStore.Add(ctx, userID, vocab.Entry{
+						Term:        term,
+						Translation: translation,
+						SourceLang:  sourceLang,
+						TargetLang:  targetLang,
+					})
+					return err
+				},
+				Log: log,
+			}
 			log.Info("bot peer ready",
 				"model", cfg.AnthropicModel,
 				"trigger_delay_sec", cfg.BotTriggerDelaySec,
@@ -443,9 +501,9 @@ func run() error {
 		log.Info("friends endpoints ready")
 
 		// Carnet de vocabulaire : mots sauvegardés depuis le popover de
-		// traduction. Dépend uniquement de Postgres + auth user.
+		// traduction (et le résumé IA de fin de conversation). Store partagé.
 		svc.vocab = &vocab.Handlers{
-			Store: vocab.NewStore(svc.pg),
+			Store: vocabStore,
 			Log:   log,
 		}
 		log.Info("vocab endpoints ready")
@@ -543,10 +601,11 @@ func run() error {
 	// dès que le Tracker l'est (Postgres). ResolveUser nil si auth user inactive.
 	if tracker != nil {
 		svc.beacon = &analytics.Beacon{
-			Tracker:     tracker,
-			Quota:       wsDeps.Quota,
-			ResolveUser: resolveUserID,
-			Log:         log,
+			Tracker:        tracker,
+			Quota:          wsDeps.Quota,
+			ResolveUser:    resolveUserID,
+			TrustedProxies: cfg.TrustedProxies,
+			Log:            log,
 		}
 	}
 
@@ -617,7 +676,7 @@ func queueDepths(ctx context.Context, rdb *redis.Client) []admin.QueueDepth {
 			break
 		}
 		for _, k := range keys {
-			n, err := rdb.LLen(ctx, k).Result()
+			n, err := rdb.ZCard(ctx, k).Result()
 			if err != nil || n == 0 {
 				continue
 			}

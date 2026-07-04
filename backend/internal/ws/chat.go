@@ -90,6 +90,16 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 		}
 	}
 
+	// Résumé IA en fin de conversation → carnet de vocabulaire (comptes
+	// authentifiés). Détaché, hors chemin critique : lit `captured` (snapshot
+	// copié) à la sortie de runChat, quelle que soit la voie de sortie.
+	if h.d.Summarizer.Enabled() && sess.UserID > 0 {
+		defer func() {
+			snapshot := append([]reports.CapturedMessage(nil), captured...)
+			go h.d.Summarizer.Summarize(sess.UserID, sess.Speaks, sess.Wants, snapshot)
+		}()
+	}
+
 	// Throttle anti-abus pour les corrections : 1 par session toutes les 3 s.
 	var lastCorrectAt time.Time
 
@@ -198,6 +208,12 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				if err := room.SendMsg(ctx, msg.ID, safe); err != nil {
 					h.d.Log.Error("room publish", "err", err)
 					return chatDisconnect
+				}
+				// Modération IA hors chemin critique : le message est déjà relayé,
+				// on le classe en arrière-plan (avertissement + strikes). Jamais
+				// avec un bot prof IA (pas un vrai peer à surveiller).
+				if h.d.Toxicity.Enabled() && !peer.IsBot {
+					go h.d.Toxicity.Inspect(conn, sess, safe)
 				}
 				// Analytics : on compte le message (jamais son contenu).
 				peerKind := "human"
