@@ -11,6 +11,12 @@ type Config struct {
 	Env  string
 	Port int
 
+	// TrustedProxies : nombre de reverse-proxies de confiance en frontal (Caddy
+	// = 1). Sert à extraire l'IP cliente réelle depuis X-Forwarded-For sans se
+	// faire usurper par un client qui forge l'en-tête. 0 = exposition directe,
+	// on ignore X-Forwarded-For (voir netx.ClientIP).
+	TrustedProxies int
+
 	RedisAddr     string
 	RedisPassword string
 	RedisDB       int
@@ -92,17 +98,18 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
-		Env:             getEnv("JOLYNE_ENV", "dev"),
-		Port:            getEnvInt("JOLYNE_PORT", 8080),
-		RedisAddr:       getEnv("REDIS_ADDR", "127.0.0.1:6379"),
-		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
-		RedisDB:         getEnvInt("REDIS_DB", 0),
-		PostgresDSN:         os.Getenv("POSTGRES_DSN"),
-		PostgresMigrate:     getEnvBool("POSTGRES_AUTO_MIGRATE", false),
-		ReportEncryptionKey: os.Getenv("REPORT_ENCRYPTION_KEY"),
-		AdminUsersRaw:       os.Getenv("ADMIN_USERS"),
-		AdminIPAllowlist:    os.Getenv("ADMIN_IP_ALLOWLIST"),
-		AdminSessionKey:     os.Getenv("ADMIN_SESSION_SECRET"),
+		Env:                  getEnv("JOLYNE_ENV", "dev"),
+		Port:                 getEnvInt("JOLYNE_PORT", 8080),
+		TrustedProxies:       getEnvInt("TRUSTED_PROXY_COUNT", 1),
+		RedisAddr:            getEnv("REDIS_ADDR", "127.0.0.1:6379"),
+		RedisPassword:        os.Getenv("REDIS_PASSWORD"),
+		RedisDB:              getEnvInt("REDIS_DB", 0),
+		PostgresDSN:          os.Getenv("POSTGRES_DSN"),
+		PostgresMigrate:      getEnvBool("POSTGRES_AUTO_MIGRATE", false),
+		ReportEncryptionKey:  os.Getenv("REPORT_ENCRYPTION_KEY"),
+		AdminUsersRaw:        os.Getenv("ADMIN_USERS"),
+		AdminIPAllowlist:     os.Getenv("ADMIN_IP_ALLOWLIST"),
+		AdminSessionKey:      os.Getenv("ADMIN_SESSION_SECRET"),
 		AdminCookieDomain:    os.Getenv("ADMIN_COOKIE_DOMAIN"),
 		AdminCORSOrigin:      os.Getenv("ADMIN_CORS_ORIGIN"),
 		PublicCORSOrigin:     os.Getenv("PUBLIC_CORS_ORIGIN"),

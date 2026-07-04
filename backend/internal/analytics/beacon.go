@@ -3,10 +3,10 @@ package analytics
 import (
 	"encoding/json"
 	"log/slog"
-	"net"
 	"net/http"
 	"strings"
 
+	"github.com/ralys/jolyne/backend/internal/netx"
 	"github.com/ralys/jolyne/backend/internal/quota"
 )
 
@@ -23,7 +23,10 @@ type Beacon struct {
 	// ResolveUser (optionnel) renvoie l'userID si un cookie de session valide
 	// est présent, sinon 0. Permet d'attacher l'event à un compte connu.
 	ResolveUser func(r *http.Request) int64
-	Log         *slog.Logger
+	// TrustedProxies : nombre de reverse-proxies frontaux (Caddy = 1) pour
+	// résoudre l'IP cliente réelle sans se faire usurper par X-Forwarded-For.
+	TrustedProxies int
+	Log            *slog.Logger
 }
 
 type beaconBody struct {
@@ -89,23 +92,8 @@ func (b *Beacon) Handler() http.HandlerFunc {
 			AnonID:   HashID(fp),
 			LangFrom: body.LangFrom,
 			LangTo:   body.LangTo,
-			IPHash:   HashID(clientIP(r)),
+			IPHash:   HashID(netx.ClientIP(r, b.TrustedProxies)),
 			Props:    props,
 		})
 	}
-}
-
-// clientIP extrait l'IP réelle (premier élément de X-Forwarded-For derrière
-// Caddy), sinon RemoteAddr.
-func clientIP(r *http.Request) string {
-	if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
-		if i := strings.IndexByte(xf, ','); i >= 0 {
-			return strings.TrimSpace(xf[:i])
-		}
-		return strings.TrimSpace(xf)
-	}
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return host
-	}
-	return r.RemoteAddr
 }

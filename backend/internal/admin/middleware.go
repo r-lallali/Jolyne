@@ -5,6 +5,8 @@ import (
 	"net"
 	"net/http"
 	"strings"
+
+	"github.com/ralys/jolyne/backend/internal/netx"
 )
 
 type ctxKey int
@@ -138,20 +140,20 @@ func ipAllowed(r *http.Request, allowlist []*net.IPNet) bool {
 	return false
 }
 
-// clientIP extrait l'IP réelle du client. Derrière Traefik, on lit
-// X-Forwarded-For (premier élément). Sinon RemoteAddr.
+// trustedProxies : nombre de reverse-proxies frontaux (Caddy = 1). Configuré
+// une fois au boot via SetTrustedProxies. Défaut 1 : on lit l'entrée la plus
+// à droite de X-Forwarded-For (l'IP réelle vue par Caddy), pas la première
+// (forgeable par le client pour usurper une IP allowlistée).
+var trustedProxies = 1
+
+// SetTrustedProxies configure le nombre de proxies de confiance pour la
+// résolution d'IP de l'allowlist. Appelé une fois au câblage (main.go).
+func SetTrustedProxies(n int) { trustedProxies = n }
+
+// clientIP extrait l'IP réelle du client via netx (source unique, cf. le
+// helper partagé avec ws/beacon).
 func clientIP(r *http.Request) string {
-	if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
-		if comma := strings.Index(xf, ","); comma > 0 {
-			return strings.TrimSpace(xf[:comma])
-		}
-		return strings.TrimSpace(xf)
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
+	return netx.ClientIP(r, trustedProxies)
 }
 
 func itoa(n int) string {
