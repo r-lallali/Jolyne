@@ -45,6 +45,7 @@ const (
 	EventPremiumCheckout    = "premium_checkout_started"
 	EventPremiumActivated   = "premium_activated"
 	EventPremiumCanceled    = "premium_canceled"
+	EventModerationFlagged  = "moderation_flagged" // message jugé toxique par l'IA
 )
 
 // allowed : tous les événements acceptés par le Tracker (serveur + beacon).
@@ -67,6 +68,7 @@ var allowed = map[string]struct{}{
 	EventPremiumCheckout:    {},
 	EventPremiumActivated:   {},
 	EventPremiumCanceled:    {},
+	EventModerationFlagged:  {},
 }
 
 // publicAllowed : sous-ensemble que le beacon public a le droit d'émettre. Les

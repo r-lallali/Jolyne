@@ -41,18 +41,19 @@ type ClientFrame struct {
 type ServerType string
 
 const (
-	ServerQueued       ServerType = "queued"
-	ServerMatched      ServerType = "matched"
-	ServerMsg          ServerType = "msg"
-	ServerPeerLeft     ServerType = "peer_left"
-	ServerTyping       ServerType = "typing"
-	ServerReported     ServerType = "reported"
-	ServerError        ServerType = "error"
-	ServerCorrection   ServerType = "correction"    // correction reçue d'un peer
-	ServerFriendPrompt  ServerType = "friend_prompt"  // "tu veux ajouter ce peer ?"
-	ServerFriendMade    ServerType = "friend_made"    // les deux ont accepté
-	ServerFriendSkipped ServerType = "friend_skipped" // fenêtre expirée sans match
-	ServerPeerProfile   ServerType = "peer_profile"   // peer authentifié : avatar + prompts
+	ServerQueued            ServerType = "queued"
+	ServerMatched           ServerType = "matched"
+	ServerMsg               ServerType = "msg"
+	ServerPeerLeft          ServerType = "peer_left"
+	ServerTyping            ServerType = "typing"
+	ServerReported          ServerType = "reported"
+	ServerError             ServerType = "error"
+	ServerCorrection        ServerType = "correction"         // correction reçue d'un peer
+	ServerFriendPrompt      ServerType = "friend_prompt"      // "tu veux ajouter ce peer ?"
+	ServerFriendMade        ServerType = "friend_made"        // les deux ont accepté
+	ServerFriendSkipped     ServerType = "friend_skipped"     // fenêtre expirée sans match
+	ServerPeerProfile       ServerType = "peer_profile"       // peer authentifié : avatar + prompts
+	ServerModerationWarning ServerType = "moderation_warning" // message jugé toxique par l'IA
 )
 
 // ServerPrompt : libellé i18n côté front. Vide si slot non rempli.
