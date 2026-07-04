@@ -75,15 +75,16 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrPasswordMismatch):
 			reason = "password_mismatch"
 		}
+		// Pas d'email en clair dans les logs (règle d'or #6) — empreinte tronquée.
 		h.log().Warn("admin login refusé",
 			"reason", reason,
 			"client_ip", ip,
-			"email_tried", body.Email,
+			"email_hash", hashEmail(body.Email),
 			"users_loaded", len(h.Cfg.Users))
 		http.NotFound(w, r)
 		return
 	}
-	h.log().Info("admin login ok", "email", email, "client_ip", ip)
+	h.log().Info("admin login ok", "email_hash", hashEmail(email), "client_ip", ip)
 
 	exp := time.Now().Add(SessionTTL)
 	token := Sign(Session{Email: email, ExpiresAt: exp}, h.Cfg.SessionSecret)
@@ -357,5 +358,13 @@ func parseIDFromPath(path, prefix string) (int64, error) {
 func hashClientIP(r *http.Request) string {
 	host := clientIP(r)
 	sum := sha256.Sum256([]byte(host))
+	return hex.EncodeToString(sum[:8])
+}
+
+// hashEmail : empreinte SHA-256 tronquée (16 chars hex) d'un email, pour
+// corréler un admin dans les logs sans exposer l'adresse (règle d'or #6).
+// L'email est normalisé (minuscule, trim) pour un hash stable.
+func hashEmail(email string) string {
+	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
 	return hex.EncodeToString(sum[:8])
 }
