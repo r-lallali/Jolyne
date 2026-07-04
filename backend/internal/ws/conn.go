@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -21,9 +23,48 @@ const (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1 << 10,
 	WriteBufferSize: 1 << 10,
-	// CheckOrigin doit être renforcé via config en prod — Phase 1 laisse
-	// passer toutes les origines. À durcir avant ouverture publique.
-	CheckOrigin: func(_ *http.Request) bool { return true },
+	CheckOrigin:     checkOrigin,
+}
+
+// allowedOrigins : origines autorisées à ouvrir un WebSocket. Configuré au boot
+// via SetAllowedOrigins (front public). Vide = dev, on laisse tout passer.
+var allowedOrigins = map[string]struct{}{}
+
+// SetAllowedOrigins configure l'allowlist d'origines du handshake WS. À appeler
+// une fois au câblage avec l'origine du front (et éventuels alias). Une liste
+// vide désactive le contrôle (dev local sans cross-origin).
+func SetAllowedOrigins(origins []string) {
+	m := make(map[string]struct{}, len(origins))
+	for _, o := range origins {
+		o = strings.TrimRight(strings.TrimSpace(o), "/")
+		if o != "" {
+			m[o] = struct{}{}
+		}
+	}
+	allowedOrigins = m
+}
+
+// checkOrigin défend contre le Cross-Site WebSocket Hijacking : sans contrôle,
+// n'importe quel site pourrait ouvrir une WS avec le cookie de la victime. On
+// exige que l'en-tête Origin corresponde à l'allowlist (ou au même host que la
+// requête). Un handshake navigateur porte TOUJOURS Origin ; son absence en prod
+// configuré = client hors périmètre → refus.
+func checkOrigin(r *http.Request) bool {
+	if len(allowedOrigins) == 0 {
+		return true // dev : pas d'allowlist configurée
+	}
+	origin := strings.TrimRight(r.Header.Get("Origin"), "/")
+	if origin == "" {
+		return false
+	}
+	if _, ok := allowedOrigins[origin]; ok {
+		return true
+	}
+	// Repli same-origin : l'Origin pointe vers le même host que la requête.
+	if u, err := url.Parse(origin); err == nil && u.Host == r.Host {
+		return true
+	}
+	return false
 }
 
 // Conn enveloppe une connexion WebSocket avec ses canaux applicatifs.
