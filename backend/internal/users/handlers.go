@@ -37,6 +37,19 @@ type Handlers struct {
 	// du back-office. Une adresse admin ne peut pas être aussi un compte user
 	// (séparation stricte). nil = aucune restriction.
 	IsAdminEmail func(email string) bool
+	// RateLimiter (optionnel, nil = pas de limite en dev) : throttle anti-abus
+	// des endpoints publics (brute-force login, spam signup, email-bombing via
+	// forgot). Implémenté par quota.Engine.Allow.
+	RateLimiter RateLimiter
+	// ClientIP (optionnel) : résout l'IP cliente réelle (netx, proxy-aware) —
+	// clé du rate-limit. nil → on retombe sur RemoteAddr via un défaut interne.
+	ClientIP func(r *http.Request) string
+}
+
+// RateLimiter : fenêtre glissante anti-abus. Renvoie false quand la limite est
+// dépassée pour (name, id) dans la fenêtre. Fail-open côté implémentation.
+type RateLimiter interface {
+	Allow(ctx context.Context, name, id string, max int64, window time.Duration) (bool, error)
 }
 
 // ProfileWriter : sous-ensemble de profile.Store dont users a besoin.
@@ -53,6 +66,49 @@ func (h *Handlers) log() *slog.Logger {
 	return slog.Default()
 }
 
+// clientIP résout l'IP cliente (via le résolveur injecté, proxy-aware). Repli
+// sur RemoteAddr si non câblé (dev).
+func (h *Handlers) clientIP(r *http.Request) string {
+	if h.ClientIP != nil {
+		return h.ClientIP(r)
+	}
+	return r.RemoteAddr
+}
+
+// allow applique un rate-limit à fenêtre fixe et, si dépassé, écrit un 429 et
+// renvoie false (le caller stoppe). RateLimiter nil (dev) → toujours true.
+// Fail-open sur erreur : on préfère servir que bloquer si Redis flanche.
+func (h *Handlers) allow(w http.ResponseWriter, r *http.Request, name, id string, max int64, window time.Duration) bool {
+	if h.RateLimiter == nil || id == "" {
+		return true
+	}
+	ok, err := h.RateLimiter.Allow(r.Context(), name, id, max, window)
+	if err != nil {
+		h.log().Warn("rate limit check failed, allowing", "name", name, "err", err)
+		return true
+	}
+	if !ok {
+		http.Error(w, "too many requests", http.StatusTooManyRequests)
+		return false
+	}
+	return true
+}
+
+// allowSilent : variante sans réponse HTTP. Renvoie false si la limite est
+// dépassée — le caller décide quoi faire (typiquement forgot : drop l'envoi
+// mais répond quand même 204). Fail-open sur erreur.
+func (h *Handlers) allowSilent(r *http.Request, name, id string, max int64, window time.Duration) bool {
+	if h.RateLimiter == nil || id == "" {
+		return true
+	}
+	ok, err := h.RateLimiter.Allow(r.Context(), name, id, max, window)
+	if err != nil {
+		h.log().Warn("rate limit check failed, allowing", "name", name, "err", err)
+		return true
+	}
+	return ok
+}
+
 // HandleSignup : POST /api/auth/signup {email, password} → 200 {user} + Set-Cookie.
 // Crée le compte, envoie l'email de vérification, ouvre la session
 // immédiatement (le user peut utiliser le service avant d'avoir cliqué
@@ -66,6 +122,10 @@ func (h *Handlers) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*1024)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	// Anti-spam de comptes : 5 créations par IP / heure.
+	if !h.allow(w, r, "signup_ip", h.clientIP(r), 5, time.Hour) {
 		return
 	}
 	addr, err := mail.ParseAddress(strings.TrimSpace(body.Email))
@@ -117,7 +177,7 @@ func (h *Handlers) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	// le signup — l'utilisateur peut demander un nouveau lien plus tard).
 	h.sendEmailLink(ctx, user, PurposeVerifyEmail, "/auth/verify")
 
-	h.openSession(w, user.ID)
+	h.openSession(w, user.ID, user.SessionVersion)
 
 	if body.Fingerprint != "" && h.OnUserAuthenticated != nil {
 		go h.OnUserAuthenticated(context.Background(), user.ID, body.Fingerprint)
@@ -143,6 +203,11 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
+	// Anti-brute-force : 10 tentatives par IP / 5 min. Bloque le credential
+	// stuffing avant même de toucher bcrypt.
+	if !h.allow(w, r, "login_ip", h.clientIP(r), 10, 5*time.Minute) {
+		return
+	}
 	// Séparation admin/user : une adresse admin ne se connecte jamais côté user
 	// (même réponse que des identifiants invalides — pas de leak).
 	if h.IsAdminEmail != nil && h.IsAdminEmail(body.Email) {
@@ -158,7 +223,7 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = h.Store.TouchLastSeen(ctx, user.ID)
-	h.openSession(w, user.ID)
+	h.openSession(w, user.ID, user.SessionVersion)
 
 	if body.Fingerprint != "" && h.OnUserAuthenticated != nil {
 		go h.OnUserAuthenticated(context.Background(), user.ID, body.Fingerprint)
@@ -198,7 +263,7 @@ func (h *Handlers) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}
-	h.openSession(w, userID)
+	h.openSession(w, userID, user.SessionVersion)
 	h.Tracker.Emit(analytics.Event{
 		Name:   analytics.EventEmailVerified,
 		UserID: userID,
@@ -219,6 +284,15 @@ func (h *Handlers) HandleForgot(w http.ResponseWriter, r *http.Request) {
 	}
 	addr, err := mail.ParseAddress(strings.TrimSpace(body.Email))
 	if err != nil || addr.Address == "" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	// Anti email-bombing : on plafonne SILENCIEUSEMENT (toujours 204, jamais de
+	// 429 qui trahirait l'endpoint / faciliterait l'énumération). 5 envois par
+	// IP / heure ET 3 par adresse / heure — chaque forgot déclenche un mail
+	// Mailjet vers un vrai destinataire, donc on protège la victime et le quota.
+	if !h.allowSilent(r, "forgot_ip", h.clientIP(r), 5, time.Hour) ||
+		!h.allowSilent(r, "forgot_email", normalizeEmail(addr.Address), 3, time.Hour) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -257,7 +331,11 @@ func (h *Handlers) HandleReset(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}
-	if err := h.Store.SetPassword(ctx, userID, hash); err != nil {
+	// SetPassword bumpe session_version : les cookies déjà émis (potentiellement
+	// volés) sont invalidés. On ré-ouvre aussitôt une session avec la nouvelle
+	// version pour que l'appareil qui vient de reset reste connecté.
+	newVersion, err := h.Store.SetPassword(ctx, userID, hash)
+	if err != nil {
 		h.log().Error("reset set", "err", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
@@ -267,7 +345,7 @@ func (h *Handlers) HandleReset(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}
-	h.openSession(w, userID)
+	h.openSession(w, userID, newVersion)
 	h.writeUser(w, user)
 }
 
@@ -296,6 +374,10 @@ func (h *Handlers) HandleMe(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	user, err := h.Store.GetByID(ctx, sess.UserID)
 	if err != nil {
+		_ = json.NewEncoder(w).Encode(map[string]any{"user": nil})
+		return
+	}
+	if sess.Version != user.SessionVersion {
 		_ = json.NewEncoder(w).Encode(map[string]any{"user": nil})
 		return
 	}
@@ -331,8 +413,8 @@ func (h *Handlers) sendEmailLink(ctx context.Context, user User, purpose TokenPu
 	}
 }
 
-func (h *Handlers) openSession(w http.ResponseWriter, userID int64) {
-	sess := Session{UserID: userID, ExpiresAt: time.Now().Add(SessionTTL)}
+func (h *Handlers) openSession(w http.ResponseWriter, userID, version int64) {
+	sess := Session{UserID: userID, Version: version, ExpiresAt: time.Now().Add(SessionTTL)}
 	h.setSessionCookie(w, Sign(sess, h.SessionSecret), SessionTTL)
 }
 

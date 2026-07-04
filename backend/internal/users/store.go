@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -25,6 +26,12 @@ var (
 // Min bcrypt cost (10 = ~80ms). Au-delà, login devient lent sur petits VPS.
 const bcryptCost = 10
 
+// dummyHash : hash bcrypt d'une valeur bidon, comparé quand l'email est inconnu
+// (ou sans password) pour égaliser le temps de réponse du login — sinon la
+// présence/absence d'un bcrypt trahit l'existence du compte (énumération par
+// timing). Calculé une fois au chargement du package.
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("timing-equalizer"), bcryptCost)
+
 // PasswordMinLen : 8 caractères minimum. Pas plus exigeant — la longueur
 // fait l'essentiel de la sécurité (cf. NIST 800-63b).
 const PasswordMinLen = 8
@@ -36,6 +43,9 @@ type User struct {
 	LastSeenAt      *time.Time
 	EmailVerifiedAt *time.Time
 	HasPassword     bool
+	// SessionVersion : compteur de révocation. Un cookie signé avec une version
+	// < à celle-ci est rejeté (reset de mot de passe → +1).
+	SessionVersion int64
 
 	// Abonnement Premium (miroir de Stripe, posé par le webhook). Plan est
 	// le cache dérivé lisible ('free'|'premium') ; IsPremium recalcule le
@@ -99,21 +109,27 @@ func (s *Store) Login(ctx context.Context, email, password string) (User, error)
 	const q = `
 		SELECT id, email, created_at, last_seen_at, email_verified_at,
 		       COALESCE(password_hash, ''),
-		       plan, subscription_status, current_period_end, stripe_customer_id
+		       plan, subscription_status, current_period_end, stripe_customer_id,
+		       session_version
 		FROM users WHERE email = $1`
 	var u User
 	var hash string
 	err := s.pool.QueryRow(ctx, q, email).Scan(
 		&u.ID, &u.Email, &u.CreatedAt, &u.LastSeenAt, &u.EmailVerifiedAt, &hash,
 		&u.Plan, &u.SubscriptionStatus, &u.CurrentPeriodEnd, &u.StripeCustomerID,
+		&u.SessionVersion,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			// Compare bidon : même coût CPU qu'un compte existant → pas de fuite
+			// d'existence par timing.
+			_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 			return User{}, ErrInvalidCreds
 		}
 		return User{}, fmt.Errorf("users: login lookup: %w", err)
 	}
 	if hash == "" {
+		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 		return User{}, ErrInvalidCreds
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
@@ -127,12 +143,14 @@ func (s *Store) GetByID(ctx context.Context, id int64) (User, error) {
 	const q = `
 		SELECT id, email, created_at, last_seen_at, email_verified_at,
 		       password_hash IS NOT NULL,
-		       plan, subscription_status, current_period_end, stripe_customer_id
+		       plan, subscription_status, current_period_end, stripe_customer_id,
+		       session_version
 		FROM users WHERE id = $1`
 	var u User
 	if err := s.pool.QueryRow(ctx, q, id).Scan(
 		&u.ID, &u.Email, &u.CreatedAt, &u.LastSeenAt, &u.EmailVerifiedAt, &u.HasPassword,
 		&u.Plan, &u.SubscriptionStatus, &u.CurrentPeriodEnd, &u.StripeCustomerID,
+		&u.SessionVersion,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrNotFound
@@ -176,15 +194,31 @@ func (s *Store) MarkVerified(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (s *Store) SetPassword(ctx context.Context, id int64, passwordHash string) error {
-	_, err := s.pool.Exec(ctx,
-		`UPDATE users SET password_hash = $1 WHERE id = $2`,
+// SetPassword change le hash ET incrémente session_version dans la même
+// requête : un reset révoque atomiquement toutes les sessions déjà ouvertes
+// (le nouveau cookie posé juste après embarque la version à jour). Renvoie la
+// nouvelle version pour que le caller ré-ouvre une session cohérente.
+func (s *Store) SetPassword(ctx context.Context, id int64, passwordHash string) (int64, error) {
+	var version int64
+	err := s.pool.QueryRow(ctx,
+		`UPDATE users SET password_hash = $1, session_version = session_version + 1
+		   WHERE id = $2 RETURNING session_version`,
 		passwordHash, id,
-	)
+	).Scan(&version)
 	if err != nil {
-		return fmt.Errorf("users: set password: %w", err)
+		return 0, fmt.Errorf("users: set password: %w", err)
 	}
-	return nil
+	return version, nil
+}
+
+// SessionVersion lit le compteur de révocation courant d'un user. Sert au
+// check de version côté WS (le middleware HTTP le tient déjà via GetByID).
+func (s *Store) SessionVersion(ctx context.Context, id int64) (int64, error) {
+	var v int64
+	if err := s.pool.QueryRow(ctx, `SELECT session_version FROM users WHERE id = $1`, id).Scan(&v); err != nil {
+		return 0, fmt.Errorf("users: session version: %w", err)
+	}
+	return v, nil
 }
 
 func (s *Store) TouchLastSeen(ctx context.Context, id int64) error {
@@ -259,11 +293,10 @@ func (s *Store) SetSubscription(ctx context.Context, customerID, status string, 
 
 func normalizeEmail(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
 
-// isUniqueViolation : code SQLSTATE 23505 (Postgres unique_violation).
+// isUniqueViolation : code SQLSTATE 23505 (Postgres unique_violation). On
+// inspecte l'erreur typée pgconn plutôt que son texte (robuste aux variations
+// de message / localisation).
 func isUniqueViolation(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "SQLSTATE 23505") || strings.Contains(msg, "23505")
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

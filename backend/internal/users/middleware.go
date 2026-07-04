@@ -31,6 +31,12 @@ func (h *Handlers) RequireAuth(next http.Handler) http.Handler {
 			http.Error(w, "auth required", http.StatusUnauthorized)
 			return
 		}
+		// Révocation : un cookie signé avant un reset de mot de passe porte une
+		// version < à celle en base → session invalide.
+		if sess.Version != user.SessionVersion {
+			http.Error(w, "auth required", http.StatusUnauthorized)
+			return
+		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKeyUser, user)))
 	})
 }
