@@ -4,9 +4,35 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
+
+// Boosts de score (en secondes) appliqués à l'arrivée d'un peer pour prioriser
+// les files. Un boost plus élevé = arrivée effective plus tôt = matché en
+// premier. Volontairement modestes : l'attente réelle (minutes) domine, donc
+// aucun peer ne meurt de faim, mais à instant égal on surface d'abord les
+// partenaires plus fiables (authentifiés) et on offre un léger coupe-file aux
+// abonnés Premium.
+const (
+	boostAuthenticated = 20.0 // compte connecté = peer plus responsable/traçable
+	boostPremium       = 40.0 // coupe-file Premium (cumulable avec l'auth)
+)
+
+// MatchScore calcule le score d'inscription d'un peer dans sa file. Plus il est
+// BAS, plus le peer est matché tôt (ZPOPMIN). base = horodatage d'arrivée pour
+// garantir un ordre ~FIFO ; on retranche un boost selon la qualité du peer.
+func MatchScore(now time.Time, authenticated, premium bool) float64 {
+	score := float64(now.Unix())
+	if authenticated {
+		score -= boostAuthenticated
+	}
+	if premium {
+		score -= boostPremium
+	}
+	return score
+}
 
 // Outcome décrit le résultat d'un TryMatch.
 type Outcome struct {
@@ -32,7 +58,7 @@ func New(rdb *redis.Client) *Matcher {
 // L'appelant DOIT enregistrer un defer pour Cancel(...) sur le sessionID
 // au cas où la connexion serait fermée avant qu'un peer ne le récupère —
 // sinon le slot devient un fantôme (CLAUDE.md règle d'or #4).
-func (m *Matcher) TryMatch(ctx context.Context, speaks, wants LangCode, sessionID, avoidPeerID string) (Outcome, error) {
+func (m *Matcher) TryMatch(ctx context.Context, speaks, wants LangCode, sessionID, avoidPeerID string, score float64) (Outcome, error) {
 	if err := ValidatePair(speaks, wants); err != nil {
 		return Outcome{}, err
 	}
@@ -42,7 +68,7 @@ func (m *Matcher) TryMatch(ctx context.Context, speaks, wants LangCode, sessionI
 	res, err := matchScript.Run(
 		ctx, m.rdb,
 		[]string{queueTarget(speaks, wants), queueOwn(speaks, wants)},
-		sessionID, avoidPeerID,
+		sessionID, avoidPeerID, score,
 	).Result()
 	if err != nil && !errors.Is(err, redis.Nil) {
 		return Outcome{}, fmt.Errorf("matcher: lua: %w", err)
@@ -60,8 +86,8 @@ func (m *Matcher) Cancel(ctx context.Context, speaks, wants LangCode, sessionID 
 	if err := ValidatePair(speaks, wants); err != nil {
 		return err
 	}
-	if err := m.rdb.LRem(ctx, queueOwn(speaks, wants), 0, sessionID).Err(); err != nil {
-		return fmt.Errorf("matcher: lrem: %w", err)
+	if err := m.rdb.ZRem(ctx, queueOwn(speaks, wants), sessionID).Err(); err != nil {
+		return fmt.Errorf("matcher: zrem: %w", err)
 	}
 	return nil
 }
@@ -81,9 +107,9 @@ func (m *Matcher) RemoveFromQueue(ctx context.Context, speaks, wants LangCode, s
 	if sessionID == "" {
 		return false, fmt.Errorf("matcher: sessionID vide")
 	}
-	n, err := m.rdb.LRem(ctx, queueOwn(speaks, wants), 0, sessionID).Result()
+	n, err := m.rdb.ZRem(ctx, queueOwn(speaks, wants), sessionID).Result()
 	if err != nil {
-		return false, fmt.Errorf("matcher: lrem: %w", err)
+		return false, fmt.Errorf("matcher: zrem: %w", err)
 	}
 	return n > 0, nil
 }

@@ -3,6 +3,7 @@ package matcher
 import (
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestValidatePair(t *testing.T) {
@@ -46,5 +47,19 @@ func TestQueueNames(t *testing.T) {
 	}
 	if got := queueTarget(FR, EN); got != "queue:speaks=en,wants=fr" {
 		t.Fatalf("queueTarget(fr,en) = %q", got)
+	}
+}
+
+func TestMatchScore(t *testing.T) {
+	now := time.Unix(1_000_000, 0)
+	base := MatchScore(now, false, false)
+	if base != 1_000_000 {
+		t.Fatalf("base score = %v, want 1000000", base)
+	}
+	// Authentifié + Premium abaissent le score (matché plus tôt).
+	auth := MatchScore(now, true, false)
+	prem := MatchScore(now, true, true)
+	if !(prem < auth && auth < base) {
+		t.Fatalf("attendu prem < auth < base, got %v %v %v", prem, auth, base)
 	}
 }

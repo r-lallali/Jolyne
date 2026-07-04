@@ -3,9 +3,16 @@ package matcher
 import "github.com/redis/go-redis/v9"
 
 // matchScript implémente le matching atomique en une seule opération Redis.
-// Sans ça, LPOP + LPUSH en deux commandes garantirait une race condition où
+// Sans ça, ZPOPMIN + ZADD en deux commandes garantirait une race condition où
 // deux clients pourraient être matchés au même peer ou se rater (CLAUDE.md
 // §"Anti-patterns à proscrire").
+//
+// Les files sont des SORTED SETS scorés (et non plus des listes FIFO) : on
+// extrait le peer au score le plus BAS (ZPOPMIN) plutôt que le plus ancien.
+// Le score est `arrivée_unix - boost_qualité` (cf. matcher.MatchScore) : un
+// peer plus désirable (authentifié, Premium) reçoit une arrivée effective plus
+// tôt et sort en priorité, tandis que l'attente réelle finit toujours par faire
+// baisser le score des autres → aucune famine.
 //
 //	KEYS[1] : queue cible — où chercher un peer compatible
 //	KEYS[2] : queue propre — où s'inscrire si pas de peer
@@ -13,25 +20,29 @@ import "github.com/redis/go-redis/v9"
 //	ARGV[2] : sessionID d'un peer à éviter ("" si aucun) — typiquement le
 //	          dernier peer quitté via "Next", pour ne pas tomber dessus
 //	          immédiatement
+//	ARGV[3] : score du client courant (float) s'il faut l'inscrire
 //
 // Retour :
 //   - sessionID du peer matché (chaîne non vide)
 //   - chaîne vide si on a été ajouté à la queue
 var matchScript = redis.NewScript(`
 local avoid = ARGV[2]
+-- On retire temporairement le peer à éviter pour ne pas le re-matcher, puis on
+-- le restaure avec son score d'origine (il reste matchable par les autres).
+local avoidScore = false
 if avoid ~= '' then
-  redis.call('LREM', KEYS[1], 0, avoid)
-end
-local peer = redis.call('LPOP', KEYS[1])
-if peer then
-  if avoid ~= '' then
-    redis.call('RPUSH', KEYS[1], avoid)
+  avoidScore = redis.call('ZSCORE', KEYS[1], avoid)
+  if avoidScore then
+    redis.call('ZREM', KEYS[1], avoid)
   end
-  return peer
 end
-if avoid ~= '' then
-  redis.call('RPUSH', KEYS[1], avoid)
+local popped = redis.call('ZPOPMIN', KEYS[1])
+if avoidScore then
+  redis.call('ZADD', KEYS[1], avoidScore, avoid)
 end
-redis.call('RPUSH', KEYS[2], ARGV[1])
+if popped[1] then
+  return popped[1]
+end
+redis.call('ZADD', KEYS[2], ARGV[3], ARGV[1])
 return ''
 `)

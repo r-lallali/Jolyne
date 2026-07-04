@@ -336,7 +336,7 @@ func queueSize(rdb *redis.Client) http.HandlerFunc {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 500*time.Millisecond)
 		defer cancel()
-		n, err := rdb.LLen(ctx, matcher.QueueTargetKey(speaks, wants)).Result()
+		n, err := rdb.ZCard(ctx, matcher.QueueTargetKey(speaks, wants)).Result()
 		if err != nil {
 			http.Error(w, "queue size unavailable", http.StatusBadGateway)
 			return
