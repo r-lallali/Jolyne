@@ -75,6 +75,26 @@ func (e *Engine) CheckAndIncrementNext(ctx context.Context, id string, max int64
 	return e.CheckAndIncrement(ctx, KindNext, id, max)
 }
 
+// Allow implémente un rate-limit à fenêtre fixe : incrémente un compteur
+// `rl:{name}:{id}` avec un TTL = `window` (posé au premier hit, jamais
+// prolongé). Renvoie false dès que le compteur dépasse `max` dans la fenêtre.
+// Sert au throttling anti-abus des endpoints publics (login/signup/forgot).
+// Fail-open sur erreur Redis : on préfère laisser passer qu'ouvrir un déni de
+// service si Redis flanche (le caller loggue). id vide → toujours autorisé.
+func (e *Engine) Allow(ctx context.Context, name, id string, max int64, window time.Duration) (bool, error) {
+	if id == "" || max <= 0 {
+		return true, nil
+	}
+	key := "rl:" + name + ":" + id
+	pipe := e.rdb.Pipeline()
+	incr := pipe.Incr(ctx, key)
+	pipe.ExpireNX(ctx, key, window)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return true, fmt.Errorf("quota allow: %w", err)
+	}
+	return incr.Val() <= max, nil
+}
+
 // Refund rend n crédits (kind, id). Best-effort : appelé quand l'action déjà
 // comptée a finalement échoué (ex: appel Claude en erreur après retries) pour
 // ne pas facturer un message resté sans vraie réponse. Pipeline DECRBY +
