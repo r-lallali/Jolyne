@@ -256,7 +256,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			case roomKindFriendAccept:
 				peerAccept = true
 				if myAccept && !friendDone && friendEligible {
-					friendDone = tryMakeFriendsOrPending(ctx, h, conn, sess.UserID, peer.UserID, sess.Fingerprint, peer.Fingerprint)
+					friendDone = tryMakeFriendsOrPending(ctx, h, conn, sess.UserID, peer.UserID, sess.Fingerprint, peer.Fingerprint, sess.Speaks, sess.Wants)
 				}
 			case roomKindMission:
 				// Mission du scénario roleplay accomplie (bot prof IA).
@@ -428,7 +428,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				myAccept = true
 				_ = room.SendFriendAccept(ctx)
 				if peerAccept {
-					friendDone = tryMakeFriendsOrPending(ctx, h, conn, sess.UserID, peer.UserID, sess.Fingerprint, peer.Fingerprint)
+					friendDone = tryMakeFriendsOrPending(ctx, h, conn, sess.UserID, peer.UserID, sess.Fingerprint, peer.Fingerprint, sess.Speaks, sess.Wants)
 				}
 			case ClientTandemPropose:
 				// Pas de tandem avec un prof IA (il ne parle que la langue

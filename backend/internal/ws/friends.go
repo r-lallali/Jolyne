@@ -7,15 +7,17 @@ import (
 )
 
 // tryMakeFriendsOrPending : appelé quand les deux côtés ont accepté le prompt.
-// Si les deux sont authentifiés, on crée la relation en base.
-// Sinon, on stocke une relation pendante dans Redis sous les fingerprints respectifs.
-func tryMakeFriendsOrPending(ctx context.Context, h *Handler, conn *Conn, myUID, peerUID int64, myFP, peerFP string) bool {
+// Si les deux sont authentifiés, on crée la relation en base — avec les
+// langues natives des deux côtés (le matching est réciproque : la langue
+// native du peer = mon `wants`). Sinon, on stocke une relation pendante
+// dans Redis sous les fingerprints respectifs.
+func tryMakeFriendsOrPending(ctx context.Context, h *Handler, conn *Conn, myUID, peerUID int64, myFP, peerFP, myLang, peerLang string) bool {
 	if h.d.Friends == nil {
 		return false
 	}
 
 	if myUID > 0 && peerUID > 0 {
-		f, err := h.d.Friends.Add(ctx, myUID, peerUID)
+		f, err := h.d.Friends.Add(ctx, myUID, peerUID, myLang, peerLang)
 		if err != nil {
 			h.d.Log.Error("friends add failed", "err", err)
 			return false

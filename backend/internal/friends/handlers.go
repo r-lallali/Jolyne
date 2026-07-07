@@ -57,6 +57,9 @@ type friendDTO struct {
 	PeerPhotoID         string `json:"peer_photo_id,omitempty"`
 	PeerVerified        bool   `json:"peer_verified"`
 	PeerRemovedMe       bool   `json:"peer_removed_me"`
+	// Langue native du peer figée à la création de l'amitié (vide si
+	// inconnue). Indice de langue source pour le tap-to-translate.
+	PeerLang string `json:"peer_lang,omitempty"`
 	UnreadCount         int    `json:"unread_count"`
 	LastMessageBody     string `json:"last_message_body"`
 	LastMessageSenderID int64  `json:"last_message_sender_id"`
@@ -105,6 +108,7 @@ func (h *Handlers) HandleList(w http.ResponseWriter, r *http.Request) {
 			PeerPhotoID:         h.peerPhoto(ctx, f.PeerID),
 			PeerVerified:        h.peerVerified(ctx, f.PeerID),
 			PeerRemovedMe:       f.PeerRemovedMe,
+			PeerLang:            f.PeerLang,
 			UnreadCount:         f.UnreadCount,
 			LastMessageBody:     f.LastMessageBody,
 			LastMessageSenderID: f.LastMessageSenderID,
@@ -291,6 +295,7 @@ func (h *Handlers) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 	streak, atRisk, lostStreak, lostAt, _ := ReadStreak(ctx, h.Store.pool, f.ID)
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"peer_id":                       f.PeerID,
+		"peer_lang":                     f.PeerLang,
 		"display_name":                  p.DisplayName,
 		"bio":                           p.Bio,
 		"birthdate":                     formatDate(p.Birthdate),

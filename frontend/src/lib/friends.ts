@@ -15,6 +15,9 @@ export interface FriendSummary {
   peer_id: number;
   peer_name: string;
   peer_photo_id?: string;
+  // Langue native du peer figée à la création de l'amitié (absente si
+  // inconnue — flux pending). Indice de langue source pour la traduction.
+  peer_lang?: string;
   peer_removed_me: boolean;
   unread_count: number;
   last_message_body: string;
@@ -55,6 +58,8 @@ export interface FriendStreakFields {
 
 export interface FriendProfile {
   peer_id: number;
+  // Langue native du peer (cf. FriendSummary.peer_lang).
+  peer_lang?: string;
   display_name: string;
   bio: string;
   birthdate: string | null;

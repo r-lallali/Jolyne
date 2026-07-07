@@ -1,0 +1,3 @@
+ALTER TABLE friends
+    DROP COLUMN IF EXISTS lang_a,
+    DROP COLUMN IF EXISTS lang_b;

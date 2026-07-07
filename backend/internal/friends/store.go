@@ -34,6 +34,10 @@ type Friend struct {
 	// renvoie l'ID du peer + si le peer t'a déjà retiré).
 	PeerID        int64
 	PeerRemovedMe bool
+	// PeerLang : langue native du peer figée à la création de l'amitié
+	// ("" si inconnue — flux pending). Indice de langue source pour le
+	// tap-to-translate côté front.
+	PeerLang string
 	// UnreadCount : nb de messages du peer postérieurs au last_read_at du
 	// caller. Rempli par ListFor(). 0 si toutes les conversations sont
 	// rattrapées.
@@ -100,8 +104,10 @@ func NewStore(pool *pgxpool.Pool) *Store { return &Store{pool: pool} }
 
 // Add : crée le lien d'amitié (ou no-op si déjà existant). Renvoie le
 // Friend avec son ID. Les user IDs sont ordonnés en interne pour respecter
-// la contrainte user_a < user_b.
-func (s *Store) Add(ctx context.Context, u1, u2 int64) (Friend, error) {
+// la contrainte user_a < user_b. lang1/lang2 = langues natives respectives
+// de u1/u2 ("" si inconnues — flux pending) ; sur un re-add on ne remplit
+// que les colonnes encore NULL (COALESCE) pour ne pas écraser l'existant.
+func (s *Store) Add(ctx context.Context, u1, u2 int64, lang1, lang2 string) (Friend, error) {
 	if u1 == u2 {
 		return Friend{}, fmt.Errorf("friends: same user")
 	}
@@ -112,14 +118,20 @@ func (s *Store) Add(ctx context.Context, u1, u2 int64) (Friend, error) {
 		return Friend{}, fmt.Errorf("friends: peer anonyme non éligible")
 	}
 	a, b := ordered(u1, u2)
+	langA, langB := lang1, lang2
+	if a != u1 {
+		langA, langB = lang2, lang1
+	}
 	const q = `
-		INSERT INTO friends (user_a_id, user_b_id, last_message_at)
-		VALUES ($1, $2, now())
+		INSERT INTO friends (user_a_id, user_b_id, last_message_at, lang_a, lang_b)
+		VALUES ($1, $2, now(), NULLIF($3, ''), NULLIF($4, ''))
 		ON CONFLICT (user_a_id, user_b_id) DO UPDATE
-		    SET removed_by_a_at = NULL, removed_by_b_at = NULL
+		    SET removed_by_a_at = NULL, removed_by_b_at = NULL,
+		        lang_a = COALESCE(friends.lang_a, EXCLUDED.lang_a),
+		        lang_b = COALESCE(friends.lang_b, EXCLUDED.lang_b)
 		RETURNING id, user_a_id, user_b_id, created_at, last_message_at`
 	var f Friend
-	if err := s.pool.QueryRow(ctx, q, a, b).Scan(
+	if err := s.pool.QueryRow(ctx, q, a, b, langA, langB).Scan(
 		&f.ID, &f.UserAID, &f.UserBID, &f.CreatedAt, &f.LastMessageAt,
 	); err != nil {
 		return Friend{}, fmt.Errorf("friends: add: %w", err)
@@ -163,7 +175,7 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 	const q = `
 		WITH today AS (SELECT (now() AT TIME ZONE 'UTC')::date AS d)
 		SELECT f.id, f.user_a_id, f.user_b_id, f.created_at, f.last_message_at,
-		       f.removed_by_a_at, f.removed_by_b_at,
+		       f.removed_by_a_at, f.removed_by_b_at, f.lang_a, f.lang_b,
 		       COALESCE((
 		           SELECT COUNT(*) FROM friend_messages m
 		           WHERE m.friend_id = f.id
@@ -214,12 +226,13 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 	for rows.Next() {
 		var f Friend
 		var aRem, bRem *time.Time
+		var langA, langB *string
 		var lastBody *string
 		var lastSenderID *int64
 		var lastDeleted *bool
 		if err := rows.Scan(
 			&f.ID, &f.UserAID, &f.UserBID, &f.CreatedAt, &f.LastMessageAt,
-			&aRem, &bRem, &f.UnreadCount,
+			&aRem, &bRem, &langA, &langB, &f.UnreadCount,
 			&lastBody, &lastSenderID, &lastDeleted,
 			&f.Streak, &f.StreakAtRisk, &f.LostStreak, &f.LostAt,
 		); err != nil {
@@ -237,9 +250,11 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		if f.UserAID == userID {
 			f.PeerID = f.UserBID
 			f.PeerRemovedMe = bRem != nil
+			f.PeerLang = deref(langB)
 		} else {
 			f.PeerID = f.UserAID
 			f.PeerRemovedMe = aRem != nil
+			f.PeerLang = deref(langA)
 		}
 		out = append(out, f)
 	}
@@ -284,14 +299,15 @@ func (s *Store) MarkRead(ctx context.Context, friendID, userID int64) error {
 func (s *Store) Get(ctx context.Context, friendID, userID int64) (Friend, error) {
 	const q = `
 		SELECT id, user_a_id, user_b_id, created_at, last_message_at,
-		       removed_by_a_at, removed_by_b_at
+		       removed_by_a_at, removed_by_b_at, lang_a, lang_b
 		FROM friends
 		WHERE id = $1 AND (user_a_id = $2 OR user_b_id = $2)`
 	var f Friend
 	var aRem, bRem *time.Time
+	var langA, langB *string
 	err := s.pool.QueryRow(ctx, q, friendID, userID).Scan(
 		&f.ID, &f.UserAID, &f.UserBID, &f.CreatedAt, &f.LastMessageAt,
-		&aRem, &bRem,
+		&aRem, &bRem, &langA, &langB,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -302,6 +318,7 @@ func (s *Store) Get(ctx context.Context, friendID, userID int64) (Friend, error)
 	if f.UserAID == userID {
 		f.PeerID = f.UserBID
 		f.PeerRemovedMe = bRem != nil
+		f.PeerLang = deref(langB)
 		if aRem != nil {
 			// On s'est nous-mêmes retiré → on ne voit plus ce friend.
 			return Friend{}, ErrNotFound
@@ -309,6 +326,7 @@ func (s *Store) Get(ctx context.Context, friendID, userID int64) (Friend, error)
 	} else {
 		f.PeerID = f.UserAID
 		f.PeerRemovedMe = aRem != nil
+		f.PeerLang = deref(langA)
 		if bRem != nil {
 			return Friend{}, ErrNotFound
 		}
@@ -576,4 +594,11 @@ func ordered(a, b int64) (int64, int64) {
 		return a, b
 	}
 	return b, a
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

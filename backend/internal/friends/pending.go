@@ -81,7 +81,9 @@ func ResolvePendingFriendships(ctx context.Context, rdb *redis.Client, store *St
 			// The peer was already registered!
 			var peerUID int64
 			if _, err := fmt.Sscanf(m, "u:%d", &peerUID); err == nil && peerUID > 0 {
-				_, err = store.Add(ctx, userID, peerUID)
+				// Langues inconnues à ce stade (la paire de la session
+				// d'origine n'est pas portée par le pending Redis).
+				_, err = store.Add(ctx, userID, peerUID, "", "")
 				if err != nil && logger != nil {
 					logger.Warn("resolve pending friendships: Add friends failed", "err", err, "uid", userID, "peer", peerUID)
 				} else if err == nil {
