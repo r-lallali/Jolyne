@@ -1,6 +1,21 @@
 import type { Messages } from "@/lib/i18n/types";
 
 export const es: Messages = {
+  scenarios: {
+    restaurant: { title: "En el restaurante", hint: "Pide un menú completo y la cuenta." },
+    directions: { title: "Preguntar el camino", hint: "Turista perdido: haz que te expliquen la ruta." },
+    interview: { title: "Entrevista de trabajo", hint: "Consigue el trabajo de tus sueños." },
+    market: { title: "En el mercado", hint: "Regatea como un local." },
+    doctor: { title: "En el médico", hint: "Describe tus síntomas y entiende el diagnóstico." },
+  },
+  tandem: {
+    propose: "Sesión tándem 50/50",
+    waiting: "Propuesta enviada — esperando a tu compañero…",
+    promptText: "Tu compañero propone una sesión tándem 50/50: mitad en un idioma, mitad en el otro.",
+    accept: "Aceptar",
+    decline: "Ignorar",
+    activePhase: ({ lang }) => `Fase en ${lang}`,
+  },
   common: {
     cancel: "Cancelar",
     close: "Cerrar",
@@ -12,6 +27,8 @@ export const es: Messages = {
     courses: "Cursos",
   },
   setup: {
+    scenarioLabel: "Escenario de rol",
+    scenarioFreeChat: "Chat libre",
     chooseNick: "Elige tu nombre",
     nickPlaceholder: "tu nombre",
     next: "Siguiente",
@@ -50,6 +67,12 @@ export const es: Messages = {
     quit: "Salir",
   },
   chat: {
+    nudgePractice: ({ lang }) => `💡 Recuerda: estás aquí para practicar ${lang}. ¡Anímate!`,
+    nudgeTandem: ({ lang }) => `🔄 Esta parte es en ${lang} — ¡toca cambiar!`,
+    missionComplete: "🎉 ¡Misión cumplida!",
+    tandemSwitch: ({ lang }) => `🔄 Cambio: la conversación pasa a ${lang}`,
+    tandemEnd: "🏁 Sesión tándem terminada — chat libre",
+    cefrBadgeTitle: "Nivel estimado por la IA",
     chattingWith: ({ nick }) => `Estás chateando con ${nick}`,
     sayHello: "Saluda para empezar.",
     systemPeerLeft: ({ nick }) => `${nick} salió de la conversación`,
@@ -89,6 +112,16 @@ export const es: Messages = {
     remaining: ({ count }) => `${count} traducciones restantes hoy`,
   },
   vocab: {
+    reviewTitle: "Repaso del día",
+    reviewDue: ({ count }) => `${count} palabras por repasar`,
+    reviewStart: "Repasar",
+    showAnswer: "Ver la respuesta",
+    gradeAgain: "Otra vez",
+    gradeHard: "Difícil",
+    gradeGood: "Bien",
+    gradeEasy: "Fácil",
+    reviewDone: "¡Repaso terminado!",
+    reviewDoneHint: ({ count }) => `${count} tarjetas repasadas — vuelve mañana.`,
     title: "Cuaderno de vocabulario",
     empty: "Aún no has guardado ninguna palabra.",
     save: "Guardar",
@@ -100,6 +133,15 @@ export const es: Messages = {
     practice: "Repasar",
   },
   learn: {
+    daily: {
+      title: "Tu lección del día",
+      subtitle: ({ count }) => `${count} errores de tus conversaciones para repasar`,
+      question: "¿Cuál es la forma correcta?",
+      next: "Continuar",
+      doneTitle: "¡Lección del día terminada!",
+      doneHint: ({ total, mistakes }) => `${total} correcciones repasadas, ${mistakes} fallos.`,
+      claim: "Reclamar mis XP",
+    },
     navLink: "Cursos",
     title: "Cursos",
     subtitle: "Aprende un idioma, lección a lección.",
@@ -387,6 +429,7 @@ export const es: Messages = {
     cancelEdit: "Cancelar",
   },
   account: {
+    cefrBadgeTitle: "Nivel estimado por la IA según tus conversaciones",
     title: "Mi perfil",
     photos: "Fotos",
     photosHint: "Hasta 6 fotos. La primera es tu avatar visible en el chat.",
@@ -443,6 +486,7 @@ export const es: Messages = {
     deleteConfirm: "¿Eliminar definitivamente esta conversación?",
   },
   premium: {
+    reasonScenario: "Este escenario de rol es para suscriptores Premium",
     sheetTitle: "Pásate a Jolyne Premium",
     reasonSwipe: "Has alcanzado tus 10 compañeros del día.",
     reasonTranslate: "Has alcanzado tus 10 traducciones del día.",

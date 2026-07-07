@@ -1,6 +1,21 @@
 import type { Messages } from "@/lib/i18n/types";
 
 export const ko: Messages = {
+  scenarios: {
+    restaurant: { title: "레스토랑에서", hint: "풀코스를 주문하고 계산서를 요청해 보세요." },
+    directions: { title: "길 묻기", hint: "길 잃은 여행자: 길 안내를 받아 보세요." },
+    interview: { title: "취업 면접", hint: "꿈의 직장을 잡아 보세요." },
+    market: { title: "시장에서", hint: "현지인처럼 가격을 흥정해 보세요." },
+    doctor: { title: "병원에서", hint: "증상을 설명하고 진단을 이해해 보세요." },
+  },
+  tandem: {
+    propose: "50/50 탄뎀 세션",
+    waiting: "제안을 보냈어요 — 상대방을 기다리는 중…",
+    promptText: "상대방이 50/50 탄뎀 세션을 제안했어요: 절반은 한 언어로, 절반은 다른 언어로.",
+    accept: "수락",
+    decline: "무시",
+    activePhase: ({ lang }) => `${lang} 파트`,
+  },
   common: {
     cancel: "취소",
     close: "닫기",
@@ -12,6 +27,8 @@ export const ko: Messages = {
     courses: "강의",
   },
   setup: {
+    scenarioLabel: "역할극 시나리오",
+    scenarioFreeChat: "자유 대화",
     chooseNick: "닉네임을 정하세요",
     nickPlaceholder: "닉네임",
     next: "다음",
@@ -47,6 +64,12 @@ export const ko: Messages = {
     quit: "나가기",
   },
   chat: {
+    nudgePractice: ({ lang }) => `💡 알림: ${lang} 연습하러 오셨잖아요 — 용기 내서 써 보세요!`,
+    nudgeTandem: ({ lang }) => `🔄 지금은 ${lang} 파트예요 — 언어를 바꿔 주세요!`,
+    missionComplete: "🎉 미션 완료!",
+    tandemSwitch: ({ lang }) => `🔄 전환: 지금부터 ${lang} 차례예요`,
+    tandemEnd: "🏁 탄뎀 세션 종료 — 자유 대화",
+    cefrBadgeTitle: "AI가 추정한 레벨",
     chattingWith: ({ nick }) => `${nick}님과 대화 중`,
     sayHello: "인사로 시작해 보세요.",
     systemPeerLeft: ({ nick }) => `${nick}님이 대화를 떠났어요`,
@@ -86,6 +109,16 @@ export const ko: Messages = {
     remaining: ({ count }) => `오늘 ${count}회 번역 남음`,
   },
   vocab: {
+    reviewTitle: "오늘의 복습",
+    reviewDue: ({ count }) => `복습할 단어 ${count}개`,
+    reviewStart: "복습하기",
+    showAnswer: "정답 보기",
+    gradeAgain: "다시",
+    gradeHard: "어려움",
+    gradeGood: "좋음",
+    gradeEasy: "쉬움",
+    reviewDone: "복습 완료!",
+    reviewDoneHint: ({ count }) => `카드 ${count}장을 복습했어요 — 내일 또 만나요.`,
     title: "단어장",
     empty: "아직 저장한 단어가 없습니다.",
     save: "저장",
@@ -97,6 +130,15 @@ export const ko: Messages = {
     practice: "복습",
   },
   learn: {
+    daily: {
+      title: "오늘의 레슨",
+      subtitle: ({ count }) => `대화에서 나온 실수 ${count}개 복습`,
+      question: "올바른 표현은 무엇일까요?",
+      next: "계속",
+      doneTitle: "오늘의 레슨 완료!",
+      doneHint: ({ total, mistakes }) => `교정 ${total}개 복습, 실수 ${mistakes}번.`,
+      claim: "XP 받기",
+    },
     navLink: "코스",
     title: "코스",
     subtitle: "레슨 하나씩 언어를 배워요.",
@@ -382,6 +424,7 @@ export const ko: Messages = {
     cancelEdit: "취소",
   },
   account: {
+    cefrBadgeTitle: "대화를 바탕으로 AI가 추정한 레벨",
     title: "내 프로필",
     photos: "사진",
     photosHint: "최대 6장. 첫 번째 사진이 채팅 아바타가 돼요.",
@@ -438,6 +481,7 @@ export const ko: Messages = {
     deleteConfirm: "이 대화를 영구적으로 삭제할까요?",
   },
   premium: {
+    reasonScenario: "이 역할극 시나리오는 프리미엄 구독자 전용이에요",
     sheetTitle: "Jolyne 프리미엄으로 업그레이드",
     reasonSwipe: "오늘의 상대 10명을 모두 만났어요.",
     reasonTranslate: "오늘의 번역 10회를 모두 사용했어요.",

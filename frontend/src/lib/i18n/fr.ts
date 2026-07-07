@@ -1,6 +1,21 @@
 import type { Messages } from "@/lib/i18n/types";
 
 export const fr: Messages = {
+  scenarios: {
+    restaurant: { title: "Au restaurant", hint: "Commande un repas complet et demande l'addition." },
+    directions: { title: "Demander son chemin", hint: "Touriste perdu : fais-toi expliquer l'itinéraire." },
+    interview: { title: "Entretien d'embauche", hint: "Décroche le poste de tes rêves." },
+    market: { title: "Au marché", hint: "Négocie les prix comme un local." },
+    doctor: { title: "Chez le médecin", hint: "Décris tes symptômes et comprends le diagnostic." },
+  },
+  tandem: {
+    propose: "Session tandem 50/50",
+    waiting: "Proposition envoyée — en attente de ton partenaire…",
+    promptText: "Ton partenaire propose une session tandem 50/50 : moitié dans une langue, moitié dans l'autre.",
+    accept: "Accepter",
+    decline: "Ignorer",
+    activePhase: ({ lang }) => `Phase en ${lang}`,
+  },
   common: {
     cancel: "Annuler",
     close: "Fermer",
@@ -12,6 +27,8 @@ export const fr: Messages = {
     courses: "Cours",
   },
   setup: {
+    scenarioLabel: "Scénario de jeu de rôle",
+    scenarioFreeChat: "Chat libre",
     chooseNick: "Choisis ton pseudo",
     nickPlaceholder: "ton pseudo",
     next: "Suivant",
@@ -52,6 +69,12 @@ export const fr: Messages = {
     quit: "Quitter",
   },
   chat: {
+    nudgePractice: ({ lang }) => `💡 Petit rappel : tu es ici pour pratiquer ${lang} — lance-toi !`,
+    nudgeTandem: ({ lang }) => `🔄 On est dans la partie en ${lang} — on change de langue !`,
+    missionComplete: "🎉 Mission accomplie !",
+    tandemSwitch: ({ lang }) => `🔄 Changement : la conversation passe en ${lang}`,
+    tandemEnd: "🏁 Session tandem terminée — chat libre",
+    cefrBadgeTitle: "Niveau estimé par l'IA",
     chattingWith: ({ nick }) => `Tu discutes avec ${nick}`,
     sayHello: "Dis bonjour pour démarrer.",
     systemPeerLeft: ({ nick }) => `${nick} a quitté la conversation`,
@@ -93,6 +116,16 @@ export const fr: Messages = {
     remaining: ({ count }) => `${count} traductions restantes aujourd'hui`,
   },
   vocab: {
+    reviewTitle: "Révision du jour",
+    reviewDue: ({ count }) => `${count} mots à réviser`,
+    reviewStart: "Réviser",
+    showAnswer: "Voir la réponse",
+    gradeAgain: "Encore",
+    gradeHard: "Difficile",
+    gradeGood: "Bien",
+    gradeEasy: "Facile",
+    reviewDone: "Révision terminée !",
+    reviewDoneHint: ({ count }) => `${count} cartes révisées — reviens demain pour la suite.`,
     title: "Carnet de vocabulaire",
     empty: "Aucun mot sauvegardé pour l'instant.",
     save: "Sauvegarder",
@@ -104,6 +137,15 @@ export const fr: Messages = {
     practice: "Réviser",
   },
   learn: {
+    daily: {
+      title: "Ta leçon du jour",
+      subtitle: ({ count }) => `${count} fautes de tes conversations à rejouer`,
+      question: "Quelle est la forme correcte ?",
+      next: "Continuer",
+      doneTitle: "Leçon du jour terminée !",
+      doneHint: ({ total, mistakes }) => `${total} corrections rejouées, ${mistakes} erreurs.`,
+      claim: "Récupérer mes XP",
+    },
     navLink: "Cours",
     title: "Cours",
     subtitle: "Apprends une langue, leçon par leçon.",
@@ -391,6 +433,7 @@ export const fr: Messages = {
     cancelEdit: "Annuler",
   },
   account: {
+    cefrBadgeTitle: "Niveau estimé par l'IA d'après tes conversations",
     title: "Mon profil",
     photos: "Photos",
     photosHint: "Jusqu'à 6 photos. La première est ton avatar visible en chat.",
@@ -447,6 +490,7 @@ export const fr: Messages = {
     deleteConfirm: "Supprimer définitivement cette conversation ?",
   },
   premium: {
+    reasonScenario: "Ce scénario de jeu de rôle est réservé aux abonnés Premium",
     sheetTitle: "Passe à Jolyne Premium",
     reasonSwipe: "Tu as atteint tes 10 partenaires du jour.",
     reasonTranslate: "Tu as atteint tes 10 traductions du jour.",

@@ -1,6 +1,21 @@
 import type { Messages } from "@/lib/i18n/types";
 
 export const ja: Messages = {
+  scenarios: {
+    restaurant: { title: "レストランで", hint: "フルコースを注文して会計をお願いしよう。" },
+    directions: { title: "道をたずねる", hint: "迷子の旅行者：道順を教えてもらおう。" },
+    interview: { title: "就職面接", hint: "憧れの仕事を勝ち取ろう。" },
+    market: { title: "市場で", hint: "地元の人みたいに値段交渉しよう。" },
+    doctor: { title: "病院で", hint: "症状を伝えて診断を理解しよう。" },
+  },
+  tandem: {
+    propose: "50/50タンデムセッション",
+    waiting: "提案を送信しました——相手の返事を待っています…",
+    promptText: "相手が50/50タンデムセッションを提案しています：半分ずつお互いの言語で話します。",
+    accept: "承諾",
+    decline: "無視",
+    activePhase: ({ lang }) => `${lang}のパート`,
+  },
   common: {
     cancel: "キャンセル",
     close: "閉じる",
@@ -12,6 +27,8 @@ export const ja: Messages = {
     courses: "コース",
   },
   setup: {
+    scenarioLabel: "ロールプレイシナリオ",
+    scenarioFreeChat: "フリーチャット",
     chooseNick: "ニックネームを決めよう",
     nickPlaceholder: "ニックネーム",
     next: "次へ",
@@ -48,6 +65,12 @@ export const ja: Messages = {
     quit: "やめる",
   },
   chat: {
+    nudgePractice: ({ lang }) => `💡 リマインダー：${lang}を練習しに来たんですよね——思い切って使ってみましょう！`,
+    nudgeTandem: ({ lang }) => `🔄 今は${lang}のパートです——切り替えましょう！`,
+    missionComplete: "🎉 ミッション達成！",
+    tandemSwitch: ({ lang }) => `🔄 切り替え：ここからは${lang}で話しましょう`,
+    tandemEnd: "🏁 タンデムセッション終了——フリーチャットへ",
+    cefrBadgeTitle: "AIが推定したレベル",
     chattingWith: ({ nick }) => `${nick}さんとチャット中`,
     sayHello: "あいさつから始めましょう。",
     systemPeerLeft: ({ nick }) => `${nick}さんが会話から退出しました`,
@@ -87,6 +110,16 @@ export const ja: Messages = {
     remaining: ({ count }) => `今日はあと${count}回翻訳できます`,
   },
   vocab: {
+    reviewTitle: "今日の復習",
+    reviewDue: ({ count }) => `復習する単語が${count}個`,
+    reviewStart: "復習する",
+    showAnswer: "答えを見る",
+    gradeAgain: "もう一度",
+    gradeHard: "難しい",
+    gradeGood: "普通",
+    gradeEasy: "簡単",
+    reviewDone: "復習完了！",
+    reviewDoneHint: ({ count }) => `${count}枚のカードを復習しました——また明日どうぞ。`,
     title: "単語帳",
     empty: "保存した単語はまだありません。",
     save: "保存",
@@ -98,6 +131,15 @@ export const ja: Messages = {
     practice: "復習",
   },
   learn: {
+    daily: {
+      title: "今日のレッスン",
+      subtitle: ({ count }) => `チャットでのまちがい${count}件を復習`,
+      question: "正しいのはどちら？",
+      next: "続ける",
+      doneTitle: "今日のレッスン完了！",
+      doneHint: ({ total, mistakes }) => `${total}件の訂正を復習、ミスは${mistakes}回。`,
+      claim: "XPを受け取る",
+    },
     navLink: "コース",
     title: "コース",
     subtitle: "レッスンごとに言語を学ぼう。",
@@ -383,6 +425,7 @@ export const ja: Messages = {
     cancelEdit: "キャンセル",
   },
   account: {
+    cefrBadgeTitle: "会話からAIが推定したレベル",
     title: "マイプロフィール",
     photos: "写真",
     photosHint: "最大6枚。1枚目がチャットでのアバターになります。",
@@ -439,6 +482,7 @@ export const ja: Messages = {
     deleteConfirm: "この会話を完全に削除しますか？",
   },
   premium: {
+    reasonScenario: "このロールプレイシナリオはプレミアム会員限定です",
     sheetTitle: "Jolyne Premiumにアップグレード",
     reasonSwipe: "本日の10人の相手に達しました。",
     reasonTranslate: "本日の10回の翻訳に達しました。",

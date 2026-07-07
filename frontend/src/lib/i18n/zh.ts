@@ -1,6 +1,21 @@
 import type { Messages } from "@/lib/i18n/types";
 
 export const zh: Messages = {
+  scenarios: {
+    restaurant: { title: "在餐厅", hint: "点一顿完整的餐并结账。" },
+    directions: { title: "问路", hint: "迷路的游客：请对方给你指路。" },
+    interview: { title: "求职面试", hint: "拿下理想的工作。" },
+    market: { title: "在市场", hint: "像当地人一样讨价还价。" },
+    doctor: { title: "看医生", hint: "描述症状并听懂诊断。" },
+  },
+  tandem: {
+    propose: "50/50 双语交换",
+    waiting: "已发送提议——等待对方…",
+    promptText: "对方提议进行 50/50 双语交换：一半用一种语言，一半用另一种。",
+    accept: "接受",
+    decline: "忽略",
+    activePhase: ({ lang }) => `${lang}环节`,
+  },
   common: {
     cancel: "取消",
     close: "关闭",
@@ -12,6 +27,8 @@ export const zh: Messages = {
     courses: "课程",
   },
   setup: {
+    scenarioLabel: "角色扮演场景",
+    scenarioFreeChat: "自由聊天",
     chooseNick: "取个昵称",
     nickPlaceholder: "你的昵称",
     next: "下一步",
@@ -47,6 +64,12 @@ export const zh: Messages = {
     quit: "退出",
   },
   chat: {
+    nudgePractice: ({ lang }) => `💡 小提醒：你是来练习${lang}的——大胆试试吧！`,
+    nudgeTandem: ({ lang }) => `🔄 现在是${lang}环节——该换语言啦！`,
+    missionComplete: "🎉 任务完成！",
+    tandemSwitch: ({ lang }) => `🔄 切换：现在开始用${lang}聊天`,
+    tandemEnd: "🏁 双语交换结束——自由聊天",
+    cefrBadgeTitle: "AI 估计的水平",
     chattingWith: ({ nick }) => `你正在和 ${nick} 聊天`,
     sayHello: "打个招呼开始吧。",
     systemPeerLeft: ({ nick }) => `${nick} 离开了对话`,
@@ -86,6 +109,16 @@ export const zh: Messages = {
     remaining: ({ count }) => `今天还剩 ${count} 次翻译`,
   },
   vocab: {
+    reviewTitle: "今日复习",
+    reviewDue: ({ count }) => `${count} 个词待复习`,
+    reviewStart: "复习",
+    showAnswer: "查看答案",
+    gradeAgain: "重来",
+    gradeHard: "困难",
+    gradeGood: "良好",
+    gradeEasy: "简单",
+    reviewDone: "复习完成！",
+    reviewDoneHint: ({ count }) => `已复习 ${count} 张卡片——明天再来吧。`,
     title: "生词本",
     empty: "还没有保存任何单词。",
     save: "保存",
@@ -97,6 +130,15 @@ export const zh: Messages = {
     practice: "复习",
   },
   learn: {
+    daily: {
+      title: "今日课程",
+      subtitle: ({ count }) => `来自聊天的 ${count} 个错误待重练`,
+      question: "哪个是正确的说法？",
+      next: "继续",
+      doneTitle: "今日课程完成！",
+      doneHint: ({ total, mistakes }) => `重练了 ${total} 个纠正，出错 ${mistakes} 次。`,
+      claim: "领取 XP",
+    },
     navLink: "课程",
     title: "课程",
     subtitle: "一课一课地学习语言。",
@@ -378,6 +420,7 @@ export const zh: Messages = {
     cancelEdit: "取消",
   },
   account: {
+    cefrBadgeTitle: "AI 根据你的对话估计的水平",
     title: "我的资料",
     photos: "照片",
     photosHint: "最多 6 张照片。第一张是你在聊天中的头像。",
@@ -434,6 +477,7 @@ export const zh: Messages = {
     deleteConfirm: "永久删除这段会话？",
   },
   premium: {
+    reasonScenario: "此角色扮演场景为 Premium 会员专属",
     sheetTitle: "升级 Jolyne Premium",
     reasonSwipe: "你已用完今天的 10 位伙伴。",
     reasonTranslate: "你已用完今天的 10 次翻译。",

@@ -1,6 +1,21 @@
 import type { Messages } from "@/lib/i18n/types";
 
 export const en: Messages = {
+  scenarios: {
+    restaurant: { title: "At the restaurant", hint: "Order a full meal and ask for the bill." },
+    directions: { title: "Asking for directions", hint: "Lost tourist: get the route explained to you." },
+    interview: { title: "Job interview", hint: "Land your dream job." },
+    market: { title: "At the market", hint: "Haggle over prices like a local." },
+    doctor: { title: "At the doctor's", hint: "Describe your symptoms and understand the diagnosis." },
+  },
+  tandem: {
+    propose: "50/50 tandem session",
+    waiting: "Proposal sent — waiting for your partner…",
+    promptText: "Your partner suggests a 50/50 tandem session: half in one language, half in the other.",
+    accept: "Accept",
+    decline: "Dismiss",
+    activePhase: ({ lang }) => `${lang} phase`,
+  },
   common: {
     cancel: "Cancel",
     close: "Close",
@@ -12,6 +27,8 @@ export const en: Messages = {
     courses: "Courses",
   },
   setup: {
+    scenarioLabel: "Role-play scenario",
+    scenarioFreeChat: "Free chat",
     chooseNick: "Pick a nickname",
     nickPlaceholder: "your nickname",
     next: "Next",
@@ -51,6 +68,12 @@ export const en: Messages = {
     quit: "Quit",
   },
   chat: {
+    nudgePractice: ({ lang }) => `💡 Friendly reminder: you're here to practice ${lang} — give it a try!`,
+    nudgeTandem: ({ lang }) => `🔄 This half is in ${lang} — time to switch!`,
+    missionComplete: "🎉 Mission accomplished!",
+    tandemSwitch: ({ lang }) => `🔄 Switch: the conversation is now in ${lang}`,
+    tandemEnd: "🏁 Tandem session over — free chat",
+    cefrBadgeTitle: "Level estimated by AI",
     chattingWith: ({ nick }) => `You're chatting with ${nick}`,
     sayHello: "Say hi to get started.",
     systemPeerLeft: ({ nick }) => `${nick} left the conversation`,
@@ -90,6 +113,16 @@ export const en: Messages = {
     remaining: ({ count }) => `${count} translations left today`,
   },
   vocab: {
+    reviewTitle: "Today's review",
+    reviewDue: ({ count }) => `${count} words to review`,
+    reviewStart: "Review",
+    showAnswer: "Show answer",
+    gradeAgain: "Again",
+    gradeHard: "Hard",
+    gradeGood: "Good",
+    gradeEasy: "Easy",
+    reviewDone: "Review complete!",
+    reviewDoneHint: ({ count }) => `${count} cards reviewed — come back tomorrow for more.`,
     title: "Vocabulary notebook",
     empty: "No saved words yet.",
     save: "Save",
@@ -101,6 +134,15 @@ export const en: Messages = {
     practice: "Review",
   },
   learn: {
+    daily: {
+      title: "Your daily lesson",
+      subtitle: ({ count }) => `${count} mistakes from your chats to replay`,
+      question: "Which is the correct form?",
+      next: "Continue",
+      doneTitle: "Daily lesson complete!",
+      doneHint: ({ total, mistakes }) => `${total} corrections replayed, ${mistakes} misses.`,
+      claim: "Claim my XP",
+    },
     navLink: "Courses",
     title: "Courses",
     subtitle: "Learn a language, one lesson at a time.",
@@ -388,6 +430,7 @@ export const en: Messages = {
     cancelEdit: "Cancel",
   },
   account: {
+    cefrBadgeTitle: "Level estimated by AI from your conversations",
     title: "My profile",
     photos: "Photos",
     photosHint: "Up to 6 photos. The first is your in-chat avatar.",
@@ -444,6 +487,7 @@ export const en: Messages = {
     deleteConfirm: "Permanently delete this conversation?",
   },
   premium: {
+    reasonScenario: "This role-play scenario is for Premium subscribers",
     sheetTitle: "Go Jolyne Premium",
     reasonSwipe: "You've reached your 10 partners for today.",
     reasonTranslate: "You've reached your 10 translations for today.",

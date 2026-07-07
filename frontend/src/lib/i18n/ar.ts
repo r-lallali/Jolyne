@@ -1,6 +1,21 @@
 import type { Messages } from "@/lib/i18n/types";
 
 export const ar: Messages = {
+  scenarios: {
+    restaurant: { title: "في المطعم", hint: "اطلب وجبة كاملة واطلب الحساب." },
+    directions: { title: "السؤال عن الطريق", hint: "سائح تائه: اجعلهم يشرحون لك الطريق." },
+    interview: { title: "مقابلة عمل", hint: "احصل على وظيفة أحلامك." },
+    market: { title: "في السوق", hint: "فاوض على الأسعار كأهل البلد." },
+    doctor: { title: "عند الطبيب", hint: "صف أعراضك وافهم التشخيص." },
+  },
+  tandem: {
+    propose: "جلسة تبادل 50/50",
+    waiting: "أُرسل الاقتراح — بانتظار شريكك…",
+    promptText: "يقترح شريكك جلسة تبادل 50/50: نصفها بلغة ونصفها بالأخرى.",
+    accept: "قبول",
+    decline: "تجاهل",
+    activePhase: ({ lang }) => `مرحلة ${lang}`,
+  },
   common: {
     cancel: "إلغاء",
     close: "إغلاق",
@@ -12,6 +27,8 @@ export const ar: Messages = {
     courses: "دروس",
   },
   setup: {
+    scenarioLabel: "سيناريو لعب الأدوار",
+    scenarioFreeChat: "دردشة حرّة",
     chooseNick: "اختر اسمًا مستعارًا",
     nickPlaceholder: "اسمك المستعار",
     next: "التالي",
@@ -48,6 +65,12 @@ export const ar: Messages = {
     quit: "خروج",
   },
   chat: {
+    nudgePractice: ({ lang }) => `💡 تذكير: أنت هنا للتدرّب على ${lang} — جرّب!`,
+    nudgeTandem: ({ lang }) => `🔄 هذا الجزء بِـ${lang} — حان وقت التبديل!`,
+    missionComplete: "🎉 المهمّة أُنجزت!",
+    tandemSwitch: ({ lang }) => `🔄 تبديل: تنتقل المحادثة إلى ${lang}`,
+    tandemEnd: "🏁 انتهت جلسة التبادل — دردشة حرّة",
+    cefrBadgeTitle: "المستوى المقدَّر بالذكاء الاصطناعي",
     chattingWith: ({ nick }) => `أنت تدردش مع ${nick}`,
     sayHello: "ابدأ بإلقاء التحية.",
     systemPeerLeft: ({ nick }) => `غادر ${nick} المحادثة`,
@@ -87,6 +110,16 @@ export const ar: Messages = {
     remaining: ({ count }) => `بقيت ${count} ترجمة اليوم`,
   },
   vocab: {
+    reviewTitle: "مراجعة اليوم",
+    reviewDue: ({ count }) => `كلمات للمراجعة: ${count}`,
+    reviewStart: "راجع",
+    showAnswer: "أظهر الإجابة",
+    gradeAgain: "مجددًا",
+    gradeHard: "صعب",
+    gradeGood: "جيد",
+    gradeEasy: "سهل",
+    reviewDone: "انتهت المراجعة!",
+    reviewDoneHint: ({ count }) => `راجعت ${count} بطاقة — عُد غدًا للمزيد.`,
     title: "دفتر المفردات",
     empty: "لا توجد كلمات محفوظة بعد.",
     save: "حفظ",
@@ -98,6 +131,15 @@ export const ar: Messages = {
     practice: "مراجعة",
   },
   learn: {
+    daily: {
+      title: "درسك اليومي",
+      subtitle: ({ count }) => `أخطاء من محادثاتك لإعادة التدرّب: ${count}`,
+      question: "ما الصيغة الصحيحة؟",
+      next: "متابعة",
+      doneTitle: "اكتمل درس اليوم!",
+      doneHint: ({ total, mistakes }) => `أعدت التدرّب على ${total} تصحيحًا مع ${mistakes} أخطاء.`,
+      claim: "احصل على نقاط XP",
+    },
     navLink: "الدورات",
     title: "الدورات",
     subtitle: "تعلّم لغة، درسًا تلو الآخر.",
@@ -383,6 +425,7 @@ export const ar: Messages = {
     cancelEdit: "إلغاء",
   },
   account: {
+    cefrBadgeTitle: "مستوى مقدَّر بالذكاء الاصطناعي بناءً على محادثاتك",
     title: "ملفي الشخصي",
     photos: "الصور",
     photosHint: "حتى 6 صور. الأولى هي صورتك في الدردشة.",
@@ -439,6 +482,7 @@ export const ar: Messages = {
     deleteConfirm: "حذف هذه المحادثة نهائيًا؟",
   },
   premium: {
+    reasonScenario: "هذا السيناريو مخصّص لمشتركي بريميوم",
     sheetTitle: "ارتقِ إلى Jolyne Premium",
     reasonSwipe: "لقد بلغت حد الـ 10 شركاء لهذا اليوم.",
     reasonTranslate: "لقد بلغت حد الـ 10 ترجمات لهذا اليوم.",

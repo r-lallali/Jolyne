@@ -52,6 +52,25 @@ export interface Messages {
     aiTeacherExhausted: string;
     // Phrase courte qui suit le compteur "scoreboard" (pas le nombre).
     queueWaitingSuffix: FormatString<{ count: number }>;
+    // Picker de scénario roleplay du prof IA (visible quand le toggle est
+    // coché) : libellé de la section + chip « chat libre » (aucun scénario).
+    scenarioLabel: string;
+    scenarioFreeChat: string;
+  };
+  // Scénarios de jeu de rôle du prof IA — doit couvrir les IDs de
+  // lib/scenarios.ts (alignés sur le catalogue backend).
+  scenarios: Record<
+    "restaurant" | "directions" | "interview" | "market" | "doctor",
+    { title: string; hint: string }
+  >;
+  // Session tandem 50/50 (bandeau + poignée de main dans le chat).
+  tandem: {
+    propose: string;
+    waiting: string;
+    promptText: string;
+    accept: string;
+    decline: string;
+    activePhase: FormatString<{ lang: string }>;
   };
   searching: {
     findingPeer: string;
@@ -106,6 +125,17 @@ export interface Messages {
     // Bouton de l'encart "personnes en file" pendant un chat bot de repli :
     // bascule vers un partenaire humain.
     switchToHuman: string;
+    // Nudges pédagogiques privés (jamais montrés au peer) : trop de messages
+    // en langue native / mauvaise langue pendant une phase tandem.
+    nudgePractice: FormatString<{ lang: string }>;
+    nudgeTandem: FormatString<{ lang: string }>;
+    // Ligne système de célébration quand la mission roleplay est accomplie.
+    missionComplete: string;
+    // Lignes système tandem : début de phase / fin de session.
+    tandemSwitch: FormatString<{ lang: string }>;
+    tandemEnd: string;
+    // Tooltip du badge « ≈ B1 » du peer dans le header.
+    cefrBadgeTitle: string;
   };
   translate: {
     label: string;
@@ -126,9 +156,31 @@ export interface Messages {
     link: string; // libellé du lien depuis /account
     count: FormatString<{ count: number }>;
     practice: string; // CTA de révision d'une langue depuis le carnet
+    // Révision espacée (SRS) : carte d'appel + lecteur de flashcards.
+    reviewTitle: string;
+    reviewDue: FormatString<{ count: number }>;
+    reviewStart: string;
+    showAnswer: string;
+    gradeAgain: string;
+    gradeHard: string;
+    gradeGood: string;
+    gradeEasy: string;
+    reviewDone: string;
+    reviewDoneHint: FormatString<{ count: number }>;
   };
   // Mode Cours (apprentissage type Duolingo).
   learn: {
+    // Leçon du jour : fautes corrigées des conversations, rejouées en
+    // exercices (carte d'appel + lecteur dédié).
+    daily: {
+      title: string;
+      subtitle: FormatString<{ count: number }>;
+      question: string;
+      next: string;
+      doneTitle: string;
+      doneHint: FormatString<{ total: number; mistakes: number }>;
+      claim: string;
+    };
     navLink: string; // entrée de menu vers le mode Cours
     title: string;
     subtitle: string;
@@ -404,6 +456,8 @@ export interface Messages {
   };
   account: {
     title: string;
+    // Tooltip du badge « ≈ B1 » (niveau CECRL estimé par l'IA).
+    cefrBadgeTitle: string;
     photos: string;
     photosHint: string;
     displayName: string;
@@ -467,6 +521,7 @@ export interface Messages {
     reasonSwipe: string;
     reasonTranslate: string;
     reasonBot: string;
+    reasonScenario: string; // scénario roleplay verrouillé hors Premium
     upgradeCta: string;
     loginRequired: string;
     loginCta: string;
