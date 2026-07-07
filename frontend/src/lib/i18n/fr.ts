@@ -114,6 +114,8 @@ export const fr: Messages = {
     limitReached: "Limite de traductions du jour atteinte.",
     limitCta: "Passer Premium",
     remaining: ({ count }) => `${count} traductions restantes aujourd'hui`,
+    listen: "Écouter",
+    auto: "Traduction automatique",
   },
   vocab: {
     reviewTitle: "Révision du jour",

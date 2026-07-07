@@ -110,6 +110,8 @@ export const es: Messages = {
     limitReached: "Has alcanzado el límite de traducciones de hoy.",
     limitCta: "Hazte Premium",
     remaining: ({ count }) => `${count} traducciones restantes hoy`,
+    listen: "Escuchar",
+    auto: "Traducción automática",
   },
   vocab: {
     reviewTitle: "Repaso del día",

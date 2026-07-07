@@ -10,6 +10,7 @@ import {
 } from "@/lib/translate";
 import { usePaywallStore } from "@/stores/paywallStore";
 import { useUserStore } from "@/stores/userStore";
+import { speak, speechSupported } from "@/lib/speech";
 import { saveVocab } from "@/lib/vocab";
 
 export interface TranslationRequest {
@@ -28,7 +29,13 @@ interface Props {
 
 type State =
   | { kind: "loading" }
-  | { kind: "ok"; translated: string; remaining: number }
+  | {
+      kind: "ok";
+      translated: string;
+      detected?: string;
+      romanization?: string;
+      remaining: number;
+    }
   | { kind: "err"; message: string }
   | { kind: "limit" };
 
@@ -76,13 +83,10 @@ export function TranslationPopover({ request, onClose }: Props) {
 
     const performTranslation = async () => {
       try {
-        const { translated, remaining } = await translateText(
-          request.text,
-          request.source,
-          request.target,
-        );
+        const { translated, detected, romanization, remaining } =
+          await translateText(request.text, request.source, request.target);
         if (active) {
-          setState({ kind: "ok", translated, remaining });
+          setState({ kind: "ok", translated, detected, romanization, remaining });
         }
       } catch (e) {
         if (!active) return;
@@ -116,15 +120,16 @@ export function TranslationPopover({ request, onClose }: Props) {
 
   // Sauvegarde du couple (terme original → traduction) dans le carnet.
   // Réservé aux users connectés (le carnet est lié au compte). Idempotent
-  // côté backend : re-sauver remonte le mot en tête.
-  const handleSave = async (translated: string) => {
+  // côté backend : re-sauver remonte le mot en tête. La langue source
+  // stockée est celle détectée par le serveur quand on a envoyé "auto".
+  const handleSave = async (translated: string, detected?: string) => {
     if (saveState === "saving" || saveState === "saved") return;
     setSaveState("saving");
     try {
       await saveVocab({
         term: request.text,
         translation: translated,
-        source: request.source,
+        source: detected ?? request.source,
         target: request.target,
       });
       setSaveState("saved");
@@ -149,14 +154,47 @@ export function TranslationPopover({ request, onClose }: Props) {
       className="min-w-[180px] max-w-[320px] rounded-2xl border border-neutral-200 bg-white/95 p-3.5 text-xs shadow-xl backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/95"
     >
       <div className="flex flex-col gap-2">
-        {/* En-tête : texte original */}
-        <div className="flex items-start justify-between gap-2 border-b border-neutral-100 pb-1.5 dark:border-neutral-800">
-          <span className="line-clamp-2 font-medium text-neutral-500 dark:text-neutral-400">
-            « {request.text} »
-          </span>
-          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-            {request.source}
-          </span>
+        {/* En-tête : texte original + langue + prononciation */}
+        <div className="border-b border-neutral-100 pb-1.5 dark:border-neutral-800">
+          <div className="flex items-start justify-between gap-2">
+            <span className="line-clamp-2 font-medium text-neutral-500 dark:text-neutral-400">
+              « {request.text} »
+            </span>
+            <span className="flex shrink-0 items-center gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+                {/* "auto" n'est pas une langue : on affiche la langue détectée
+                    une fois la réponse arrivée, un placeholder en attendant. */}
+                {request.source !== "auto"
+                  ? request.source
+                  : state.kind === "ok" && state.detected
+                    ? state.detected
+                    : "· · ·"}
+              </span>
+              {speechSupported() && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    speak(
+                      request.text,
+                      (state.kind === "ok" && state.detected) ||
+                        (request.source !== "auto" ? request.source : ""),
+                    )
+                  }
+                  aria-label={t.translate.listen}
+                  title={t.translate.listen}
+                  className="inline-flex size-5 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 active:scale-90 dark:text-neutral-500 dark:hover:bg-neutral-900 dark:hover:text-neutral-300"
+                >
+                  <SpeakerIcon />
+                </button>
+              )}
+            </span>
+          </div>
+          {/* Romanisation du texte source (pinyin, rōmaji…) — chemin IA. */}
+          {state.kind === "ok" && state.romanization && (
+            <p className="mt-0.5 text-[11px] italic text-neutral-400 dark:text-neutral-500">
+              {state.romanization}
+            </p>
+          )}
         </div>
 
         {/* Corps : Loader, Résultat ou Erreur */}
@@ -220,7 +258,7 @@ export function TranslationPopover({ request, onClose }: Props) {
             {user && (
               <button
                 type="button"
-                onClick={() => handleSave(state.translated)}
+                onClick={() => handleSave(state.translated, state.detected)}
                 disabled={saveState === "saving" || saveState === "saved"}
                 className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-[11px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-100 disabled:opacity-60 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-900"
               >
@@ -307,6 +345,26 @@ export function TranslationPopover({ request, onClose }: Props) {
         )}
       </div>
     </motion.div>
+  );
+}
+
+// SpeakerIcon : petit haut-parleur pour prononcer le texte original (TTS
+// navigateur, cf. lib/speech).
+function SpeakerIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+      aria-hidden
+    >
+      <path d="M11 5 6 9H2v6h4l5 4V5z" />
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+    </svg>
   );
 }
 

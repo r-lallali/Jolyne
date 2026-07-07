@@ -7,6 +7,7 @@ import { cefrLabel } from "@/lib/auth";
 import { buzz } from "@/lib/haptics";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
+import { AutoTranslateToggle } from "@/components/chat/AutoTranslateToggle";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 
 interface Props {
@@ -108,6 +109,7 @@ export function ChatHeader({
         </div>
       </div>
       <div className="flex items-center gap-1 pr-12 sm:pr-0">
+        <AutoTranslateToggle />
         <button
           type="button"
           onClick={onReport}

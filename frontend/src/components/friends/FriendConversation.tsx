@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { AutoTranslateToggle } from "@/components/chat/AutoTranslateToggle";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { MessageInput } from "@/components/chat/MessageInput";
 import { ReportModal } from "@/components/chat/ReportModal";
@@ -25,7 +26,9 @@ import {
   reportFriend,
 } from "@/lib/friends";
 import { openFriendWS, FriendWSHandle } from "@/lib/friend_ws";
-import { useT } from "@/lib/i18n";
+import { useT, useUILang } from "@/lib/i18n";
+import { useAutoTranslations } from "@/lib/autoTranslate";
+import { guessSourceLang } from "@/lib/translate";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useUserStore } from "@/stores/userStore";
@@ -135,6 +138,7 @@ export function FriendConversation({
   const clearSelection = () => setSelectedIDs(new Set());
   const speaks = useSessionStore((s) => s.speaks);
   const wants = useSessionStore((s) => s.wants);
+  const uiLang = useUILang();
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasLoadedHistory = useRef(false);
   const wsRef = useRef<FriendWSHandle | null>(null);
@@ -155,17 +159,45 @@ export function FriendConversation({
 
   // Tap-to-translate sur les messages du peer : on garde le même contrat
   // que le chat anonyme (MessageBubble appelle onSelect avec le mot + son
-  // rect viewport). Langues : on reprend la paire setup speaks/wants —
-  // fallback fr/en si l'user arrive direct sur /chats sans avoir matché.
+  // rect viewport). Langues : la langue native de l'ami est figée sur
+  // l'amitié (peer_lang, rempli à la création) — meilleur indice possible ;
+  // à défaut le script du texte tranche pour zh/ja/ko/ar, sinon `wants`,
+  // sinon détection "auto" serveur. Cible : notre langue déclarée, sinon
+  // la langue de l'UI.
+  const expectedPeerLang = profile?.peer_lang || wants;
   const handleSelect = (text: string, rect: DOMRect) => {
     setTrans({
       text,
       x: rect.left + rect.width / 2,
       y: rect.bottom,
-      source: wants ?? "en",
-      target: speaks ?? "fr",
+      source: guessSourceLang(text, expectedPeerLang),
+      target: speaks ?? uiLang,
     });
   };
+
+  // Mode immersion (Premium) : traduction auto des messages de l'ami,
+  // bornée aux 30 derniers pour ne pas traduire tout l'historique.
+  const autoTranslate = useSessionStore((s) => s.autoTranslate);
+  const immersionOn = autoTranslate && !!user?.is_premium;
+  const peerItems = useMemo(
+    () =>
+      msgs
+        .filter(
+          (m) =>
+            (!m.kind || m.kind === "user") &&
+            !m.deleted_at &&
+            m.body &&
+            (user ? m.sender_id !== user.id : false),
+        )
+        .slice(-30)
+        .map((m) => ({ id: String(m.id), body: m.body })),
+    [msgs, user],
+  );
+  const autoTrans = useAutoTranslations(peerItems, {
+    enabled: immersionOn,
+    expected: expectedPeerLang,
+    target: speaks ?? uiLang,
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -396,6 +428,7 @@ export function FriendConversation({
             </span>
           )}
         </div>
+        <AutoTranslateToggle />
         <div className="relative">
           <button
             type="button"
@@ -482,6 +515,7 @@ export function FriendConversation({
                 deletedAt={m.deleted_at ? new Date(m.deleted_at).getTime() : undefined}
                 peerNick={profile?.display_name ?? null}
                 onSelect={handleSelect}
+                translation={mine ? undefined : autoTrans[String(m.id)]}
                 onEditMessage={
                   mine ? (next) => wsRef.current?.edit(m.id, next) : undefined
                 }

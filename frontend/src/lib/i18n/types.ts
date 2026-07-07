@@ -145,6 +145,8 @@ export interface Messages {
     limitReached: string; // quota quotidien atteint
     limitCta: string; // bouton "Premium" dans le popover
     remaining: FormatString<{ count: number }>; // compteur traductions restantes
+    listen: string; // bouton 🔊 : prononcer le texte original (TTS)
+    auto: string; // toggle mode immersion (traduction auto des messages)
   };
   vocab: {
     title: string;

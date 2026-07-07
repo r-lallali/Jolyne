@@ -39,6 +39,9 @@ interface Props {
   selected?: boolean;
   onEnterSelection?: () => void;
   onToggleSelected?: () => void;
+  // Mode immersion : traduction automatique affichée sous le corps du
+  // message (bulles peer uniquement, fournie par useAutoTranslations).
+  translation?: string;
 }
 
 // Bulles asymétriques :
@@ -72,6 +75,7 @@ export function MessageBubble({
   selected = false,
   onEnterSelection,
   onToggleSelected,
+  translation,
 }: Props) {
   const mine = from === "me";
   const ref = useRef<HTMLParagraphElement>(null);
@@ -228,6 +232,17 @@ export function MessageBubble({
                 )}
               >
                 · {t.chats.editedSuffix}
+              </span>
+            )}
+            {!isDeleted && !mine && translation && (
+              // Mode immersion : la traduction vit dans la bulle, séparée
+              // par un filet. stopPropagation : un tap sur la traduction ne
+              // doit pas déclencher le tap-to-translate du texte original.
+              <span
+                onClick={(e) => e.stopPropagation()}
+                className="mt-1.5 block cursor-default border-t border-neutral-300/60 pt-1.5 text-[13px] italic leading-snug text-neutral-600 dark:border-neutral-700 dark:text-neutral-400"
+              >
+                {translation}
               </span>
             )}
           </p>
@@ -522,7 +537,9 @@ function TranslateArrow() {
 }
 
 // wordAtPoint repère le mot situé sous (x, y) en utilisant l'API caret
-// du navigateur. Étend la sélection aux frontières \w côté JS, et renvoie
+// du navigateur. Découpe via Intl.Segmenter quand dispo — indispensable
+// pour les langues sans espaces (chinois, japonais) où l'expansion regex
+// avalerait la phrase entière — sinon étend aux frontières \w. Renvoie
 // le rect de ce mot pour positionner le popover. null si on est sur de
 // l'espace ou hors de la bulle.
 function wordAtPoint(
@@ -558,13 +575,34 @@ function wordAtPoint(
   if (!container.contains(node)) return null;
   const text = node.nodeValue ?? "";
   if (!text) return null;
-  // Étend [start, end) aux frontières \p{L}\p{N}'-.
-  const isWordChar = (c: string) => /[\p{L}\p{N}'’-]/u.test(c);
-  let start = Math.min(offset, text.length - 1);
-  if (start < 0 || !isWordChar(text[start] ?? "")) return null;
-  let end = start;
-  while (start > 0 && isWordChar(text[start - 1] ?? "")) start -= 1;
-  while (end < text.length && isWordChar(text[end] ?? "")) end += 1;
+  const idx = Math.min(offset, text.length - 1);
+  if (idx < 0) return null;
+  let start = -1;
+  let end = -1;
+  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+    // Segmentation par dictionnaire ICU, locale-agnostique : trouve le
+    // segment « mot » contenant le caret. isWordLike=false = ponctuation
+    // ou espace → pas de traduction.
+    const seg = new Intl.Segmenter(undefined, { granularity: "word" });
+    for (const s of seg.segment(text)) {
+      if (idx >= s.index && idx < s.index + s.segment.length) {
+        if (!s.isWordLike) return null;
+        start = s.index;
+        end = s.index + s.segment.length;
+        break;
+      }
+    }
+  } else {
+    // Fallback vieux navigateurs : étend [start, end) aux frontières
+    // \p{L}\p{N}'- (ne segmente pas le CJK, mieux que rien).
+    const isWordChar = (c: string) => /[\p{L}\p{N}'’-]/u.test(c);
+    if (!isWordChar(text[idx] ?? "")) return null;
+    start = idx;
+    end = idx;
+    while (start > 0 && isWordChar(text[start - 1] ?? "")) start -= 1;
+    while (end < text.length && isWordChar(text[end] ?? "")) end += 1;
+  }
+  if (start < 0 || end <= start) return null;
   const word = text.slice(start, end).trim();
   if (!word) return null;
   const range = document.createRange();

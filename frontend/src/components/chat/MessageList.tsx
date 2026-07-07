@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { FriendPromptCard } from "@/components/chat/FriendPromptCard";
 import { PostChatCard } from "@/components/chat/PostChatCard";
@@ -11,10 +11,13 @@ import {
 } from "@/components/chat/TranslationPopover";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useT } from "@/lib/i18n";
+import { useAutoTranslations } from "@/lib/autoTranslate";
+import { guessSourceLang } from "@/lib/translate";
 import { ICEBREAKERS } from "@/lib/icebreakers";
 import { track } from "@/lib/track";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useUserStore } from "@/stores/userStore";
 
 // Flag localStorage : "le user a déjà vu le hint, ne pas réafficher".
 const HINT_STORAGE_KEY = "jolyne_translate_hinted";
@@ -47,6 +50,26 @@ export function MessageList({
   const wants = useSessionStore((s) => s.wants);
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
+
+  // Mode immersion (Premium) : traduction auto des messages du peer,
+  // affichée sous chaque bulle. Borné aux 30 derniers pour ne pas traduire
+  // tout un historique d'un coup.
+  const autoTranslate = useSessionStore((s) => s.autoTranslate);
+  const user = useUserStore((s) => s.user);
+  const immersionOn = autoTranslate && !!user?.is_premium;
+  const peerItems = useMemo(
+    () =>
+      messages
+        .filter((m) => m.from === "peer" && m.kind !== "system" && m.body)
+        .slice(-30)
+        .map((m) => ({ id: m.id, body: m.body })),
+    [messages],
+  );
+  const autoTrans = useAutoTranslations(peerItems, {
+    enabled: immersionOn,
+    expected: wants,
+    target: speaks,
+  });
 
   // Tooltip de traduction. Un seul à la fois — la sélection d'un autre mot
   // remplace simplement la requête en cours.
@@ -100,7 +123,10 @@ export function MessageList({
       text,
       x: rect.left + rect.width / 2,
       y: rect.bottom,
-      source: wants, // le peer écrit dans notre `wants`
+      // Le peer écrit en général dans notre `wants`, mais pas toujours
+      // (alternance des langues en tandem). Le script du texte tranche
+      // pour zh/ja/ko/ar ; sinon `wants`, ou "auto" en dernier recours.
+      source: guessSourceLang(text, wants),
       target: speaks,
     });
   };
@@ -175,6 +201,9 @@ export function MessageList({
                   onSelect={handleSelect}
                   onCorrect={onCorrect ? () => onCorrect(m) : undefined}
                   onEditCorrection={canEdit ? () => onEditCorrection!(m) : undefined}
+                  translation={
+                    m.from === "peer" ? autoTrans[m.id] : undefined
+                  }
                 />
               </Fragment>
             );

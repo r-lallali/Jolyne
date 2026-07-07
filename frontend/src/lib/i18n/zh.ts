@@ -107,6 +107,8 @@ export const zh: Messages = {
     limitReached: "你已达到今天的翻译次数上限。",
     limitCta: "升级 Premium",
     remaining: ({ count }) => `今天还剩 ${count} 次翻译`,
+    listen: "朗读",
+    auto: "自动翻译",
   },
   vocab: {
     reviewTitle: "今日复习",

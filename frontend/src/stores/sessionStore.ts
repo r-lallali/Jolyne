@@ -20,12 +20,18 @@ interface SessionState {
   // Langue de l'interface. null = on dérive automatiquement (speaks → navigator
   // → en). Le user peut forcer via le sélecteur dans le SetupView.
   uiLang: UILang | null;
+  // Mode immersion (Premium) : traduire automatiquement les messages
+  // entrants sous chaque bulle. Persisté — c'est un réglage de confort que
+  // le user attend de retrouver d'une session à l'autre. Le gating Premium
+  // se fait au toggle ET dans le hook (un Premium expiré retombe à off).
+  autoTranslate: boolean;
   setPseudo: (v: string) => void;
   setLangs: (speaks: LangCode, wants: LangCode | null) => void;
   acceptAge: (v: boolean) => void;
   setBotMode: (v: boolean) => void;
   setScenario: (v: string | null) => void;
   setUILang: (v: UILang | null) => void;
+  setAutoTranslate: (v: boolean) => void;
   clear: () => void;
 }
 
@@ -45,6 +51,7 @@ export const useSessionStore = create<SessionState>()(
       botMode: false,
       scenario: null,
       uiLang: null,
+      autoTranslate: false,
       setPseudo: (pseudo) => set({ pseudo }),
       setLangs: (speaks, wants) => set({ speaks, wants }),
       acceptAge: (ageAccepted) => set({ ageAccepted }),
@@ -53,6 +60,7 @@ export const useSessionStore = create<SessionState>()(
         set(botMode ? { botMode } : { botMode, scenario: null }),
       setScenario: (scenario) => set({ scenario }),
       setUILang: (uiLang) => set({ uiLang }),
+      setAutoTranslate: (autoTranslate) => set({ autoTranslate }),
       clear: () =>
         set({
           pseudo: "",
@@ -62,6 +70,7 @@ export const useSessionStore = create<SessionState>()(
           botMode: false,
           scenario: null,
           uiLang: null,
+          autoTranslate: false,
         }),
     }),
     {
@@ -75,6 +84,7 @@ export const useSessionStore = create<SessionState>()(
         wants: s.wants,
         ageAccepted: s.ageAccepted,
         uiLang: s.uiLang,
+        autoTranslate: s.autoTranslate,
       }),
     },
   ),

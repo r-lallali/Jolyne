@@ -107,6 +107,8 @@ export const ko: Messages = {
     limitReached: "오늘의 번역 한도에 도달했어요.",
     limitCta: "프리미엄 전환",
     remaining: ({ count }) => `오늘 ${count}회 번역 남음`,
+    listen: "듣기",
+    auto: "자동 번역",
   },
   vocab: {
     reviewTitle: "오늘의 복습",

@@ -108,6 +108,8 @@ export const ja: Messages = {
     limitReached: "本日の翻訳回数の上限に達しました。",
     limitCta: "Premiumにする",
     remaining: ({ count }) => `今日はあと${count}回翻訳できます`,
+    listen: "読み上げ",
+    auto: "自動翻訳",
   },
   vocab: {
     reviewTitle: "今日の復習",

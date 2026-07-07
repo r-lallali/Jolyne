@@ -108,6 +108,8 @@ export const ar: Messages = {
     limitReached: "لقد بلغت حد الترجمات لهذا اليوم.",
     limitCta: "اشترك في Premium",
     remaining: ({ count }) => `بقيت ${count} ترجمة اليوم`,
+    listen: "استمع",
+    auto: "ترجمة تلقائية",
   },
   vocab: {
     reviewTitle: "مراجعة اليوم",
