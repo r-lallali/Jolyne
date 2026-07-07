@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/users"
 )
 
@@ -22,11 +23,17 @@ var allowedLangs = map[string]struct{}{
 }
 
 // Handlers : endpoints /api/vocab. Toutes les routes passent par RequireAuth
-// (le user est dans le ctx). Le Store est obligatoire.
+// (le user est dans le ctx). Le Store est obligatoire ; Tracker optionnel
+// (event srs_review_done).
 type Handlers struct {
-	Store *Store
-	Log   *slog.Logger
+	Store   *Store
+	Tracker *analytics.Tracker
+	Log     *slog.Logger
 }
+
+// reviewBatchSize : cartes servies par GET /api/vocab/review. Une session de
+// révision courte — le client redemande s'il finit la pile.
+const reviewBatchSize = 20
 
 func (h *Handlers) log() *slog.Logger {
 	if h.Log != nil {
@@ -107,6 +114,75 @@ func (h *Handlers) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(entry)
+}
+
+// HandleReviewList : GET /api/vocab/review. Renvoie la pile de cartes dues
+// (bornée à reviewBatchSize) + le total dû.
+func (h *Handlers) HandleReviewList(w http.ResponseWriter, r *http.Request) {
+	user, ok := users.CurrentUser(r.Context())
+	if !ok {
+		http.Error(w, "auth required", http.StatusUnauthorized)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+	entries, total, err := h.Store.Due(ctx, user.ID, reviewBatchSize)
+	if err != nil {
+		h.log().Error("vocab review list", "err", err)
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"entries": entries, "total_due": total})
+}
+
+type reviewBody struct {
+	Grade string `json:"grade"`
+}
+
+// HandleReviewGrade : POST /api/vocab/{id}/review {grade}. Applique la note
+// SM-2 et renvoie la prochaine échéance.
+func (h *Handlers) HandleReviewGrade(w http.ResponseWriter, r *http.Request) {
+	user, ok := users.CurrentUser(r.Context())
+	if !ok {
+		http.Error(w, "auth required", http.StatusUnauthorized)
+		return
+	}
+	idStr := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/vocab/"), "/review")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	var body reviewBody
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 512)).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	grade := Grade(strings.ToLower(strings.TrimSpace(body.Grade)))
+	if !ValidGrade(grade) {
+		http.Error(w, "invalid grade", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+	dueAt, err := h.Store.ApplyReview(ctx, user.ID, id, grade, time.Now())
+	if errors.Is(err, ErrNotFound) {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.log().Error("vocab review grade", "err", err)
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	h.Tracker.Emit(analytics.Event{
+		Name:   analytics.EventSRSReviewDone,
+		UserID: user.ID,
+		Props:  map[string]any{"grade": string(grade)},
+	})
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"id": id, "due_at": dueAt})
 }
 
 // HandleDelete : DELETE /api/vocab/{id}. Le store filtre par user_id (pas
