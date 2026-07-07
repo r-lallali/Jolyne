@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Sparkles } from "lucide-react";
 import { AchievementsRow } from "@/components/learn/AchievementsRow";
 import { CoursePath } from "@/components/learn/CoursePath";
+import { DailyLessonPlayer } from "@/components/learn/DailyLessonPlayer";
 import { HeartRequestsBanner } from "@/components/learn/HeartRequestsBanner";
 import { LearnHeader } from "@/components/learn/LearnHeader";
 import { LessonPlayer, type LessonWord } from "@/components/learn/LessonPlayer";
@@ -18,11 +19,13 @@ import { LANG_FLAG, LANG_LABEL, type LangCode } from "@/lib/langs";
 import {
   enrollCourse,
   getCourseTree,
+  getDailyLesson,
   getLesson,
   getState,
   listCourses,
   type CourseSummary,
   type CourseTree,
+  type DailyLesson,
   type LearnState,
   type LessonNode,
   type PlayItem,
@@ -64,6 +67,10 @@ export function LearnMode() {
   // Carnet de vocabulaire : alimente la révision libre du cours ouvert.
   const [vocabEntries, setVocabEntries] = useState<VocabEntry[]>([]);
   const [practice, setPractice] = useState<LessonWord[] | null>(null);
+  // Leçon du jour : fautes corrigées à rejouer (issues des conversations).
+  // null = pas assez de matière pour la langue du cours ouvert.
+  const [daily, setDaily] = useState<DailyLesson | null>(null);
+  const [playingDaily, setPlayingDaily] = useState(false);
 
   // Module d'écriture : unités "script" en tête de cours. Sert au diagnostic
   // de saut et à décorer le parcours.
@@ -108,11 +115,13 @@ export function LearnMode() {
     }
     // Des mots ont pu être ajoutés au carnet pendant la leçon.
     void refreshVocab();
+    getDailyLesson(lang).then(setDaily).catch(() => setDaily(null));
   }, [lang, refreshVocab]);
 
   const openCourse = async (l: string) => {
     setLang(l);
     setTree(null);
+    setDaily(null);
     try {
       const [tr, st] = await Promise.all([getCourseTree(l), getState()]);
       setTree(tr);
@@ -120,11 +129,13 @@ export function LearnMode() {
     } catch {
       /* silencieux */
     }
+    getDailyLesson(l).then(setDaily).catch(() => {});
   };
 
   const backToList = () => {
     setLang(null);
     setTree(null);
+    setDaily(null);
     void refreshState();
     // La progression affichée sur les cartes de cours a pu évoluer.
     listCourses().then(setCourses).catch(() => {});
@@ -264,6 +275,28 @@ export function LearnMode() {
               }));
               return (
                 <div className="mt-6 space-y-6">
+                  {daily && (
+                    <button
+                      type="button"
+                      onClick={() => setPlayingDaily(true)}
+                      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-left transition-colors hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:hover:bg-amber-500/15"
+                    >
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <Sparkles className="size-4 shrink-0 text-amber-500" aria-hidden />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-amber-700 dark:text-amber-300">
+                            {t.learn.daily.title}
+                          </span>
+                          <span className="block truncate text-xs text-amber-600/70 dark:text-amber-300/60">
+                            {t.learn.daily.subtitle({ count: daily.items.length })}
+                          </span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-amber-500 px-3 py-1 text-xs font-bold text-white">
+                        +{daily.xp} XP
+                      </span>
+                    </button>
+                  )}
                   {words.length >= PRACTICE_MIN_WORDS && (
                     <button
                       type="button"
@@ -306,6 +339,17 @@ export function LearnMode() {
           targetLang={lang}
           words={practice}
           onClose={() => setPractice(null)}
+        />
+      )}
+
+      {playingDaily && daily && (
+        <DailyLessonPlayer
+          items={daily.items}
+          onClose={(completed) => {
+            setPlayingDaily(false);
+            setDaily(null);
+            if (completed) void refreshCourse();
+          }}
         />
       )}
 

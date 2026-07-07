@@ -69,6 +69,47 @@ export async function deleteVocab(id: number): Promise<void> {
   if (!res.ok) throw new VocabError(`vocab: ${res.status}`, res.status);
 }
 
+// --- Répétition espacée (SRS) ---
+
+export type ReviewGrade = "again" | "hard" | "good" | "easy";
+
+export interface DueVocab {
+  entries: VocabEntry[];
+  totalDue: number;
+}
+
+// listDueVocab : pile de cartes dues (bornée côté serveur) + total dû.
+export async function listDueVocab(): Promise<DueVocab> {
+  const res = await fetch(`${BASE}/api/vocab/review`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new VocabError(`vocab: ${res.status}`, res.status);
+  const data = (await res.json()) as {
+    entries: VocabEntry[];
+    total_due: number;
+  };
+  return {
+    entries: (data.entries ?? []).map(decode),
+    totalDue: data.total_due ?? 0,
+  };
+}
+
+// gradeVocab : note une carte (SM-2). Renvoie la prochaine échéance ISO.
+export async function gradeVocab(
+  id: number,
+  grade: ReviewGrade,
+): Promise<string> {
+  const res = await fetch(`${BASE}/api/vocab/${id}/review`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ grade }),
+  });
+  if (!res.ok) throw new VocabError(`vocab: ${res.status}`, res.status);
+  const data = (await res.json()) as { due_at: string };
+  return data.due_at;
+}
+
 // practiceItems : entrées du carnet exploitables pour réviser la langue `lang`
 // (quel que soit le sens d'enregistrement), sous forme (mot cible, sens),
 // dédupliquées par cible. Alimente le lecteur de révision (buildExercises).

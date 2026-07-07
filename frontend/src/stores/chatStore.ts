@@ -60,7 +60,20 @@ export interface PeerProfile {
   photoId: string;
   prompts: { prompt: string; answer: string }[];
   verified?: boolean;
+  // Niveau CECRL estimé (1.0..6.0), badge « ≈ B1 » dans le header du chat.
+  cefr?: number;
 }
+
+// État de la session tandem 50/50 :
+//   - null                : pas de tandem (ni proposé, ni actif)
+//   - "proposed"          : j'ai proposé, j'attends la réponse du peer
+//   - "prompted"          : le peer propose, à moi de répondre
+//   - { kind: "active" }  : phase en cours (lang imposée + échéance)
+export type TandemState =
+  | null
+  | { kind: "proposed" }
+  | { kind: "prompted" }
+  | { kind: "active"; lang: string; phaseSec: number; startedAt: number };
 
 interface ChatState {
   status: ChatStatus;
@@ -83,6 +96,10 @@ interface ChatState {
   // de ChatView pour qu'un remount (switch d'onglet "mes conversations" →
   // retour) ne relance pas l'animation à zéro.
   matchedAt: number | null;
+  // Amorces fraîches reçues du serveur (frame `icebreakers`). Vide =
+  // fallback sur la liste statique locale (lib/icebreakers.ts).
+  icebreakers: string[];
+  tandem: TandemState;
 
   setStatus: (s: ChatStatus) => void;
   matched: (peerNick: string, isBot?: boolean) => void;
@@ -105,6 +122,12 @@ interface ChatState {
   friendMade: (friendId: number) => void;
   friendSkipped: () => void;
   setPeerProfile: (p: PeerProfile | null) => void;
+  setIcebreakers: (suggestions: string[]) => void;
+  // Tandem 50/50
+  tandemProposed: () => void;
+  tandemPrompted: () => void;
+  tandemSwitched: (lang: string, phaseSec: number) => void;
+  tandemEnded: () => void;
 }
 
 // Timer du "peer écrit…" : module-level car il n'y a qu'une seule conv à
@@ -134,6 +157,8 @@ export const useChatStore = create<ChatState>((set) => ({
   peerProfile: null,
   peerIsBot: false,
   matchedAt: null,
+  icebreakers: [],
+  tandem: null,
 
   setStatus: (status) => set({ status }),
 
@@ -151,6 +176,8 @@ export const useChatStore = create<ChatState>((set) => ({
       peerProfile: null,
       peerIsBot: !!isBot,
       matchedAt: Date.now(),
+      icebreakers: [],
+      tandem: null,
     });
   },
 
@@ -252,6 +279,8 @@ export const useChatStore = create<ChatState>((set) => ({
       peerProfile: null,
       peerIsBot: false,
       matchedAt: null,
+      icebreakers: [],
+      tandem: null,
     });
   },
 
@@ -261,4 +290,11 @@ export const useChatStore = create<ChatState>((set) => ({
     set({ friendPrompt: { kind: "made", friendId } }),
   friendSkipped: () => set({ friendPrompt: { kind: "skipped" } }),
   setPeerProfile: (p) => set({ peerProfile: p }),
+  setIcebreakers: (icebreakers) => set({ icebreakers }),
+
+  tandemProposed: () => set({ tandem: { kind: "proposed" } }),
+  tandemPrompted: () => set({ tandem: { kind: "prompted" } }),
+  tandemSwitched: (lang, phaseSec) =>
+    set({ tandem: { kind: "active", lang, phaseSec, startedAt: Date.now() } }),
+  tandemEnded: () => set({ tandem: null }),
 }));

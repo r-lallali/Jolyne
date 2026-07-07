@@ -6,10 +6,17 @@ import { Volume2 } from "lucide-react";
 import { BackButton } from "@/components/ui/BackButton";
 import { PracticePlayer } from "@/components/learn/PracticePlayer";
 import type { LessonWord } from "@/components/learn/LessonPlayer";
+import { ReviewPlayer } from "@/components/vocab/ReviewPlayer";
 import { useT, useUILang } from "@/lib/i18n";
 import { LANG_FLAG, LANG_LABEL, type LangCode } from "@/lib/langs";
 import { speak, speechSupported } from "@/lib/speech";
-import { listVocab, deleteVocab, practiceItems, type VocabEntry } from "@/lib/vocab";
+import {
+  listVocab,
+  listDueVocab,
+  deleteVocab,
+  practiceItems,
+  type VocabEntry,
+} from "@/lib/vocab";
 import { useUserStore } from "@/stores/userStore";
 
 // Seuil d'entrées par langue pour proposer la révision (assez de distracteurs).
@@ -23,7 +30,20 @@ export default function VocabPage() {
   const [list, setList] = useState<VocabEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [practice, setPractice] = useState<{ lang: string; words: LessonWord[] } | null>(null);
+  // Pile SRS : cartes dues + total. Rechargée à la fermeture du lecteur
+  // (les cartes notées « again » redeviennent dues dans la session).
+  const [due, setDue] = useState<{ entries: VocabEntry[]; totalDue: number }>({
+    entries: [],
+    totalDue: 0,
+  });
+  const [reviewing, setReviewing] = useState(false);
   const canSpeak = speechSupported();
+
+  const refreshDue = () => {
+    listDueVocab()
+      .then(setDue)
+      .catch(() => {});
+  };
 
   useEffect(() => {
     if (!hydrated || !user) return;
@@ -31,6 +51,7 @@ export default function VocabPage() {
       .then(setList)
       .catch(() => {})
       .finally(() => setLoading(false));
+    refreshDue();
   }, [hydrated, user]);
 
   // Langues révisables : côté étranger des entrées (≠ langue d'interface),
@@ -81,6 +102,32 @@ export default function VocabPage() {
           </span>
         )}
       </div>
+
+      {/* Révision espacée (SRS) : cartes dues aujourd'hui, notes persistées. */}
+      {due.totalDue > 0 && !loading && (
+        <button
+          type="button"
+          onClick={() => setReviewing(true)}
+          className="mt-5 flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-left transition-colors hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15"
+        >
+          <span className="flex items-center gap-3">
+            <span className="text-2xl" aria-hidden>
+              🧠
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                {t.vocab.reviewTitle}
+              </span>
+              <span className="block text-xs text-emerald-700/80 dark:text-emerald-400/80">
+                {t.vocab.reviewDue({ count: due.totalDue })}
+              </span>
+            </span>
+          </span>
+          <span className="shrink-0 rounded-full bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-white">
+            {t.vocab.reviewStart}
+          </span>
+        </button>
+      )}
 
       {/* Révision par langue : mêmes exercices que le mode Cours, sans enjeu. */}
       {practicable.length > 0 && (
@@ -173,6 +220,16 @@ export default function VocabPage() {
           targetLang={practice.lang}
           words={practice.words}
           onClose={() => setPractice(null)}
+        />
+      )}
+
+      {reviewing && (
+        <ReviewPlayer
+          entries={due.entries}
+          onClose={() => {
+            setReviewing(false);
+            refreshDue();
+          }}
         />
       )}
     </main>

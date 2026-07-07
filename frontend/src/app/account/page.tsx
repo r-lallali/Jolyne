@@ -16,6 +16,7 @@ import {
   reorderPhotos,
   updateAccount,
 } from "@/lib/account";
+import { cefrLabel } from "@/lib/auth";
 import { openPortal } from "@/lib/billing";
 import { useT } from "@/lib/i18n";
 import { useFlashStore } from "@/stores/flashStore";
@@ -293,6 +294,14 @@ export default function AccountPage() {
         {!user.email_verified && (
           <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
             {t.auth.notVerifiedBadge}
+          </span>
+        )}
+        {cefrLabel(user.cefr_score) && (
+          <span
+            className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-emerald-700 dark:text-emerald-400"
+            title={t.account.cefrBadgeTitle}
+          >
+            ≈ {cefrLabel(user.cefr_score)}
           </span>
         )}
       </motion.div>

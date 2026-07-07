@@ -2,6 +2,8 @@
 // session user (credentials:include). Le contenu (cours/leçons) est de confiance
 // (seed embarqué + générateur Claude) ; React l'échappe au rendu.
 
+import { decodeEntities } from "@/lib/sanitize";
+
 const BASE = process.env.NEXT_PUBLIC_BACKEND_HTTP_URL ?? "";
 
 export class LearnError extends Error {
@@ -191,6 +193,59 @@ export async function grantHeart(id: number): Promise<boolean> {
   if (!res.ok) throw new LearnError(`learn: ${res.status}`, res.status);
   const data = (await res.json()) as { ok: boolean };
   return data.ok;
+}
+
+// --- Leçon du jour (fautes corrigées issues des conversations) ---
+
+export interface DailyReviewItem {
+  id: number;
+  lang: string;
+  original: string;
+  corrected: string;
+  note: string;
+  created_at: string;
+}
+
+export interface DailyLesson {
+  lang: string;
+  items: DailyReviewItem[];
+  xp: number;
+}
+
+// getDailyLesson : la leçon du jour pour une langue, ou null s'il n'y a pas
+// (encore) assez de matière (204). Les textes arrivent HTML-escapés (règle
+// d'or #2) — décodés ici, React les rend en text node.
+export async function getDailyLesson(lang: string): Promise<DailyLesson | null> {
+  const res = await fetch(
+    `${BASE}/api/learn/daily?lang=${encodeURIComponent(lang)}`,
+    { credentials: "include" },
+  );
+  if (res.status === 204) return null;
+  if (!res.ok) throw new LearnError(`learn: ${res.status}`, res.status);
+  const data = (await res.json()) as DailyLesson;
+  return {
+    ...data,
+    items: (data.items ?? []).map((it) => ({
+      ...it,
+      original: decodeEntities(it.original),
+      corrected: decodeEntities(it.corrected),
+      note: decodeEntities(it.note),
+    })),
+  };
+}
+
+// completeDailyLesson : consomme les items joués, crédite XP + streak.
+export async function completeDailyLesson(
+  itemIds: number[],
+): Promise<CompleteResult> {
+  const res = await fetch(`${BASE}/api/learn/daily/complete`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ item_ids: itemIds }),
+  });
+  if (!res.ok) throw new LearnError(`learn: ${res.status}`, res.status);
+  return (await res.json()) as CompleteResult;
 }
 
 export async function setDailyGoal(goal: number): Promise<LearnState> {

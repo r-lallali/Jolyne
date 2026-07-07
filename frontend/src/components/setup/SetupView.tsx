@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { AgeGate } from "@/components/AgeGate";
 import { AiTeacherToggle } from "@/components/setup/AiTeacherToggle";
+import { ScenarioPicker } from "@/components/setup/ScenarioPicker";
 import { LangSelector } from "@/components/setup/LangSelector";
 import { PseudoInput } from "@/components/setup/PseudoInput";
 import { UILangPicker } from "@/components/setup/UILangPicker";
@@ -43,10 +44,12 @@ export function SetupView() {
   const wants = mounted ? store.wants : null;
   const ageAccepted = mounted ? store.ageAccepted : false;
   const botMode = mounted ? store.botMode : false;
+  const scenario = mounted ? store.scenario : null;
   const setPseudoRaw = store.setPseudo;
   const setLangs = store.setLangs;
   const acceptAge = store.acceptAge;
   const setBotMode = store.setBotMode;
+  const setScenario = store.setScenario;
 
   // Si l'user est connecté + a un display_name dans son profil, on propose
   // celui-ci comme suggestion italique (en place du placeholder). État
@@ -308,6 +311,15 @@ export function SetupView() {
                     onDisabledClick={() => showPaywall("bot")}
                     remaining={botRemaining}
                   />
+
+                  {botMode && (
+                    <ScenarioPicker
+                      value={scenario}
+                      onChange={setScenario}
+                      isPremium={isPremium}
+                      onLockedClick={() => showPaywall("scenario")}
+                    />
+                  )}
 
                   {queueCount !== null && queueCount >= 0 && (
                     <div className="flex flex-col items-center gap-1 pt-1">

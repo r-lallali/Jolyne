@@ -12,6 +12,7 @@ import {
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useT } from "@/lib/i18n";
 import { ICEBREAKERS } from "@/lib/icebreakers";
+import { track } from "@/lib/track";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 
@@ -40,6 +41,8 @@ export function MessageList({
   // pour éviter le flash pendant la sortie d'AnimatePresence vers "ended".
   const postChat = status !== "matched";
   const friendPrompt = useChatStore((s) => s.friendPrompt);
+  // Amorces fraîches du serveur si arrivées, sinon fallback statique local.
+  const freshIcebreakers = useChatStore((s) => s.icebreakers);
   const speaks = useSessionStore((s) => s.speaks);
   const wants = useSessionStore((s) => s.wants);
   const t = useT();
@@ -120,11 +123,17 @@ export function MessageList({
             </div>
             {wants && onIcebreaker && (
               <div className="flex max-w-md flex-wrap justify-center gap-2">
-                {ICEBREAKERS[wants].map((phrase) => (
+                {(freshIcebreakers.length > 0
+                  ? freshIcebreakers
+                  : ICEBREAKERS[wants]
+                ).map((phrase) => (
                   <button
                     key={phrase}
                     type="button"
-                    onClick={() => onIcebreaker(phrase)}
+                    onClick={() => {
+                      void track("icebreaker_used", { lang_to: wants });
+                      onIcebreaker(phrase);
+                    }}
                     className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs text-neutral-700 transition-colors hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
                   >
                     {phrase}

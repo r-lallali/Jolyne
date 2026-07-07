@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { getFingerprint } from "@/lib/fingerprint";
 import { buzz } from "@/lib/haptics";
+import { LANG_LABEL } from "@/lib/langs";
 import { sanitizeMessage } from "@/lib/sanitize";
 import { track } from "@/lib/track";
 import { useT } from "@/lib/i18n";
@@ -68,7 +69,8 @@ export function useMatch() {
   }, [chat]);
 
   const start = useCallback(async () => {
-    const { pseudo, speaks, wants, ageAccepted, botMode } = session.getState();
+    const { pseudo, speaks, wants, ageAccepted, botMode, scenario } =
+      session.getState();
     if (!speaks || !wants || !ageAccepted || pseudo.length < 3) return;
 
     // Analytics : recherche de partenaire lancée (haut du funnel match).
@@ -98,8 +100,10 @@ export function useMatch() {
         fp,
         age: "ok",
         // Mode prof IA direct : le backend saute le matching humain et lance
-        // un bot tout de suite. Param omis en mode normal.
+        // un bot tout de suite. Param omis en mode normal. Le scénario de
+        // jeu de rôle n'a de sens qu'avec le bot.
         ...(botMode ? { bot: "1" } : {}),
+        ...(botMode && scenario ? { scenario } : {}),
       },
       onStateChange: (s) => {
         const cur = chat.getState().status;
@@ -163,7 +167,50 @@ export function useMatch() {
                 answer: sanitizeMessage(p.answer),
               })),
               verified: f.peer_verified,
+              cefr: f.peer_cefr,
             });
+            break;
+          case "icebreakers":
+            chat
+              .getState()
+              .setIcebreakers(
+                (f.suggestions ?? []).map((s) => sanitizeMessage(s)),
+              );
+            break;
+          case "nudge": {
+            // Rappels privés (langue pratiquée / phase tandem). Ligne
+            // système locale uniquement — le peer ne voit rien.
+            const { wants } = session.getState();
+            const tandem = c.tandem;
+            if (f.code === "practice_lang" && wants) {
+              c.pushSystem(t.chat.nudgePractice({ lang: LANG_LABEL[wants] }));
+            } else if (f.code === "tandem_lang" && tandem?.kind === "active") {
+              const lang = LANG_LABEL[tandem.lang as keyof typeof LANG_LABEL];
+              if (lang) c.pushSystem(t.chat.nudgeTandem({ lang }));
+            }
+            break;
+          }
+          case "tandem_prompt":
+            // Ignoré si on a nous-même une proposition/session en cours
+            // (proposition croisée gérée côté serveur).
+            if (c.tandem === null) c.tandemPrompted();
+            break;
+          case "tandem_switch": {
+            const lang = LANG_LABEL[f.body as keyof typeof LANG_LABEL];
+            c.tandemSwitched(f.body, f.window_sec);
+            if (lang) c.pushSystem(t.chat.tandemSwitch({ lang }));
+            buzz(20);
+            break;
+          }
+          case "tandem_end":
+            c.tandemEnded();
+            c.pushSystem(t.chat.tandemEnd);
+            break;
+          case "mission_complete":
+            // Mission du scénario roleplay accomplie : ligne système de
+            // célébration (le message de félicitations du prof arrive en msg).
+            c.pushSystem(t.chat.missionComplete);
+            buzz(30);
             break;
           case "error":
             c.error(f.code, f.message);
@@ -249,5 +296,36 @@ export function useMatch() {
     return ok;
   }, [chat]);
 
-  return { start, sendMsg, sendTyping, next, report, correct, stop, acceptFriend };
+  // Tandem 50/50 : propose une session structurée. Le peer reçoit un
+  // tandem_prompt ; s'il accepte, le serveur démarre les phases.
+  const proposeTandem = useCallback(() => {
+    if (chat.getState().tandem !== null) return false;
+    const ok = activeConn?.send({ type: "tandem_propose" }) ?? false;
+    if (ok) chat.getState().tandemProposed();
+    return ok;
+  }, [chat]);
+
+  // Accepte la proposition tandem du peer. Le bandeau apparaîtra au premier
+  // tandem_switch émis par le proposeur.
+  const acceptTandem = useCallback(() => {
+    const ok = activeConn?.send({ type: "tandem_accept" }) ?? false;
+    if (ok) {
+      chat.getState().tandemEnded(); // referme le prompt en attendant le switch
+      buzz(15);
+    }
+    return ok;
+  }, [chat]);
+
+  return {
+    start,
+    sendMsg,
+    sendTyping,
+    next,
+    report,
+    correct,
+    stop,
+    acceptFriend,
+    proposeTandem,
+    acceptTandem,
+  };
 }

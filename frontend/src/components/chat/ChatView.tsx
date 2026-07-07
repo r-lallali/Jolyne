@@ -11,6 +11,7 @@ import { CorrectionModal } from "@/components/chat/CorrectionModal";
 import { MessageInput } from "@/components/chat/MessageInput";
 import { MessageList } from "@/components/chat/MessageList";
 import { ReportModal } from "@/components/chat/ReportModal";
+import { TandemStrip } from "@/components/chat/TandemStrip";
 import { useMatch } from "@/hooks/useMatch";
 import { useTabAttention } from "@/hooks/useTabAttention";
 import { fetchCloudName } from "@/lib/account";
@@ -43,7 +44,8 @@ export function ChatView() {
   useEffect(() => {
     fetchCloudName().then(setCloudName).catch(() => {});
   }, []);
-  const { sendMsg, sendTyping, next, report, correct, stop } = useMatch();
+  const { sendMsg, sendTyping, next, report, correct, stop, proposeTandem, acceptTandem } =
+    useMatch();
   const t = useT();
   // Tout ce qui n'est pas "matched" doit cacher l'input et garder la
   // PostChatCard : sans ça, quand on clique Quitter en post_chat, status
@@ -186,6 +188,7 @@ export function ChatView() {
           cooldownMs={NEXT_COOLDOWN_MS}
           peerVerified={peerProfile?.verified}
           peerIsBot={peerIsBot}
+          peerCefr={peerProfile?.cefr}
         />
         <BotIntroToast show={peerIsBot && status === "matched"} />
         {peerIsBot && status === "matched" && <BotQuotaCounter />}
@@ -196,6 +199,9 @@ export function ChatView() {
           peerProfile.prompts.some((p) => p.prompt && p.answer) && (
             <PeerPromptStrip prompts={peerProfile.prompts} />
           )}
+        {!peerIsBot && !postChat && (
+          <TandemStrip onPropose={proposeTandem} onAccept={acceptTandem} />
+        )}
         <MessageList
           onCorrect={postChat ? undefined : (m) => setTarget(m)}
           onEditCorrection={postChat ? undefined : (m) => setTarget(m)}

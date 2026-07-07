@@ -24,7 +24,23 @@ export type ServerFrame =
       peer_photo_id?: string;
       peer_prompts?: { prompt: string; answer: string }[];
       peer_verified?: boolean;
+      // Niveau CECRL estimé du peer (1.0..6.0, absent si inconnu).
+      peer_cefr?: number;
     }
+  // Rappel pédagogique privé (jamais montré au peer). `code` est mappé vers
+  // un libellé i18n côté client — le serveur n'envoie pas de texte libre.
+  | { type: "nudge"; code: string }
+  // Amorces fraîches générées côté serveur (remplacent les statiques locales
+  // dans l'écran vide). Arrivée asynchrone, parfois après le 1er message —
+  // dans ce cas le client les ignore (l'écran vide a disparu).
+  | { type: "icebreakers"; suggestions?: string[] }
+  // Mission du scénario roleplay du prof IA accomplie (célébration côté UI).
+  | { type: "mission_complete" }
+  // Tandem 50/50 : proposition du peer / début de phase (body = code langue,
+  // window_sec = durée de la phase) / fin de session.
+  | { type: "tandem_prompt" }
+  | { type: "tandem_switch"; body: string; window_sec: number }
+  | { type: "tandem_end" }
   | { type: "error"; code: string; message?: string };
 
 export type ClientFrame =
@@ -39,7 +55,9 @@ export type ClientFrame =
       body: string;
       note?: string;
     }
-  | { type: "friend_accept" };
+  | { type: "friend_accept" }
+  | { type: "tandem_propose" }
+  | { type: "tandem_accept" };
 
 export interface ConnectOpts {
   baseURL: string; // ex: wss://jolyne.ralys.ovh
@@ -62,6 +80,7 @@ const FATAL_CODES = new Set([
   "invalid_pseudo",
   "quota_exceeded",
   "bot_quota_exceeded",
+  "scenario_premium",
   "banned",
 ]);
 

@@ -13,6 +13,10 @@ interface SessionState {
   // partialize plus bas) pour ne pas coincer le user en mode bot au prochain
   // chargement sans qu'il s'en souvienne. Repart toujours à false.
   botMode: boolean;
+  // Scénario de jeu de rôle du prof IA (id du catalogue lib/scenarios.ts).
+  // null = chat libre. Éphémère comme botMode (non persisté), remis à null
+  // quand botMode est décoché.
+  scenario: string | null;
   // Langue de l'interface. null = on dérive automatiquement (speaks → navigator
   // → en). Le user peut forcer via le sélecteur dans le SetupView.
   uiLang: UILang | null;
@@ -20,6 +24,7 @@ interface SessionState {
   setLangs: (speaks: LangCode, wants: LangCode | null) => void;
   acceptAge: (v: boolean) => void;
   setBotMode: (v: boolean) => void;
+  setScenario: (v: string | null) => void;
   setUILang: (v: UILang | null) => void;
   clear: () => void;
 }
@@ -38,11 +43,15 @@ export const useSessionStore = create<SessionState>()(
       wants: null,
       ageAccepted: false,
       botMode: false,
+      scenario: null,
       uiLang: null,
       setPseudo: (pseudo) => set({ pseudo }),
       setLangs: (speaks, wants) => set({ speaks, wants }),
       acceptAge: (ageAccepted) => set({ ageAccepted }),
-      setBotMode: (botMode) => set({ botMode }),
+      // Décocher le mode prof IA abandonne aussi le scénario choisi.
+      setBotMode: (botMode) =>
+        set(botMode ? { botMode } : { botMode, scenario: null }),
+      setScenario: (scenario) => set({ scenario }),
       setUILang: (uiLang) => set({ uiLang }),
       clear: () =>
         set({
@@ -51,6 +60,7 @@ export const useSessionStore = create<SessionState>()(
           wants: null,
           ageAccepted: false,
           botMode: false,
+          scenario: null,
           uiLang: null,
         }),
     }),

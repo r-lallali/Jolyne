@@ -46,7 +46,9 @@ export function PaywallModal() {
       ? t.premium.reasonTranslate
       : source === "bot"
         ? t.premium.reasonBot
-        : t.premium.reasonSwipe;
+        : source === "scenario"
+          ? t.premium.reasonScenario
+          : t.premium.reasonSwipe;
 
   const upgrade = async () => {
     setLoading(true);

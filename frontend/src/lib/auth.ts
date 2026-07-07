@@ -10,6 +10,18 @@ export interface AuthUser {
   plan: "free" | "premium";
   is_premium: boolean;
   premium_until?: string; // ISO 8601, présent si un abonnement existe
+  // Niveau CECRL estimé par l'IA (1.0..6.0). Absent tant qu'aucune
+  // conversation n'a été analysée. Converti en libellé via cefrLabel().
+  cefr_score?: number;
+}
+
+// cefrLabel : score continu (1.0..6.0) → libellé CECRL le plus proche.
+// null si le score est absent/invalide (badge masqué).
+export function cefrLabel(score?: number): string | null {
+  if (!score || score < 0.5) return null;
+  const labels = ["A1", "A2", "B1", "B2", "C1", "C2"];
+  const idx = Math.min(6, Math.max(1, Math.round(score)));
+  return labels[idx - 1] ?? null;
 }
 
 export class AuthError extends Error {

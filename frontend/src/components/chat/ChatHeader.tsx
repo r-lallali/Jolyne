@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { cloudinaryUrl } from "@/lib/account";
+import { cefrLabel } from "@/lib/auth";
 import { buzz } from "@/lib/haptics";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
@@ -29,6 +30,8 @@ interface Props {
   peerVerified?: boolean;
   // Affiche un badge "🤖 Prof IA" à côté du nom — cf. backend bot_manager.
   peerIsBot?: boolean;
+  // Niveau CECRL estimé du peer (1.0..6.0) — badge « ≈ B1 » si connu.
+  peerCefr?: number;
 }
 
 export function ChatHeader({
@@ -45,10 +48,12 @@ export function ChatHeader({
   cooldownMs,
   peerVerified,
   peerIsBot,
+  peerCefr,
 }: Props) {
   const t = useT();
   const hasAvatar = !!(peerPhotoId && cloudName);
   const initial = peerNick ? peerNick.slice(0, 1).toUpperCase() : "";
+  const level = cefrLabel(peerCefr);
   return (
     <header className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
       <div className="flex min-w-0 items-center gap-2.5">
@@ -90,6 +95,14 @@ export function ChatHeader({
               title={t.chat.botBadgeTitle}
             >
               🤖 {t.chat.botBadge}
+            </span>
+          )}
+          {level && !peerIsBot && (
+            <span
+              className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+              title={t.chat.cefrBadgeTitle}
+            >
+              ≈ {level}
             </span>
           )}
         </div>

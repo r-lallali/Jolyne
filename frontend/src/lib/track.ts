@@ -14,7 +14,8 @@ const BASE = process.env.NEXT_PUBLIC_BACKEND_HTTP_URL ?? "";
 export type TrackEvent =
   | "page_view"
   | "signup_started"
-  | "match_search_started";
+  | "match_search_started"
+  | "icebreaker_used";
 
 interface TrackOptions {
   lang_from?: string;
