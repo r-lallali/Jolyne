@@ -462,6 +462,11 @@ func userPayload(u User) map[string]any {
 	if u.CurrentPeriodEnd != nil {
 		payload["premium_until"] = u.CurrentPeriodEnd.UTC().Format(time.RFC3339)
 	}
+	// Niveau CECRL estimé (1.0..6.0). Absent tant qu'aucune conversation n'a
+	// été analysée — le front convertit en libellé A1..C2.
+	if u.CEFRScore != nil {
+		payload["cefr_score"] = *u.CEFRScore
+	}
 	return payload
 }
 

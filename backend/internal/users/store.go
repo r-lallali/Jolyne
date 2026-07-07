@@ -54,6 +54,10 @@ type User struct {
 	SubscriptionStatus *string
 	CurrentPeriodEnd   *time.Time
 	StripeCustomerID   *string
+
+	// CEFRScore : niveau CECRL estimé par l'analyse IA de fin de conversation
+	// (échelle continue 1.0=A1 .. 6.0=C2, EWMA). nil = jamais estimé.
+	CEFRScore *float64
 }
 
 type Store struct {
@@ -144,13 +148,13 @@ func (s *Store) GetByID(ctx context.Context, id int64) (User, error) {
 		SELECT id, email, created_at, last_seen_at, email_verified_at,
 		       password_hash IS NOT NULL,
 		       plan, subscription_status, current_period_end, stripe_customer_id,
-		       session_version
+		       session_version, cefr_score
 		FROM users WHERE id = $1`
 	var u User
 	if err := s.pool.QueryRow(ctx, q, id).Scan(
 		&u.ID, &u.Email, &u.CreatedAt, &u.LastSeenAt, &u.EmailVerifiedAt, &u.HasPassword,
 		&u.Plan, &u.SubscriptionStatus, &u.CurrentPeriodEnd, &u.StripeCustomerID,
-		&u.SessionVersion,
+		&u.SessionVersion, &u.CEFRScore,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrNotFound
@@ -227,6 +231,36 @@ func (s *Store) TouchLastSeen(ctx context.Context, id int64) error {
 		return fmt.Errorf("users: touch last seen: %w", err)
 	}
 	return nil
+}
+
+// UpdateCEFR intègre une nouvelle estimation de niveau CECRL (échelle 1.0..6.0)
+// au score du user, en EWMA (0.7*ancien + 0.3*nouveau) directement en SQL pour
+// rester atomique. Première estimation = valeur brute. Borné à [1,6] par
+// construction (moyenne pondérée de valeurs dans l'intervalle).
+func (s *Store) UpdateCEFR(ctx context.Context, id int64, score float64) error {
+	const q = `
+		UPDATE users
+		SET cefr_score = CASE
+			WHEN cefr_score IS NULL THEN $2
+			ELSE cefr_score * 0.7 + $2 * 0.3
+		END
+		WHERE id = $1`
+	if _, err := s.pool.Exec(ctx, q, id, score); err != nil {
+		return fmt.Errorf("users: update cefr: %w", err)
+	}
+	return nil
+}
+
+// CEFRScore renvoie le score CECRL courant (1.0..6.0) ou 0 si jamais estimé.
+func (s *Store) CEFRScore(ctx context.Context, id int64) (float64, error) {
+	var score *float64
+	if err := s.pool.QueryRow(ctx, `SELECT cefr_score FROM users WHERE id = $1`, id).Scan(&score); err != nil {
+		return 0, fmt.Errorf("users: cefr score: %w", err)
+	}
+	if score == nil {
+		return 0, nil
+	}
+	return *score, nil
 }
 
 // IsPremium : droit Premium effectif = abonnement actif/essai ET période non
