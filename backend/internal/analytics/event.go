@@ -46,6 +46,11 @@ const (
 	EventPremiumActivated   = "premium_activated"
 	EventPremiumCanceled    = "premium_canceled"
 	EventModerationFlagged  = "moderation_flagged" // message jugé toxique par l'IA
+	EventIcebreakerUsed     = "icebreaker_used"    // amorce de conversation envoyée en un tap
+	EventSRSReviewDone      = "srs_review_done"    // carte de révision du carnet notée
+	EventDailyLessonDone    = "daily_lesson_completed"
+	EventTandemStarted      = "tandem_started"     // session tandem 50/50 acceptée des deux côtés
+	EventScenarioCompleted  = "scenario_completed" // mission roleplay du prof IA accomplie
 )
 
 // allowed : tous les événements acceptés par le Tracker (serveur + beacon).
@@ -69,6 +74,11 @@ var allowed = map[string]struct{}{
 	EventPremiumActivated:   {},
 	EventPremiumCanceled:    {},
 	EventModerationFlagged:  {},
+	EventIcebreakerUsed:     {},
+	EventSRSReviewDone:      {},
+	EventDailyLessonDone:    {},
+	EventTandemStarted:      {},
+	EventScenarioCompleted:  {},
 }
 
 // publicAllowed : sous-ensemble que le beacon public a le droit d'émettre. Les
@@ -78,6 +88,7 @@ var publicAllowed = map[string]struct{}{
 	EventPageView:           {},
 	EventSignupStarted:      {},
 	EventMatchSearchStarted: {},
+	EventIcebreakerUsed:     {},
 }
 
 // ValidName indique si name fait partie de l'allowlist globale.
