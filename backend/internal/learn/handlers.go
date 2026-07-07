@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/friends"
 	"github.com/ralys/jolyne/backend/internal/push"
 	"github.com/ralys/jolyne/backend/internal/users"
@@ -28,7 +29,9 @@ type Handlers struct {
 	Friends *friends.Store
 	// Push : notifications best-effort (demande / don de cœur). nil = silencieux.
 	Push *push.Sender
-	Log  *slog.Logger
+	// Tracker analytics (optionnel, nil-safe) : daily_lesson_completed.
+	Tracker *analytics.Tracker
+	Log     *slog.Logger
 }
 
 func (h *Handlers) premium(ctx context.Context, userID int64) bool {
@@ -46,6 +49,77 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// HandleDaily : GET /api/learn/daily?lang=xx — la « leçon du jour » : fautes
+// corrigées de l'apprenant (analyse IA de fin de conversation) à rejouer.
+// 204 si pas assez de matière.
+func (h *Handlers) HandleDaily(w http.ResponseWriter, r *http.Request) {
+	user, ok := users.CurrentUser(r.Context())
+	if !ok {
+		http.Error(w, "auth required", http.StatusUnauthorized)
+		return
+	}
+	lang := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("lang")))
+	if !IsSupportedLang(lang) {
+		http.Error(w, "invalid lang", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+	items, err := h.Store.PendingReviewItems(ctx, user.ID, lang, DailyLessonMax)
+	if err != nil {
+		h.log().Error("learn daily", "err", err)
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	if len(items) < DailyLessonMin {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"lang": lang, "items": items, "xp": DailyReviewXP})
+}
+
+type dailyCompleteBody struct {
+	ItemIDs []int64 `json:"item_ids"`
+}
+
+// HandleDailyComplete : POST /api/learn/daily/complete {item_ids} — consomme
+// les items joués et crédite XP + streak (voir CompleteDailyReview).
+func (h *Handlers) HandleDailyComplete(w http.ResponseWriter, r *http.Request) {
+	user, ok := users.CurrentUser(r.Context())
+	if !ok {
+		http.Error(w, "auth required", http.StatusUnauthorized)
+		return
+	}
+	var body dailyCompleteBody
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*1024)).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if len(body.ItemIDs) == 0 || len(body.ItemIDs) > DailyLessonMax {
+		http.Error(w, "invalid item_ids", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	res, err := h.Store.CompleteDailyReview(ctx, user.ID, body.ItemIDs, h.premium(ctx, user.ID), time.Now())
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			// Rien de consommable (déjà joué / IDs d'autrui) — pas d'XP.
+			http.Error(w, "nothing to complete", http.StatusConflict)
+			return
+		}
+		h.log().Error("learn daily complete", "err", err)
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	h.Tracker.Emit(analytics.Event{
+		Name:   analytics.EventDailyLessonDone,
+		UserID: user.ID,
+		Props:  map[string]any{"items": len(body.ItemIDs)},
+	})
+	writeJSON(w, http.StatusOK, res)
 }
 
 // HandleListCourses : GET /api/learn/courses — cours disponibles, décorés de

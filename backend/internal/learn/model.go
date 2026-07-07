@@ -256,6 +256,58 @@ var Achievements = []AchievementDef{
 	{Code: "streak_30", Kind: KindStreak, Threshold: 30},
 }
 
+// streakResult : sortie de applyStreak — le nouveau streak, le record, et le
+// palier éventuellement franchi.
+type streakResult struct {
+	Streak             int
+	Longest            int
+	Increased          bool
+	Reset              bool
+	NewMilestone       int // 0 = aucun palier franchi
+	PersistedMilestone int // valeur à écrire dans learn_state.last_milestone
+}
+
+// applyStreak : logique pure du streak quotidien, partagée entre la
+// complétion d'une leçon de cours et la leçon du jour (révision des fautes).
+// Après une série cassée, le palier de référence repart de zéro pour
+// permettre de re-célébrer les paliers de la nouvelle série.
+func applyStreak(current, longest int, lastDay *time.Time, lastMilestone int, now time.Time) streakResult {
+	r := streakResult{Streak: current, Longest: longest}
+	if lastDay == nil {
+		r.Streak = 1
+		r.Increased = true
+	} else {
+		switch daysBetweenUTC(*lastDay, now) {
+		case 0:
+			// Déjà actif aujourd'hui → streak inchangé.
+		case 1:
+			r.Streak = current + 1
+			r.Increased = true
+		default:
+			r.Streak = 1
+			r.Increased = true
+			r.Reset = true
+		}
+	}
+	if r.Streak > r.Longest {
+		r.Longest = r.Streak
+	}
+	base := lastMilestone
+	if r.Reset {
+		base = 0
+	}
+	for _, m := range StreakMilestones {
+		if r.Streak >= m && m > base {
+			r.NewMilestone = m
+		}
+	}
+	r.PersistedMilestone = base
+	if r.NewMilestone > 0 {
+		r.PersistedMilestone = r.NewMilestone
+	}
+	return r
+}
+
 // starsFromMistakes : 0 faute = 3 étoiles, 1-2 = 2, sinon 1.
 func starsFromMistakes(mistakes int) int {
 	switch {

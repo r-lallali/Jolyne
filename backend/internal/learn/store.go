@@ -752,49 +752,15 @@ func (s *Store) CompleteLesson(ctx context.Context, userID, lessonID int64, mist
 		xpAward = ReviewXPMax
 	}
 
-	// Streak quotidien.
-	today := now.UTC()
-	todayStr := today.Format("2006-01-02")
-	streakIncreased := false
-	streakReset := false
-	newStreak := currentStreak
-	if lastDay == nil {
-		newStreak = 1
-		streakIncreased = true
-	} else {
-		switch daysBetweenUTC(*lastDay, now) {
-		case 0:
-			// Déjà actif aujourd'hui → streak inchangé.
-		case 1:
-			newStreak = currentStreak + 1
-			streakIncreased = true
-		default:
-			newStreak = 1
-			streakIncreased = true
-			streakReset = true
-		}
-	}
-	if newStreak > longestStreak {
-		longestStreak = newStreak
-	}
-
-	// Palier de streak franchi (strictement au-dessus du dernier notifié).
-	// Après une série cassée on repart de zéro pour permettre de re-célébrer
-	// les paliers de la nouvelle série.
-	baseMilestone := lastMilestone
-	if streakReset {
-		baseMilestone = 0
-	}
-	newMilestone := 0
-	for _, m := range StreakMilestones {
-		if newStreak >= m && m > baseMilestone {
-			newMilestone = m
-		}
-	}
-	persistedMilestone := baseMilestone
-	if newMilestone > 0 {
-		persistedMilestone = newMilestone
-	}
+	// Streak quotidien + palier franchi (logique pure, partagée avec la
+	// leçon du jour — voir applyStreak).
+	todayStr := now.UTC().Format("2006-01-02")
+	sk := applyStreak(currentStreak, longestStreak, lastDay, lastMilestone, now)
+	newStreak := sk.Streak
+	longestStreak = sk.Longest
+	streakIncreased := sk.Increased
+	newMilestone := sk.NewMilestone
+	persistedMilestone := sk.PersistedMilestone
 
 	totalXP += xpAward
 
