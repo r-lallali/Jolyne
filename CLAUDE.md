@@ -40,6 +40,7 @@ Pas de Makefile. Front = **pnpm** (pas npm).
 
 - Routes montées conditionnellement : un domaine sans config (Stripe, VAPID, auth user…) renvoie 503 *avec CORS*, pas 404 — voir `routes.go`.
 - IA tuteur : **aucun contenu de message n'est loggé**. Modèle `claude-haiku-4-5`.
+- Analyse IA post-conversation (`ws/analyzer.go`) : seul le **matériau pédagogique dérivé** est persisté (vocab, fautes corrigées, score CECRL) — jamais la transcription.
 - Matchmaking 100 % stateless : tout l'état vit dans Redis (scripts Lua atomiques).
 - Migrations DB : fichiers numérotés `0001..NNNN` up/down dans `internal/db/migrations/`.
 - Binaire gateway gitignoré (ne pas le committer).
