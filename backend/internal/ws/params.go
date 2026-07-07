@@ -16,6 +16,9 @@ type params struct {
 	// botMode : le user a choisi le mode "Prof IA" sur l'écran de setup. On
 	// saute le matching humain et on lance directement un bot prof IA.
 	botMode bool
+	// scenario : jeu de rôle du prof IA (vide = chat libre). Ignoré hors
+	// botMode ; validé contre le catalogue dans le handler.
+	scenario string
 }
 
 func parseParams(r *http.Request) (params, error) {
@@ -39,6 +42,7 @@ func parseParams(r *http.Request) (params, error) {
 		wants:       wants,
 		fingerprint: fp,
 		botMode:     botModeRequested(q.Get("bot")),
+		scenario:    strings.ToLower(strings.TrimSpace(q.Get("scenario"))),
 	}, nil
 }
 

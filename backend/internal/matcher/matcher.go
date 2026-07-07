@@ -45,31 +45,61 @@ type Outcome struct {
 // §Backend Go > Redis pour les invariants.
 type Matcher struct {
 	rdb *redis.Client
+	// LevelAware : active la préférence de niveau CECRL au matching
+	// (MATCH_LEVEL_AWARE). Préférence douce uniquement — jamais un filtre :
+	// à défaut de candidat proche en niveau, la tête de file sort comme
+	// avant. Off par défaut.
+	LevelAware bool
 }
 
 func New(rdb *redis.Client) *Matcher {
 	return &Matcher{rdb: rdb}
 }
 
+// levelsKey : hash Redis sessionID → niveau CECRL des peers en attente.
+// Alimenté/nettoyé par les scripts Lua et les retraits de file. Nommé hors du
+// préfixe `queue:*` pour ne pas apparaître dans le scan des profondeurs de
+// file du back-office.
+const levelsKey = "match:levels"
+
+// Paramètres de la préférence de niveau : Δ max toléré (au-delà on prend la
+// tête de file) et nombre de candidats scannés par tentative.
+const (
+	levelMaxDelta = 1.0
+	levelScanN    = 10
+)
+
 // TryMatch tente d'extraire un peer compatible. Si aucun n'est disponible,
 // inscrit le client dans sa propre queue. `avoidPeerID` (chaîne vide si pas
 // d'éviction) permet d'éviter immédiatement un peer qu'on vient de quitter.
+// `level` = niveau CECRL estimé du client (1.0..6.0, 0 = inconnu) : si le
+// Matcher est LevelAware ET que le niveau est connu, le script à préférence
+// de niveau est utilisé ; sinon le script standard (tête de file).
 //
 // L'appelant DOIT enregistrer un defer pour Cancel(...) sur le sessionID
 // au cas où la connexion serait fermée avant qu'un peer ne le récupère —
 // sinon le slot devient un fantôme (CLAUDE.md règle d'or #4).
-func (m *Matcher) TryMatch(ctx context.Context, speaks, wants LangCode, sessionID, avoidPeerID string, score float64) (Outcome, error) {
+func (m *Matcher) TryMatch(ctx context.Context, speaks, wants LangCode, sessionID, avoidPeerID string, score, level float64) (Outcome, error) {
 	if err := ValidatePair(speaks, wants); err != nil {
 		return Outcome{}, err
 	}
 	if sessionID == "" {
 		return Outcome{}, fmt.Errorf("matcher: sessionID vide")
 	}
-	res, err := matchScript.Run(
-		ctx, m.rdb,
-		[]string{queueTarget(speaks, wants), queueOwn(speaks, wants)},
-		sessionID, avoidPeerID, score,
-	).Result()
+	keys := []string{queueTarget(speaks, wants), queueOwn(speaks, wants), levelsKey}
+	var (
+		res any
+		err error
+	)
+	if m.LevelAware && level > 0 {
+		res, err = matchLevelScript.Run(ctx, m.rdb, keys,
+			sessionID, avoidPeerID, score, level, levelMaxDelta, levelScanN,
+		).Result()
+	} else {
+		res, err = matchScript.Run(ctx, m.rdb, keys,
+			sessionID, avoidPeerID, score,
+		).Result()
+	}
 	if err != nil && !errors.Is(err, redis.Nil) {
 		return Outcome{}, fmt.Errorf("matcher: lua: %w", err)
 	}
@@ -80,8 +110,9 @@ func (m *Matcher) TryMatch(ctx context.Context, speaks, wants LangCode, sessionI
 	return Outcome{Matched: true, PeerID: peerID}, nil
 }
 
-// Cancel retire un sessionID de sa queue. Idempotent : 0 si déjà absent.
-// À appeler en defer côté handler WS quand la connexion se ferme avant match.
+// Cancel retire un sessionID de sa queue (et son niveau du hash). Idempotent :
+// 0 si déjà absent. À appeler en defer côté handler WS quand la connexion se
+// ferme avant match.
 func (m *Matcher) Cancel(ctx context.Context, speaks, wants LangCode, sessionID string) error {
 	if err := ValidatePair(speaks, wants); err != nil {
 		return err
@@ -89,6 +120,8 @@ func (m *Matcher) Cancel(ctx context.Context, speaks, wants LangCode, sessionID 
 	if err := m.rdb.ZRem(ctx, queueOwn(speaks, wants), sessionID).Err(); err != nil {
 		return fmt.Errorf("matcher: zrem: %w", err)
 	}
+	// Best-effort : un résidu dans le hash n'influence que la préférence.
+	_ = m.rdb.HDel(ctx, levelsKey, sessionID).Err()
 	return nil
 }
 
@@ -111,5 +144,6 @@ func (m *Matcher) RemoveFromQueue(ctx context.Context, speaks, wants LangCode, s
 	if err != nil {
 		return false, fmt.Errorf("matcher: zrem: %w", err)
 	}
+	_ = m.rdb.HDel(ctx, levelsKey, sessionID).Err()
 	return n > 0, nil
 }

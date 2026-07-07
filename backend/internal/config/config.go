@@ -83,6 +83,11 @@ type Config struct {
 	BotMaxConcurrent   int
 	BotTriggerDelaySec int
 
+	// MatchLevelAware : préférence de niveau CECRL au matching (voir
+	// matcher.Matcher.LevelAware). Off par défaut — à activer une fois les
+	// estimations de niveau suffisamment denses pour ne pas biaiser les files.
+	MatchLevelAware bool
+
 	// Stripe (abonnement Premium). Billing actif seulement si SecretKey +
 	// PriceID présents (sinon /api/billing/* renvoie 503). WebhookSecret
 	// requis pour vérifier la signature des webhooks. Success/CancelURL
@@ -135,6 +140,7 @@ func Load() (Config, error) {
 		AnthropicModel:       getEnv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
 		BotMaxConcurrent:     getEnvInt("BOT_MAX_CONCURRENT", 20),
 		BotTriggerDelaySec:   getEnvInt("BOT_TRIGGER_DELAY_SEC", 10),
+		MatchLevelAware:      getEnvBool("MATCH_LEVEL_AWARE", false),
 		StripeSecretKey:      os.Getenv("STRIPE_SECRET_KEY"),
 		StripeWebhookSecret:  os.Getenv("STRIPE_WEBHOOK_SECRET"),
 		StripePriceID:        os.Getenv("STRIPE_PRICE_ID"),

@@ -44,7 +44,7 @@ func newRedis(t *testing.T) *redis.Client {
 func TestTryMatch_EmptyQueueAddsSelf(t *testing.T) {
 	rdb := newRedis(t)
 	m := matcher.New(rdb)
-	out, err := m.TryMatch(context.Background(), matcher.FR, matcher.EN, "alice", "", 100)
+	out, err := m.TryMatch(context.Background(), matcher.FR, matcher.EN, "alice", "", 100, 0)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -67,11 +67,11 @@ func TestTryMatch_PicksWaitingPeer(t *testing.T) {
 	ctx := context.Background()
 
 	// alice se met en attente (FR→EN)
-	if out, _ := m.TryMatch(ctx, matcher.FR, matcher.EN, "alice", "", 100); out.Matched {
+	if out, _ := m.TryMatch(ctx, matcher.FR, matcher.EN, "alice", "", 100, 0); out.Matched {
 		t.Fatal("alice ne devrait pas matcher (queue vide)")
 	}
 	// bob arrive avec la paire miroir (EN→FR) → doit matcher alice
-	out, err := m.TryMatch(ctx, matcher.EN, matcher.FR, "bob", "", 200)
+	out, err := m.TryMatch(ctx, matcher.EN, matcher.FR, "bob", "", 200, 0)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -91,9 +91,9 @@ func TestTryMatch_AvoidLastPeer(t *testing.T) {
 	ctx := context.Background()
 
 	// alice se met en attente
-	m.TryMatch(ctx, matcher.FR, matcher.EN, "alice", "", 100)
+	m.TryMatch(ctx, matcher.FR, matcher.EN, "alice", "", 100, 0)
 	// bob arrive avec avoid=alice (vient de la quitter) → ne doit PAS matcher
-	out, err := m.TryMatch(ctx, matcher.EN, matcher.FR, "bob", "alice", 200)
+	out, err := m.TryMatch(ctx, matcher.EN, matcher.FR, "bob", "alice", 200, 0)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestTryMatch_AvoidLastPeer(t *testing.T) {
 		t.Fatalf("bob ne devrait pas re-matcher alice, got %+v", out)
 	}
 	// alice doit être restée matchable pour les autres
-	out, _ = m.TryMatch(ctx, matcher.EN, matcher.FR, "charlie", "", 300)
+	out, _ = m.TryMatch(ctx, matcher.EN, matcher.FR, "charlie", "", 300, 0)
 	if !out.Matched || out.PeerID != "alice" {
 		t.Fatalf("charlie devrait matcher alice, got %+v", out)
 	}
@@ -116,12 +116,12 @@ func TestTryMatch_PicksLowestScoreFirst(t *testing.T) {
 	ctx := context.Background()
 
 	// carol s'inscrit avec un score élevé (peer standard).
-	m.TryMatch(ctx, matcher.FR, matcher.EN, "carol", "", 100)
+	m.TryMatch(ctx, matcher.FR, matcher.EN, "carol", "", 100, 0)
 	// dave s'inscrit APRÈS mais avec un score plus bas (ex: Premium/authentifié).
-	m.TryMatch(ctx, matcher.FR, matcher.EN, "dave", "", 50)
+	m.TryMatch(ctx, matcher.FR, matcher.EN, "dave", "", 50, 0)
 
 	// eve cherche un peer (EN→FR) → doit tomber sur dave (score le plus bas).
-	out, err := m.TryMatch(ctx, matcher.EN, matcher.FR, "eve", "", 200)
+	out, err := m.TryMatch(ctx, matcher.EN, matcher.FR, "eve", "", 200, 0)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestTryMatch_PicksLowestScoreFirst(t *testing.T) {
 func TestTryMatch_InvalidPair(t *testing.T) {
 	rdb := newRedis(t)
 	m := matcher.New(rdb)
-	_, err := m.TryMatch(context.Background(), matcher.FR, matcher.FR, "alice", "", 100)
+	_, err := m.TryMatch(context.Background(), matcher.FR, matcher.FR, "alice", "", 100, 0)
 	if !errors.Is(err, matcher.ErrSameLang) {
 		t.Fatalf("attendu ErrSameLang, got %v", err)
 	}
@@ -149,12 +149,12 @@ func TestCancel_RemovesFromQueue(t *testing.T) {
 	m := matcher.New(rdb)
 	ctx := context.Background()
 
-	m.TryMatch(ctx, matcher.FR, matcher.EN, "alice", "", 100)
+	m.TryMatch(ctx, matcher.FR, matcher.EN, "alice", "", 100, 0)
 	if err := m.Cancel(ctx, matcher.FR, matcher.EN, "alice"); err != nil {
 		t.Fatalf("cancel: %v", err)
 	}
 	// bob qui essaye de matcher ne doit rien trouver
-	out, _ := m.TryMatch(ctx, matcher.EN, matcher.FR, "bob", "", 200)
+	out, _ := m.TryMatch(ctx, matcher.EN, matcher.FR, "bob", "", 200, 0)
 	if out.Matched {
 		t.Fatalf("attendu pas de match après cancel, got %+v", out)
 	}
@@ -167,5 +167,57 @@ func TestCancel_Idempotent(t *testing.T) {
 	// Cancel sur une queue qui n'a jamais vu cet ID
 	if err := m.Cancel(ctx, matcher.FR, matcher.EN, "ghost"); err != nil {
 		t.Fatalf("cancel ghost: %v", err)
+	}
+}
+
+// Préférence de niveau (LevelAware) : parmi plusieurs peers en attente, le
+// plus proche en niveau CECRL sort en premier — mais un niveau éloigné ne
+// bloque jamais le match (la tête de file sort par défaut).
+func TestTryMatch_LevelAwarePrefersClosest(t *testing.T) {
+	rdb := newRedis(t)
+	m := matcher.New(rdb)
+	m.LevelAware = true
+	ctx := context.Background()
+
+	// Deux peers FR→EN en attente : ana (A1=1.0, score 100 = tête de file),
+	// bea (B2=4.0, score 200).
+	m.TryMatch(ctx, matcher.FR, matcher.EN, "ana", "", 100, 1.0)
+	m.TryMatch(ctx, matcher.FR, matcher.EN, "bea", "", 200, 4.0)
+
+	// carl (B1=3.0) : préfère bea (Δ=1 ≤ 1) à la tête de file ana (Δ=2).
+	out, err := m.TryMatch(ctx, matcher.EN, matcher.FR, "carl", "", 300, 3.0)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !out.Matched || out.PeerID != "bea" {
+		t.Fatalf("attendu match de niveau avec bea, got %+v", out)
+	}
+
+	// dan (C2=6.0) : personne à ±1 → tête de file (ana) quand même.
+	out, _ = m.TryMatch(ctx, matcher.EN, matcher.FR, "dan", "", 400, 6.0)
+	if !out.Matched || out.PeerID != "ana" {
+		t.Fatalf("attendu fallback tête de file (ana), got %+v", out)
+	}
+
+	// Le hash des niveaux ne doit pas garder de résidus des peers matchés.
+	if n, _ := rdb.HLen(ctx, "match:levels").Result(); n != 0 {
+		t.Fatalf("match:levels devrait être vide, HLen=%d", n)
+	}
+}
+
+// Sans LevelAware, un user avec niveau connu suit le chemin standard (tête de
+// file), et le hash de niveaux n'est jamais alimenté.
+func TestTryMatch_LevelIgnoredWhenDisabled(t *testing.T) {
+	rdb := newRedis(t)
+	m := matcher.New(rdb)
+	ctx := context.Background()
+
+	m.TryMatch(ctx, matcher.FR, matcher.EN, "ana", "", 100, 1.0)
+	out, _ := m.TryMatch(ctx, matcher.EN, matcher.FR, "carl", "", 300, 3.0)
+	if !out.Matched || out.PeerID != "ana" {
+		t.Fatalf("attendu tête de file (ana), got %+v", out)
+	}
+	if n, _ := rdb.HLen(ctx, "match:levels").Result(); n != 0 {
+		t.Fatalf("match:levels devrait rester vide, HLen=%d", n)
 	}
 }

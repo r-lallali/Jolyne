@@ -106,7 +106,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		// Score de file : priorise les peers authentifiés/Premium sans affamer
 		// les autres (l'attente réelle domine — cf. matcher.MatchScore).
 		score := matcher.MatchScore(time.Now(), sess.UserID > 0, sess.Plan == session.PlanPremium)
-		out, err := h.d.Matcher.TryMatch(ctx, speaks, wants, sess.ID, lastPeer, score)
+		out, err := h.d.Matcher.TryMatch(ctx, speaks, wants, sess.ID, lastPeer, score, sess.CEFR)
 		if err != nil {
 			h.d.Log.Error("matcher error", "err", err)
 			conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal})

@@ -15,10 +15,12 @@ const (
 	ClientNext            ClientType = "next"
 	ClientTyping          ClientType = "typing"
 	ClientReport          ClientType = "report"
-	ClientCorrect         ClientType = "correct"       // correction d'un message du peer
-	ClientFriendAccept    ClientType = "friend_accept" // réponse au friend_prompt (10 min)
-	ClientFriendEditMsg   ClientType = "edit_msg"      // (chat ami) édition d'un message persisté
-	ClientFriendDeleteMsg ClientType = "delete_msg"    // (chat ami) suppression soft d'un message
+	ClientCorrect         ClientType = "correct"        // correction d'un message du peer
+	ClientFriendAccept    ClientType = "friend_accept"  // réponse au friend_prompt (10 min)
+	ClientFriendEditMsg   ClientType = "edit_msg"       // (chat ami) édition d'un message persisté
+	ClientFriendDeleteMsg ClientType = "delete_msg"     // (chat ami) suppression soft d'un message
+	ClientTandemPropose   ClientType = "tandem_propose" // propose une session tandem 50/50
+	ClientTandemAccept    ClientType = "tandem_accept"  // accepte la proposition tandem du peer
 )
 
 type ClientFrame struct {
@@ -54,6 +56,24 @@ const (
 	ServerFriendSkipped     ServerType = "friend_skipped"     // fenêtre expirée sans match
 	ServerPeerProfile       ServerType = "peer_profile"       // peer authentifié : avatar + prompts
 	ServerModerationWarning ServerType = "moderation_warning" // message jugé toxique par l'IA
+	ServerNudge             ServerType = "nudge"              // rappel pédagogique privé (langue pratiquée)
+	ServerIcebreakers       ServerType = "icebreakers"        // amorces de conversation fraîches (post-match)
+	ServerMissionComplete   ServerType = "mission_complete"   // mission du scénario roleplay accomplie
+
+	// Tandem 50/50 : session structurée moitié langue A, moitié langue B.
+	// `tandem_prompt` = le peer propose ; `tandem_switch` = début de phase
+	// (Body = code langue de la phase, WindowSec = durée) ; `tandem_end` =
+	// session terminée, retour au chat libre.
+	ServerTandemPrompt ServerType = "tandem_prompt"
+	ServerTandemSwitch ServerType = "tandem_switch"
+	ServerTandemEnd    ServerType = "tandem_end"
+)
+
+// Codes de nudge (ServerFrame.Code sur une frame `nudge`). Le front mappe le
+// code vers un libellé i18n — le serveur n'envoie jamais de texte libre.
+const (
+	NudgePracticeLang = "practice_lang" // trop de messages consécutifs en langue native
+	NudgeTandemLang   = "tandem_lang"   // mauvaise langue pendant une phase tandem 50/50
 )
 
 // ServerPrompt : libellé i18n côté front. Vide si slot non rempli.
@@ -87,10 +107,17 @@ type ServerFrame struct {
 	PeerPhotoID  string         `json:"peer_photo_id,omitempty"`
 	PeerPrompts  []ServerPrompt `json:"peer_prompts,omitempty"`
 	PeerVerified bool           `json:"peer_verified,omitempty"`
+	// Niveau CECRL estimé du peer (1.0..6.0, 0 = inconnu). Le front convertit
+	// en libellé « ≈ B1 ».
+	PeerCEFR float64 `json:"peer_cefr,omitempty"`
 
 	// Frame `matched` : indique que le peer est un bot prof IA. Le front
 	// affiche un badge "🤖 Prof IA" et n'affiche pas le prompt friend.
 	IsBot bool `json:"is_bot,omitempty"`
+
+	// Frame `icebreakers` : amorces dans la langue pratiquée, affichées en
+	// chips au-dessus de l'input tant que la conversation est vide.
+	Suggestions []string `json:"suggestions,omitempty"`
 }
 
 // Codes d'erreur applicatifs (envoyés dans ServerFrame.Code).
@@ -99,6 +126,7 @@ const (
 	ErrCodeQueueTimeout     = "queue_timeout"
 	ErrCodeQuotaExceeded    = "quota_exceeded"     // swipe (nouveaux partenaires)
 	ErrCodeBotQuotaExceeded = "bot_quota_exceeded" // messages au prof IA
+	ErrCodeScenarioPremium  = "scenario_premium"   // scénario réservé aux abonnés
 	ErrCodeMessageBlocked   = "message_blocked"
 	ErrCodeMessageTooLong   = "message_too_long"
 	ErrCodeBanned           = "banned"

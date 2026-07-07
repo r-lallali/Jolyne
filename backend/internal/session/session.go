@@ -17,6 +17,14 @@ type Session struct {
 	// valide. 0 = anonyme. Sert au flow ami (10-min prompt + match
 	// mutuel) qui n'est proposé QUE si les deux peers sont authentifiés.
 	UserID int64
+	// Scenario : jeu de rôle du prof IA choisi sur l'écran de setup
+	// (restaurant, interview…). Vide = chat libre. Seulement pertinent en
+	// mode bot — validé contre le catalogue ws.botScenarios au handshake.
+	Scenario string
+	// CEFR : niveau CECRL estimé (1.0..6.0, 0 = inconnu/anonyme). Résolu au
+	// handshake depuis users.cefr_score — sert à la préférence de niveau du
+	// matcher et au calibrage du prof IA.
+	CEFR float64
 }
 
 type Plan string

@@ -190,7 +190,9 @@ func routes(s services) http.Handler {
 	}
 
 	// Carnet de vocabulaire. Toutes les routes requièrent l'auth user.
-	// `/api/vocab` (GET liste, POST création) ; `/api/vocab/{id}` (DELETE).
+	// `/api/vocab` (GET liste, POST création) ; `/api/vocab/review` (GET pile
+	// de cartes dues) ; `/api/vocab/{id}` (DELETE) ;
+	// `/api/vocab/{id}/review` (POST note SM-2).
 	if s.vocab != nil && s.users != nil {
 		auth := s.users.RequireAuth
 		cors := publicCORS(s.publicCORS)
@@ -204,12 +206,17 @@ func routes(s services) http.Handler {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			}
 		}))))
+		// Route exacte prioritaire sur le subtree `/api/vocab/` (ServeMux).
+		mux.Handle("/api/vocab/review", cors(auth(methodOnly("GET", http.HandlerFunc(s.vocab.HandleReviewList)))))
 		mux.Handle("/api/vocab/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodDelete {
+			switch {
+			case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/review"):
+				s.vocab.HandleReviewGrade(w, r)
+			case r.Method == http.MethodDelete && !strings.HasSuffix(r.URL.Path, "/review"):
+				s.vocab.HandleDelete(w, r)
+			default:
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-				return
 			}
-			s.vocab.HandleDelete(w, r)
 		}))))
 	}
 
@@ -228,6 +235,9 @@ func routes(s services) http.Handler {
 	if s.learn != nil && s.users != nil {
 		auth := s.users.RequireAuth
 		cors := publicCORS(s.publicCORS)
+		// Leçon du jour : fautes corrigées à rejouer (analyse IA post-chat).
+		mux.Handle("/api/learn/daily", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleDaily)))))
+		mux.Handle("/api/learn/daily/complete", cors(auth(methodOnly("POST", http.HandlerFunc(s.learn.HandleDailyComplete)))))
 		mux.Handle("/api/learn/courses", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleListCourses)))))
 		// Sous-arbre /api/learn/courses/{lang}[/placement] — dispatch par méthode/suffixe.
 		mux.Handle("/api/learn/courses/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

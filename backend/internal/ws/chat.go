@@ -78,6 +78,12 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 		h.sendPeerProfile(ctx, conn, peer.UserID)
 	}
 
+	// Amorces de conversation fraîches — asynchrone, jamais bloquant pour le
+	// match. Pas avec un bot : le prof IA ouvre déjà la conversation lui-même.
+	if !peer.IsBot && h.d.Icebreakers.Enabled() {
+		go h.d.Icebreakers.Serve(conn, sess.Wants)
+	}
+
 	captured := make([]reports.CapturedMessage, 0, captureWindow)
 	push := func(from, body string) {
 		captured = append(captured, reports.CapturedMessage{
@@ -90,18 +96,70 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 		}
 	}
 
-	// Résumé IA en fin de conversation → carnet de vocabulaire (comptes
-	// authentifiés). Détaché, hors chemin critique : lit `captured` (snapshot
-	// copié) à la sortie de runChat, quelle que soit la voie de sortie.
-	if h.d.Summarizer.Enabled() && sess.UserID > 0 {
+	// Analyse IA en fin de conversation → carnet de vocabulaire + items de
+	// révision + niveau CECRL (comptes authentifiés). Détachée, hors chemin
+	// critique : lit `captured` (snapshot copié) à la sortie de runChat,
+	// quelle que soit la voie de sortie.
+	if h.d.Analyzer.Enabled() && sess.UserID > 0 {
 		defer func() {
 			snapshot := append([]reports.CapturedMessage(nil), captured...)
-			go h.d.Summarizer.Summarize(sess.UserID, sess.Speaks, sess.Wants, snapshot)
+			go h.d.Analyzer.Analyze(sess.UserID, sess.Pseudo, sess.Speaks, sess.Wants, snapshot)
 		}()
 	}
 
 	// Throttle anti-abus pour les corrections : 1 par session toutes les 3 s.
 	var lastCorrectAt time.Time
+
+	// Nudge pédagogique : détection de langue offline sur les messages
+	// SORTANTS de l'utilisateur. S'il reste dans sa langue native trop
+	// longtemps, on lui glisse un rappel privé (jamais montré au peer).
+	nudge := newLangNudge(sess.Speaks, sess.Wants)
+
+	// Tandem 50/50 : session structurée moitié langue A, moitié langue B.
+	// Poignée de main mutuelle (même pattern que le prompt ami), puis le côté
+	// PROPOSEUR détient le timer des phases et publie switch/end — l'autre
+	// côté ne fait que suivre. Si le proposeur tombe, le timer meurt avec sa
+	// goroutine : le bandeau se fige côté peer mais le chat continue (assumé).
+	tandemProposedByMe := false
+	tandemActive := false
+	tandemPhase := 0
+	var tandemTimer <-chan time.Time
+	// Ordre des phases côté proposeur : d'abord SA langue pratiquée, puis sa
+	// langue native (qui est celle que le peer pratique — files miroir).
+	tandemLangs := [2]string{sess.Wants, sess.Speaks}
+	startTandemPhase := func(phase int) {
+		lang := tandemLangs[phase-1]
+		tandemPhase = phase
+		nudge.setTandemLang(lang)
+		conn.Send(ServerFrame{
+			Type:      ServerTandemSwitch,
+			Body:      lang,
+			WindowSec: int(tandemPhaseDuration / time.Second),
+		})
+		if err := room.SendTandemSwitch(ctx, lang); err != nil {
+			h.d.Log.Warn("tandem switch publish", "err", err)
+		}
+		tandemTimer = time.After(tandemPhaseDuration)
+	}
+	startTandem := func() {
+		tandemActive = true
+		h.d.Tracker.Emit(analytics.Event{
+			Name:      analytics.EventTandemStarted,
+			UserID:    sess.UserID,
+			SessionID: sess.ID,
+			LangFrom:  sess.Speaks,
+			LangTo:    sess.Wants,
+		})
+		startTandemPhase(1)
+	}
+	endTandem := func() {
+		tandemActive = false
+		tandemPhase = 0
+		tandemProposedByMe = false
+		tandemTimer = nil
+		nudge.setTandemLang("")
+		conn.Send(ServerFrame{Type: ServerTandemEnd})
+	}
 
 	// peerGone : le peer a quitté/nexté, on a relayé ServerPeerLeft, mais
 	// on reste dans runChat pour attendre que NOTRE client décide (Next →
@@ -155,6 +213,21 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			// Fenêtre fermée sans double accept : on prévient le client
 			// que le match ami n'a pas eu lieu.
 			conn.Send(ServerFrame{Type: ServerFriendSkipped})
+		case <-tandemTimer:
+			// Fin de phase tandem (côté propriétaire du timer uniquement).
+			tandemTimer = nil
+			if !tandemActive || peerGone {
+				break
+			}
+			if tandemPhase == 1 {
+				startTandemPhase(2)
+				break
+			}
+			// Fin de la phase 2 : session terminée des deux côtés.
+			if err := room.SendTandemEnd(ctx); err != nil {
+				h.d.Log.Warn("tandem end publish", "err", err)
+			}
+			endTandem()
 		case env, ok := <-peerCh:
 			if !ok {
 				return chatDisconnect
@@ -185,6 +258,37 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				if myAccept && !friendDone && friendEligible {
 					friendDone = tryMakeFriendsOrPending(ctx, h, conn, sess.UserID, peer.UserID, sess.Fingerprint, peer.Fingerprint)
 				}
+			case roomKindMission:
+				// Mission du scénario roleplay accomplie (bot prof IA).
+				conn.Send(ServerFrame{Type: ServerMissionComplete})
+			case roomKindTandemPropose:
+				if tandemActive {
+					break
+				}
+				if tandemProposedByMe {
+					// Proposition croisée = accord mutuel implicite. Un seul
+					// côté doit détenir le timer — départage déterministe par
+					// ID de session (l'autre côté suivra les switch publiés).
+					if sess.ID < peer.ID {
+						startTandem()
+					}
+					break
+				}
+				conn.Send(ServerFrame{Type: ServerTandemPrompt})
+			case roomKindTandemAccept:
+				if tandemProposedByMe && !tandemActive {
+					startTandem()
+				}
+			case roomKindTandemSwitch:
+				// Côté suiveur : la langue de phase est la vérité publiée.
+				nudge.setTandemLang(env.Body)
+				conn.Send(ServerFrame{
+					Type:      ServerTandemSwitch,
+					Body:      env.Body,
+					WindowSec: int(tandemPhaseDuration / time.Second),
+				})
+			case roomKindTandemEnd:
+				endTandem()
 			}
 		case msg, ok := <-conn.Inbound:
 			if !ok {
@@ -208,6 +312,11 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				if err := room.SendMsg(ctx, msg.ID, safe); err != nil {
 					h.d.Log.Error("room publish", "err", err)
 					return chatDisconnect
+				}
+				// Rappel « pratique ta langue cible » — évalué hors de tout
+				// appel réseau (détection offline), émis au plus une fois.
+				if code := nudge.observe(safe); code != "" {
+					conn.Send(ServerFrame{Type: ServerNudge, Code: code})
 				}
 				// Modération IA hors chemin critique : le message est déjà relayé,
 				// on le classe en arrière-plan (avertissement + strikes). Jamais
@@ -321,6 +430,25 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				if peerAccept {
 					friendDone = tryMakeFriendsOrPending(ctx, h, conn, sess.UserID, peer.UserID, sess.Fingerprint, peer.Fingerprint)
 				}
+			case ClientTandemPropose:
+				// Pas de tandem avec un prof IA (il ne parle que la langue
+				// cible), ni si une session tourne ou est déjà proposée.
+				if peer.IsBot || peerGone || tandemActive || tandemProposedByMe {
+					continue
+				}
+				tandemProposedByMe = true
+				if err := room.SendTandemPropose(ctx); err != nil {
+					h.d.Log.Warn("tandem propose publish", "err", err)
+					tandemProposedByMe = false
+				}
+			case ClientTandemAccept:
+				// Accepte la proposition du peer : le proposeur démarre le
+				// timer en recevant notre accept. Sans proposition en face,
+				// l'accept est simplement ignoré côté peer.
+				if peer.IsBot || peerGone || tandemActive || tandemProposedByMe {
+					continue
+				}
+				_ = room.SendTandemAccept(ctx)
 			}
 		}
 	}

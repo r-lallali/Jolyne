@@ -31,10 +31,16 @@ func (h *Handler) sendPeerProfile(ctx context.Context, conn *Conn, peerUID int64
 		{Prompt: p.Prompt2, Answer: p.Answer2},
 		{Prompt: p.Prompt3, Answer: p.Answer3},
 	}
+	// Niveau CECRL estimé du peer — badge « ≈ B1 » côté client. Best-effort.
+	var cefr float64
+	if h.d.ResolveCEFR != nil {
+		cefr = h.d.ResolveCEFR(fetchCtx, peerUID)
+	}
 	conn.Send(ServerFrame{
 		Type:         ServerPeerProfile,
 		PeerPhotoID:  photoID,
 		PeerPrompts:  prompts,
 		PeerVerified: p.IsVerified,
+		PeerCEFR:     cefr,
 	})
 }

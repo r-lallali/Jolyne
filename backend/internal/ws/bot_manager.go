@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/claudeapi"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/quota"
@@ -57,6 +58,13 @@ type BotManager struct {
 	triggerDelay  time.Duration
 	maxConcurrent int
 
+	// dueWords (optionnel) : mots du carnet dus en révision pour ce user
+	// dans la langue pratiquée. Injectés dans le system prompt du prof pour
+	// qu'il les replace naturellement en contexte (réactivation SRS).
+	dueWords func(ctx context.Context, userID int64, lang string) []string
+	// tracker (optionnel, nil-safe) : event scenario_completed.
+	tracker *analytics.Tracker
+
 	mu         sync.Mutex
 	timers     map[string]*time.Timer
 	activeBots int
@@ -71,6 +79,8 @@ type BotManagerConfig struct {
 	Log           *slog.Logger
 	TriggerDelay  time.Duration
 	MaxConcurrent int
+	DueWords      func(ctx context.Context, userID int64, lang string) []string
+	Tracker       *analytics.Tracker
 }
 
 func NewBotManager(cfg BotManagerConfig) *BotManager {
@@ -89,6 +99,8 @@ func NewBotManager(cfg BotManagerConfig) *BotManager {
 		log:           cfg.Log,
 		triggerDelay:  cfg.TriggerDelay,
 		maxConcurrent: cfg.MaxConcurrent,
+		dueWords:      cfg.DueWords,
+		tracker:       cfg.Tracker,
 		timers:        make(map[string]*time.Timer),
 	}
 }
@@ -310,22 +322,76 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 		}
 	}
 
+	// Scénario de jeu de rôle : bloc de mission ajouté au system de la
+	// persona (validé au handshake — un ID inconnu n'arrive jamais ici).
+	system := p.System
+	scenario, scenarioActive := scenarioByID(userSess.Scenario)
+	if scenarioActive {
+		system += scenario.Block
+	}
+
+	// Calibrage CECRL : si le niveau de l'apprenant est estimé, on le donne
+	// au prof pour ajuster la complexité dès le premier échange (au lieu de
+	// la déduire des fautes au fil de l'eau).
+	if userSess.CEFR > 0 {
+		system += "\n\nNiveau estimé de l'apprenant : " + cefrLabel(userSess.CEFR) +
+			" (CECRL). Calibre la complexité de tes messages sur ce niveau."
+	}
+
+	// Réactivation SRS : si l'apprenant a des mots dus dans la langue
+	// pratiquée, on demande au prof de les replacer naturellement. Le prompt
+	// reste celui de la persona sinon. Best-effort (timeout court) — un
+	// carnet vide ou une DB lente ne retarde pas l'ouverture.
+	if userSess.UserID > 0 && m.dueWords != nil {
+		wordsCtx, wc := context.WithTimeout(ctx, 2*time.Second)
+		words := m.dueWords(wordsCtx, userSess.UserID, userSess.Wants)
+		wc()
+		if len(words) > 0 {
+			system += "\n\nL'apprenant révise en ce moment ces mots/expressions : " +
+				strings.Join(words, ", ") +
+				". Quand le fil de la conversation s'y prête, réutilise-les naturellement dans tes réponses ou amène des sujets qui les font ressortir — sans jamais les lister ni dire que ce sont ses révisions."
+		}
+	}
+
 	history := make([]claudeapi.Message, 0, maxBotHistoryTurns*2)
-	// Greeting de la persona (aucun appel Claude) : 1er message instantané,
-	// TOUJOURS identique pour cette langue (peu importe que le prof soit assigné
-	// par défaut ou choisi explicitement, connecté ou non), −1 appel par
-	// conversation, et zéro risque d'ouverture muette si l'API est en panne (404
-	// modèle / 5xx / timeout). On amorce l'historique avec un tour `user` (seed)
-	// AVANT le greeting (`assistant`) : l'historique doit commencer par un
-	// `user`, sinon le 1er vrai message formerait [assistant, user] → 400 et le
-	// bot ne répondrait plus. Le seed donne aussi à Claude le contexte de son
-	// ouverture pour la suite de l'échange.
-	history = append(history,
-		claudeapi.Message{Role: "user", Content: greetingSeed(userSess.Wants)},
-		claudeapi.Message{Role: "assistant", Content: p.Greeting},
-	)
-	m.sendBotMessage(ctx, room, "greeting", p.Greeting)
+	if scenarioActive {
+		// Ouverture de scène générée par Claude (impossible à canner : elle
+		// dépend du scénario ET de la langue). Un seul appel, non décompté du
+		// quota (comme le greeting). Échec → réponse de repli + congé, même
+		// politique que les échecs en cours de conversation.
+		opening, err := m.callClaude(ctx, room, system, nil, scenarioOpeningSeed)
+		if err != nil {
+			if m.log != nil {
+				m.log.Warn("bot scenario opening fell back (claude call failed)", "err", err)
+			}
+			m.sendBotMessage(ctx, room, "fallback", fallbackReply(userSess.Wants))
+			return
+		}
+		// Défense : jamais de marqueur mission dans l'ouverture.
+		opening, _ = stripMissionMarker(opening)
+		history = append(history,
+			claudeapi.Message{Role: "user", Content: scenarioOpeningSeed},
+			claudeapi.Message{Role: "assistant", Content: opening},
+		)
+		m.sendBotMessage(ctx, room, "greeting", opening)
+	} else {
+		// Greeting de la persona (aucun appel Claude) : 1er message instantané,
+		// TOUJOURS identique pour cette langue (peu importe que le prof soit assigné
+		// par défaut ou choisi explicitement, connecté ou non), −1 appel par
+		// conversation, et zéro risque d'ouverture muette si l'API est en panne (404
+		// modèle / 5xx / timeout). On amorce l'historique avec un tour `user` (seed)
+		// AVANT le greeting (`assistant`) : l'historique doit commencer par un
+		// `user`, sinon le 1er vrai message formerait [assistant, user] → 400 et le
+		// bot ne répondrait plus. Le seed donne aussi à Claude le contexte de son
+		// ouverture pour la suite de l'échange.
+		history = append(history,
+			claudeapi.Message{Role: "user", Content: greetingSeed(userSess.Wants)},
+			claudeapi.Message{Role: "assistant", Content: p.Greeting},
+		)
+		m.sendBotMessage(ctx, room, "greeting", p.Greeting)
+	}
 	msgCount := 1
+	missionDone := false
 
 	for {
 		select {
@@ -383,7 +449,7 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 				// via moderation.SanitizeAndCheck côté sender. On les déchiffre
 				// pour les envoyer en clair à Claude — sans logguer le contenu.
 				userMsg := html.UnescapeString(strings.Join(bodies, "\n"))
-				reply, err := m.callClaude(ctx, room, p.System, history, userMsg)
+				reply, err := m.callClaude(ctx, room, system, history, userMsg)
 				if err != nil {
 					// Échec malgré retries + jitter : l'API est vraiment en
 					// difficulté. On rembourse les crédits consommés, on envoie
@@ -405,9 +471,34 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 					m.sendBotMessage(ctx, room, "fallback", fallbackReply(userSess.Wants))
 					return
 				}
+				// Fin de mission roleplay : le marqueur est TOUJOURS strippé
+				// (défense contre les répétitions) mais ne déclenche l'évènement
+				// qu'une fois.
+				completedNow := false
+				if scenarioActive {
+					var found bool
+					reply, found = stripMissionMarker(reply)
+					completedNow = found && !missionDone
+				}
 				history = appendHistory(history, claudeapi.Message{Role: "user", Content: userMsg})
 				history = appendHistory(history, claudeapi.Message{Role: "assistant", Content: reply})
 				m.sendBotMessage(ctx, room, "reply", reply)
+				if completedNow {
+					missionDone = true
+					sendCtx, sc := context.WithTimeout(context.Background(), time.Second)
+					if err := room.SendMissionComplete(sendCtx); err != nil && m.log != nil {
+						m.log.Warn("bot mission complete publish failed", "err", err)
+					}
+					sc()
+					m.tracker.Emit(analytics.Event{
+						Name:      analytics.EventScenarioCompleted,
+						UserID:    userSess.UserID,
+						SessionID: userSess.ID,
+						LangFrom:  userSess.Speaks,
+						LangTo:    userSess.Wants,
+						Props:     map[string]any{"scenario": scenario.ID},
+					})
+				}
 				msgCount++
 			}
 		}

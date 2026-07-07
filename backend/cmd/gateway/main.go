@@ -187,9 +187,16 @@ func run() error {
 	// public (et l'origine admin). Vide en dev → contrôle désactivé.
 	ws.SetAllowedOrigins([]string{cfg.PublicCORSOrigin, cfg.AdminCORSOrigin, cfg.PublicAppURL})
 
+	// Préférence de niveau CECRL au matching (flag MATCH_LEVEL_AWARE).
+	m := matcher.New(rdb)
+	m.LevelAware = cfg.MatchLevelAware
+	if cfg.MatchLevelAware {
+		log.Info("level-aware matching enabled")
+	}
+
 	wsDeps := ws.Deps{
 		RDB:            rdb,
-		Matcher:        matcher.New(rdb),
+		Matcher:        m,
 		Hub:            ws.NewHub(),
 		Quota:          quota.NewEngine(rdb, nil),
 		Block:          moderation.DefaultBlocklist(),
@@ -363,6 +370,16 @@ func run() error {
 			}
 			return session.PlanFree
 		}
+		// Niveau CECRL estimé : préférence de matching + badge peer_profile +
+		// calibrage du prof IA. 0 (inconnu) sur erreur — fail-soft.
+		wsDeps.ResolveCEFR = func(ctx context.Context, userID int64) float64 {
+			score, err := usersStore.CEFRScore(ctx, userID)
+			if err != nil {
+				log.Warn("cefr score resolve", "err", err)
+				return 0
+			}
+			return score
+		}
 		// Résout le user via le cookie de session, pour appliquer le quota par
 		// compte (ou le bypass Premium). Partagé par les handlers translate et
 		// quota (état des compteurs).
@@ -428,9 +445,12 @@ func run() error {
 		// peer_profile au match quand le peer est authentifié.
 		wsDeps.Profiles = profileStore
 
-		// Store carnet créé tôt : partagé par les endpoints /api/vocab ET le
-		// résumé IA de fin de conversation (câblé dans le bloc bot ci-dessous).
+		// Stores carnet + learn créés tôt : partagés par leurs endpoints
+		// respectifs ET l'analyse IA de fin de conversation (câblée dans le
+		// bloc bot ci-dessous : vocabulaire → carnet, fautes → items de
+		// révision de la leçon du jour).
 		vocabStore := vocab.NewStore(svc.pg)
+		learnStore := learn.NewStore(svc.pg)
 
 		// Bot prof IA : si ANTHROPIC_API_KEY est posée, on instancie un
 		// BotManager qui spawnera des bots après TriggerDelaySec si aucun
@@ -449,6 +469,16 @@ func run() error {
 				Log:           log,
 				TriggerDelay:  time.Duration(cfg.BotTriggerDelaySec) * time.Second,
 				MaxConcurrent: cfg.BotMaxConcurrent,
+				Tracker:       tracker,
+				// Réactivation SRS : mots dus injectés dans le prompt du prof.
+				DueWords: func(ctx context.Context, userID int64, lang string) []string {
+					words, err := vocabStore.DueTerms(ctx, userID, lang, 5)
+					if err != nil {
+						log.Warn("bot due words", "err", err)
+						return nil
+					}
+					return words
+				},
 			})
 			// Modération IA du chat anonyme (hors chemin critique) : réutilise le
 			// même client Claude. Avertit puis suspend les récidivistes.
@@ -459,11 +489,19 @@ func run() error {
 				Tracker:    tracker,
 				Log:        log,
 			}
-			// Résumé IA de fin de conversation → carnet de vocabulaire.
-			// Réutilise le même client Claude et le store carnet partagé.
-			wsDeps.Summarizer = &ws.Summarizer{
+			// Amorces de conversation générées par Claude, cachées dans Redis
+			// par langue pratiquée (TTL 6 h) — servies au match humain-humain.
+			wsDeps.Icebreakers = &ws.IcebreakerService{
 				Claude: claudeClient,
-				Save: func(ctx context.Context, userID int64, term, translation, sourceLang, targetLang string) error {
+				RDB:    rdb,
+				Log:    log,
+			}
+			// Analyse IA de fin de conversation : vocabulaire → carnet,
+			// fautes corrigées → items de révision (leçon du jour), niveau
+			// CECRL → profil user (EWMA). Réutilise le même client Claude.
+			wsDeps.Analyzer = &ws.SessionAnalyzer{
+				Claude: claudeClient,
+				SaveWord: func(ctx context.Context, userID int64, term, translation, sourceLang, targetLang string) error {
 					_, err := vocabStore.Add(ctx, userID, vocab.Entry{
 						Term:        term,
 						Translation: translation,
@@ -471,6 +509,19 @@ func run() error {
 						TargetLang:  targetLang,
 					})
 					return err
+				},
+				SaveMistake: learnStore.AddReviewItem,
+				SaveCEFR:    usersStore.UpdateCEFR,
+				DueTerms: func(ctx context.Context, userID int64, lang string) []string {
+					words, err := vocabStore.DueTerms(ctx, userID, lang, 20)
+					if err != nil {
+						log.Warn("analyzer due terms", "err", err)
+						return nil
+					}
+					return words
+				},
+				ReviewInContext: func(ctx context.Context, userID int64, lang string, terms []string) error {
+					return vocabStore.ReviewTermsInContext(ctx, userID, lang, terms, time.Now())
 				},
 				Log: log,
 			}
@@ -503,8 +554,9 @@ func run() error {
 		// Carnet de vocabulaire : mots sauvegardés depuis le popover de
 		// traduction (et le résumé IA de fin de conversation). Store partagé.
 		svc.vocab = &vocab.Handlers{
-			Store: vocabStore,
-			Log:   log,
+			Store:   vocabStore,
+			Tracker: tracker,
+			Log:     log,
 		}
 		log.Info("vocab endpoints ready")
 
@@ -513,7 +565,6 @@ func run() error {
 		// dérivés de la matrice de curriculum (idempotent, réconcilié par slug —
 		// la progression jouée est préservée). Le générateur Claude
 		// (cmd/coursegen) peut enrichir/remplacer ensuite hors ligne.
-		learnStore := learn.NewStore(svc.pg)
 		if err := learn.SeedCourses(ctx, learnStore, log); err != nil {
 			log.Warn("learn seed", "err", err)
 		}
@@ -521,6 +572,7 @@ func run() error {
 			Store:     learnStore,
 			IsPremium: isPremium,      // cœurs illimités pour les abonnés
 			Friends:   wsDeps.Friends, // validation amitié pour les demandes de cœur
+			Tracker:   tracker,
 			Log:       log,
 		}
 		log.Info("learn endpoints ready")
@@ -581,6 +633,13 @@ func run() error {
 			ws.PublishFriendSystemMessage(rdb),
 		)
 		log.Info("friend streak loss cron ready")
+
+		// Cron de rappel de révision SRS : « X mots t'attendent dans ton
+		// carnet ». Uniquement si le push est configuré (sinon no-op assuré).
+		if pushSender != nil {
+			vocab.StartReviewReminderCron(ctx, svc.pg, pushSender, log, 30*time.Minute)
+			log.Info("vocab review reminder cron ready")
+		}
 	} else {
 		log.Info("user auth disabled — Postgres / USER_SESSION_SECRET manquants")
 	}

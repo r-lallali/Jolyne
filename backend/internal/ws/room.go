@@ -20,6 +20,14 @@ const (
 	roomKindCorrection   roomKind = "correction"
 	roomKindFriendAccept roomKind = "friend_accept" // l'autre côté a accepté le prompt 10-min
 	roomKindJoin         roomKind = "join"          // signal de présence émis à l'ouverture de la room
+	roomKindMission      roomKind = "mission"       // mission du scénario roleplay accomplie (bot → user)
+
+	// Tandem 50/50. Le proposeur détient le timer des phases ; les évènements
+	// switch/end portent la vérité (Body = code langue de la phase).
+	roomKindTandemPropose roomKind = "tandem_propose"
+	roomKindTandemAccept  roomKind = "tandem_accept"
+	roomKindTandemSwitch  roomKind = "tandem_switch"
+	roomKindTandemEnd     roomKind = "tandem_end"
 )
 
 type roomEnvelope struct {
@@ -136,6 +144,34 @@ func (r *Room) SendCorrection(ctx context.Context, targetID, original, corrected
 // (UPSERT idempotent) et envoie ServerFriendMade à son client.
 func (r *Room) SendFriendAccept(ctx context.Context) error {
 	return r.publish(ctx, roomEnvelope{Kind: roomKindFriendAccept})
+}
+
+// SendMissionComplete : émis par le bot prof IA quand la mission du scénario
+// roleplay est accomplie (marqueur [MISSION_OK] détecté). Relayé au client en
+// frame `mission_complete`.
+func (r *Room) SendMissionComplete(ctx context.Context) error {
+	return r.publish(ctx, roomEnvelope{Kind: roomKindMission})
+}
+
+// SendTandemPropose / SendTandemAccept : poignée de main de la session
+// tandem 50/50 (même pattern d'accord mutuel que le prompt ami).
+func (r *Room) SendTandemPropose(ctx context.Context) error {
+	return r.publish(ctx, roomEnvelope{Kind: roomKindTandemPropose})
+}
+
+func (r *Room) SendTandemAccept(ctx context.Context) error {
+	return r.publish(ctx, roomEnvelope{Kind: roomKindTandemAccept})
+}
+
+// SendTandemSwitch annonce le début d'une phase (lang = code de la langue
+// imposée). Émis par le côté propriétaire du timer.
+func (r *Room) SendTandemSwitch(ctx context.Context, lang string) error {
+	return r.publish(ctx, roomEnvelope{Kind: roomKindTandemSwitch, Body: lang})
+}
+
+// SendTandemEnd annonce la fin de la session tandem (retour au chat libre).
+func (r *Room) SendTandemEnd(ctx context.Context) error {
+	return r.publish(ctx, roomEnvelope{Kind: roomKindTandemEnd})
 }
 
 func (r *Room) Close() error { return r.pubsub.Close() }

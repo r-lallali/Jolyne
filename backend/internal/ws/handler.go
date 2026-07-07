@@ -55,6 +55,10 @@ const (
 	// pas dans la fenêtre, friend_skipped est envoyé à l'autre.
 	friendPromptDelay  = 5 * time.Minute
 	friendAcceptWindow = 60 * time.Second
+
+	// Durée d'une phase de session tandem 50/50 (2 phases : langue A puis
+	// langue B). 10 min chacune = le format classique des tandems.
+	tandemPhaseDuration = 10 * time.Minute
 )
 
 type Deps struct {
@@ -72,6 +76,10 @@ type Deps struct {
 	// ResolvePlan (optionnel) : résout le plan réel d'un user authentifié
 	// (Premium si abonnement actif). nil → tout le monde reste Free.
 	ResolvePlan func(ctx context.Context, userID int64) session.Plan
+	// ResolveCEFR (optionnel) : niveau CECRL estimé d'un user (1.0..6.0,
+	// 0 = inconnu). Sert à la préférence de niveau du matcher, au badge
+	// peer_profile et au calibrage du prof IA.
+	ResolveCEFR func(ctx context.Context, userID int64) float64
 	// Friends (optionnel). Si présent, le prompt ami 10-min est éligible
 	// quand les deux peers sont authentifiés.
 	Friends *friends.Store
@@ -86,9 +94,13 @@ type Deps struct {
 	// classé en arrière-plan par Claude ; les récidivistes sont avertis puis
 	// suspendus. nil = seule la blocklist statique s'applique.
 	Toxicity *ToxicityGuard
-	// Summarizer (optionnel). Si présent, la fin d'une conversation (compte
-	// authentifié) déclenche l'extraction IA du vocabulaire vers le carnet.
-	Summarizer *Summarizer
+	// Icebreakers (optionnel). Si présent, un match humain-humain reçoit des
+	// amorces de conversation fraîches (frame `icebreakers`, asynchrone).
+	Icebreakers *IcebreakerService
+	// Analyzer (optionnel). Si présent, la fin d'une conversation (compte
+	// authentifié) déclenche l'analyse IA : vocabulaire → carnet, fautes →
+	// items de révision (leçon du jour), niveau CECRL → profil.
+	Analyzer *SessionAnalyzer
 	// Tracker analytics (optionnel). Émet les events de funnel (match_found,
 	// bot_fallback, message_sent, conversation_ended…). Nil-safe.
 	Tracker *analytics.Tracker
@@ -161,6 +173,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		respondJSONError(w, http.StatusBadRequest, "invalid_param", err.Error())
 		return
 	}
+	// Scénario de jeu de rôle : uniquement en mode prof IA, et connu du
+	// catalogue. Le gating premium se fait après résolution du plan (plus bas).
+	if params.scenario != "" {
+		if _, ok := scenarioByID(params.scenario); !ok || !params.botMode {
+			respondJSONError(w, http.StatusBadRequest, "invalid_param", "scénario inconnu")
+			return
+		}
+	}
 
 	// Résout le cookie user AVANT l'upgrade — si présent et valide, la
 	// session WS porte UserID > 0 et le flow ami devient éligible. Sinon
@@ -185,6 +205,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Résout le plan réel : Premium si abonnement actif. Anonyme = Free.
 	if userID > 0 && h.d.ResolvePlan != nil {
 		sess.Plan = h.d.ResolvePlan(r.Context(), userID)
+	}
+	// Niveau CECRL estimé (0 si anonyme / jamais estimé) : préférence de
+	// niveau du matcher + calibrage du prof IA.
+	if userID > 0 && h.d.ResolveCEFR != nil {
+		sess.CEFR = h.d.ResolveCEFR(r.Context(), userID)
+	}
+
+	// Gating premium des scénarios : les scénarios d'appel sont gratuits, le
+	// reste requiert l'abonnement. Frame d'erreur terminale → paywall côté
+	// front (même pattern que les quotas).
+	if params.scenario != "" {
+		if sc, _ := scenarioByID(params.scenario); !sc.Free && sess.Plan != session.PlanPremium {
+			conn.WriteAndClose(ServerFrame{Type: ServerError, Code: ErrCodeScenarioPremium})
+			return
+		}
+		sess.Scenario = params.scenario
 	}
 
 	// Check ban actif AVANT registration / matching. Sur match, le client
