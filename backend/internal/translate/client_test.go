@@ -40,8 +40,29 @@ func TestClient_Translate_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
-	if out != "bonjour" {
-		t.Fatalf("translated: %q", out)
+	if out.Translated != "bonjour" {
+		t.Fatalf("translated: %q", out.Translated)
+	}
+	if out.Detected != "" {
+		t.Fatalf("detected devrait être vide sans auto: %q", out.Detected)
+	}
+}
+
+func TestClient_Translate_AutoReturnsDetected(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"translatedText":"bonjour","detectedLanguage":{"confidence":92.0,"language":"EN"}}`))
+	}))
+	defer srv.Close()
+	c := translate.NewClient(srv.URL, "")
+	out, err := c.Translate(context.Background(), "hello", "auto", "fr")
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	if out.Translated != "bonjour" {
+		t.Fatalf("translated: %q", out.Translated)
+	}
+	if out.Detected != "en" {
+		t.Fatalf("detected devrait être normalisé en minuscules: %q", out.Detected)
 	}
 }
 

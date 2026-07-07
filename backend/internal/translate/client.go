@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -42,12 +43,27 @@ type translateRequest struct {
 
 type translateResponse struct {
 	TranslatedText string `json:"translatedText"`
-	Error          string `json:"error,omitempty"`
+	// Présent uniquement quand source == "auto".
+	DetectedLanguage *struct {
+		Language   string  `json:"language"`
+		Confidence float64 `json:"confidence"`
+	} `json:"detectedLanguage,omitempty"`
+	Error string `json:"error,omitempty"`
+}
+
+// Result porte la traduction et, si la source était "auto", la langue
+// détectée par LibreTranslate (vide sinon). Romanization n'est remplie que
+// par le traducteur IA (ai.go) pour les sources zh/ja/ko/ar — LibreTranslate
+// n'en produit pas.
+type Result struct {
+	Translated   string
+	Detected     string
+	Romanization string
 }
 
 // Translate renvoie la traduction de `text` de `source` vers `target`.
 // `source` peut être "auto" pour laisser LibreTranslate détecter.
-func (c *Client) Translate(ctx context.Context, text, source, target string) (string, error) {
+func (c *Client) Translate(ctx context.Context, text, source, target string) (Result, error) {
 	body, err := json.Marshal(translateRequest{
 		Q:      text,
 		Source: source,
@@ -56,35 +72,39 @@ func (c *Client) Translate(ctx context.Context, text, source, target string) (st
 		APIKey: c.apiKey,
 	})
 	if err != nil {
-		return "", fmt.Errorf("translate: marshal: %w", err)
+		return Result{}, fmt.Errorf("translate: marshal: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/translate", bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("translate: build request: %w", err)
+		return Result{}, fmt.Errorf("translate: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("translate: do: %w", err)
+		return Result{}, fmt.Errorf("translate: do: %w", err)
 	}
 	defer resp.Body.Close()
 
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil {
-		return "", fmt.Errorf("translate: read: %w", err)
+		return Result{}, fmt.Errorf("translate: read: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("translate: status %d: %s", resp.StatusCode, string(raw))
+		return Result{}, fmt.Errorf("translate: status %d: %s", resp.StatusCode, string(raw))
 	}
 
 	var out translateResponse
 	if err := json.Unmarshal(raw, &out); err != nil {
-		return "", fmt.Errorf("translate: decode: %w", err)
+		return Result{}, fmt.Errorf("translate: decode: %w", err)
 	}
 	if out.Error != "" {
-		return "", fmt.Errorf("translate: %s", out.Error)
+		return Result{}, fmt.Errorf("translate: %s", out.Error)
 	}
-	return out.TranslatedText, nil
+	res := Result{Translated: out.TranslatedText}
+	if out.DetectedLanguage != nil {
+		res.Detected = strings.ToLower(out.DetectedLanguage.Language)
+	}
+	return res, nil
 }

@@ -62,12 +62,13 @@ const (
 var ErrDisabled = errors.New("claudeapi: disabled (no API key)")
 
 type Client struct {
-	apiKey   string
-	model    string
-	endpoint string
-	apiVer   string
-	http     *http.Client
-	log      *slog.Logger
+	apiKey    string
+	model     string
+	endpoint  string
+	apiVer    string
+	maxTokens int
+	http      *http.Client
+	log       *slog.Logger
 }
 
 type Option func(*Client)
@@ -76,6 +77,17 @@ func WithModel(m string) Option        { return func(c *Client) { c.model = m } 
 func WithLogger(l *slog.Logger) Option { return func(c *Client) { c.log = l } }
 func WithHTTPClient(h *http.Client) Option {
 	return func(c *Client) { c.http = h }
+}
+
+// WithMaxTokens relève le plafond de génération (défaut 256 — taillé pour
+// les réponses courtes du prof IA). Le traducteur de phrases en a besoin :
+// traduction + romanisation d'un texte de 500 runes dépassent 256 tokens.
+func WithMaxTokens(n int) Option {
+	return func(c *Client) {
+		if n > 0 {
+			c.maxTokens = n
+		}
+	}
 }
 
 // New : retourne un Client. Si apiKey est vide, le client est "disabled"
@@ -91,11 +103,12 @@ func New(apiKey string, opts ...Option) *Client {
 	tr.MaxIdleConns = 64
 	tr.MaxIdleConnsPerHost = 64
 	c := &Client{
-		apiKey:   apiKey,
-		model:    defaultModel,
-		endpoint: defaultEndpoint,
-		apiVer:   defaultAPIVer,
-		http:     &http.Client{Timeout: defaultTimeout, Transport: tr},
+		apiKey:    apiKey,
+		model:     defaultModel,
+		endpoint:  defaultEndpoint,
+		apiVer:    defaultAPIVer,
+		maxTokens: defaultMaxTokens,
+		http:      &http.Client{Timeout: defaultTimeout, Transport: tr},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -165,7 +178,7 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 
 	reqBody, err := json.Marshal(messagesRequest{
 		Model:     c.model,
-		MaxTokens: defaultMaxTokens,
+		MaxTokens: c.maxTokens,
 		System:    system,
 		Messages:  msgs,
 	})

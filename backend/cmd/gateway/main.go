@@ -106,8 +106,29 @@ func run() error {
 	if cfg.LibreTranslateURL != "" {
 		svc.translate = &translate.Handler{
 			Client: translate.NewClient(cfg.LibreTranslateURL, cfg.LibreTranslateAPIKey),
+			// Cache partagé des traductions (clé hashée, valeur sans identité
+			// user) : un hit ne consomme ni upstream ni quota.
+			RDB: rdb,
 		}
-		log.Info("translate endpoint ready", "url", cfg.LibreTranslateURL)
+		// Traducteur IA pour les phrases (repli LibreTranslate sur erreur).
+		// Client dédié : plafond de tokens relevé vs le prof IA (traduction
+		// + romanisation d'un texte de 500 runes > 256 tokens).
+		if cfg.AnthropicAPIKey != "" {
+			aiClient := claudeapi.New(cfg.AnthropicAPIKey,
+				claudeapi.WithModel(cfg.AnthropicModel),
+				claudeapi.WithLogger(log),
+				claudeapi.WithMaxTokens(1024),
+			)
+			svc.translate.AI = &translate.AITranslator{
+				Reply: func(ctx context.Context, system, userMsg string) (string, error) {
+					return aiClient.Reply(ctx, system, nil, userMsg)
+				},
+			}
+		}
+		log.Info("translate endpoint ready",
+			"url", cfg.LibreTranslateURL,
+			"ai_phrases", cfg.AnthropicAPIKey != "",
+		)
 	} else {
 		log.Info("translate désactivé — LIBRETRANSLATE_URL non renseigné")
 	}
