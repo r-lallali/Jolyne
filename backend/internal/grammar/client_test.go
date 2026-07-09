@@ -108,6 +108,61 @@ func TestClient_Check_HandlesUpstreamError(t *testing.T) {
 	}
 }
 
+func TestClient_Check_RetriesTransient5xx(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte(`{"matches":[]}`))
+	}))
+	defer srv.Close()
+	c := grammar.NewClient(srv.URL)
+	matches, err := c.Check(context.Background(), "hi", "en-US")
+	if err != nil {
+		t.Fatalf("le retry devait rattraper le 503: %v", err)
+	}
+	if matches == nil || calls != 2 {
+		t.Fatalf("calls=%d matches=%v", calls, matches)
+	}
+}
+
+func TestClient_Check_NoRetryOn4xx(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer srv.Close()
+	c := grammar.NewClient(srv.URL)
+	if _, err := c.Check(context.Background(), "hi", "xx"); err == nil {
+		t.Fatal("un 400 doit être propagé")
+	}
+	if calls != 1 {
+		t.Fatalf("un 4xx ne doit pas être retenté, eu %d appels", calls)
+	}
+}
+
+func TestClient_Check_NoRetryOnCanceledContext(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+	c := grammar.NewClient(srv.URL)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := c.Check(ctx, "hi", "en-US"); err == nil {
+		t.Fatal("contexte annulé doit remonter une erreur")
+	}
+	if calls > 1 {
+		t.Fatalf("pas de retry après annulation, eu %d appels", calls)
+	}
+}
+
 func TestClient_Check_EmptyMatches(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"matches":[]}`))

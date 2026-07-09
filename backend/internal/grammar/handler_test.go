@@ -60,7 +60,7 @@ func TestGrammarHandler_AcceptsLangAliases(t *testing.T) {
 	}))
 	defer srv.Close()
 	h := newHandler(srv.URL)
-	for _, lang := range []string{"fr", "FR", "en", "EN-US", "de", "es"} {
+	for _, lang := range []string{"fr", "FR", "en", "EN-US", "de", "es", "es-ES", "it-IT"} {
 		t.Run(lang, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/api/grammar",
 				strings.NewReader(`{"text":"hi","lang":"`+lang+`"}`))

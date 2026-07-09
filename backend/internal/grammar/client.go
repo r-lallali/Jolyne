@@ -20,10 +20,17 @@ type Client struct {
 }
 
 func NewClient(baseURL string) *Client {
+	// Transport dédié : une seule cible upstream, on garde un pool de
+	// connexions ouvertes (le défaut MaxIdleConnsPerHost=2 force des
+	// handshakes TCP à répétition dès qu'il y a un peu de concurrence).
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.MaxIdleConns = 32
+	tr.MaxIdleConnsPerHost = 32
 	return &Client{
 		baseURL: baseURL,
 		http: &http.Client{
-			Timeout: 8 * time.Second,
+			Timeout:   8 * time.Second,
+			Transport: tr,
 		},
 	}
 }
@@ -66,8 +73,27 @@ var disabledRules = strings.Join([]string{
 
 // Check renvoie la liste des fautes détectées dans `text` pour la langue
 // `lang` (codes ISO type "fr-FR", "en-US"). Tronque les replacements pour
-// rester léger.
+// rester léger. Une erreur transitoire (réseau ou 5xx) est retentée UNE
+// fois après une courte pause : un redémarrage de LanguageTool ne doit pas
+// se traduire par « vérification indisponible » côté user.
 func (c *Client) Check(ctx context.Context, text, lang string) ([]Match, error) {
+	matches, retryable, err := c.check(ctx, text, lang)
+	if err == nil || !retryable {
+		return matches, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, err
+	case <-time.After(150 * time.Millisecond):
+	}
+	matches, _, err = c.check(ctx, text, lang)
+	return matches, err
+}
+
+// check fait un appel LanguageTool unique. `retryable` distingue les pannes
+// transitoires (réseau, 5xx) des erreurs définitives (4xx : re-tenter la
+// même requête redonnera la même réponse).
+func (c *Client) check(ctx context.Context, text, lang string) (_ []Match, retryable bool, _ error) {
 	form := url.Values{}
 	form.Set("text", text)
 	form.Set("language", lang)
@@ -77,27 +103,28 @@ func (c *Client) Check(ctx context.Context, text, lang string) ([]Match, error) 
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/v2/check", strings.NewReader(form.Encode()))
 	if err != nil {
-		return nil, fmt.Errorf("grammar: build request: %w", err)
+		return nil, false, fmt.Errorf("grammar: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("grammar: do: %w", err)
+		// Contexte annulé/expiré : le retry échouerait pareil.
+		return nil, ctx.Err() == nil, fmt.Errorf("grammar: do: %w", err)
 	}
 	defer resp.Body.Close()
 
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024))
 	if err != nil {
-		return nil, fmt.Errorf("grammar: read: %w", err)
+		return nil, true, fmt.Errorf("grammar: read: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("grammar: status %d: %s", resp.StatusCode, string(raw))
+		return nil, resp.StatusCode >= 500, fmt.Errorf("grammar: status %d: %s", resp.StatusCode, string(raw))
 	}
 
 	var out ltResponse
 	if err := json.Unmarshal(raw, &out); err != nil {
-		return nil, fmt.Errorf("grammar: decode: %w", err)
+		return nil, false, fmt.Errorf("grammar: decode: %w", err)
 	}
 
 	matches := make([]Match, 0, len(out.Matches))
@@ -117,5 +144,5 @@ func (c *Client) Check(ctx context.Context, text, lang string) ([]Match, error) 
 			Replacements: repl,
 		})
 	}
-	return matches, nil
+	return matches, false, nil
 }

@@ -134,7 +134,12 @@ func run() error {
 	}
 
 	if cfg.LanguageToolURL != "" {
-		svc.grammar = &grammar.Handler{Client: grammar.NewClient(cfg.LanguageToolURL)}
+		svc.grammar = &grammar.Handler{
+			Client: grammar.NewClient(cfg.LanguageToolURL),
+			// Cache partagé des vérifications (clé hashée, valeur sans
+			// identité user) : un hit ne touche pas LanguageTool.
+			RDB: rdb,
+		}
 		log.Info("grammar endpoint ready", "url", cfg.LanguageToolURL)
 	} else {
 		log.Info("grammar désactivé — LANGUAGETOOL_URL non renseigné")

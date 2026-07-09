@@ -1,13 +1,26 @@
 package grammar
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 	"unicode/utf8"
+
+	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/singleflight"
 )
 
 const maxTextRunes = 2000
+
+// TTL du cache de vérifications. Même logique que le cache de traductions :
+// les textes courts reviennent souvent (mêmes phrases d'apprentissage), et
+// LanguageTool est déterministe pour un texte+langue donnés. Le TTL borne la
+// staleness si l'image LT est mise à jour (nouvelles règles).
+const cacheTTL = 7 * 24 * time.Hour
 
 // Codes BCP-47 acceptés. On accepte le code court (ex: "fr") en plus du
 // long (ex: "fr-FR") pour coller au format `lang` qu'envoie le frontend
@@ -21,12 +34,14 @@ var langAliases = map[string]string{
 	"en-us": "en-US",
 	"en-gb": "en-GB",
 	"es":    "es",
+	"es-es": "es",
 	"de":    "de-DE",
 	"de-de": "de-DE",
 	"pt":    "pt-PT",
 	"pt-pt": "pt-PT",
 	"pt-br": "pt-BR",
 	"it":    "it",
+	"it-it": "it",
 	"ar":    "ar",
 	"zh":    "zh-CN",
 	"zh-cn": "zh-CN",
@@ -47,6 +62,14 @@ type checkResp struct {
 // lancement — l'appel est déclenché manuellement par le user (bouton).
 type Handler struct {
 	Client *Client
+	// RDB : cache partagé des vérifications. nil = pas de cache. Même
+	// contrat que le cache de traductions : clé SHA-256 (texte jamais stocké
+	// en clair côté clé), valeur = matches dérivés, aucune identité user.
+	RDB *redis.Client
+	// sf déduplique les vérifications identiques concurrentes (double-clic,
+	// même phrase vérifiée par plusieurs users) : un seul appel LanguageTool,
+	// tout le monde reçoit le résultat. Zero value utilisable.
+	sf singleflight.Group
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -75,12 +98,81 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	matches, err := h.Client.Check(r.Context(), body.Text, lang)
+	// Cache : un hit répond immédiatement sans toucher LanguageTool.
+	key := cacheKey(body.Text, lang)
+	if matches, ok := h.cacheGet(r.Context(), key); ok {
+		respond(w, matches)
+		return
+	}
+
+	// Singleflight sur la clé de cache : les requêtes identiques en vol
+	// partagent un seul appel upstream. Contexte détaché volontairement :
+	// si le demandeur « leader » annule (navigation), les suiveurs gardent
+	// leur résultat et le cache se remplit quand même. Borné par le timeout
+	// du client HTTP.
+	v, err, _ := h.sf.Do(key, func() (any, error) {
+		matches, err := h.Client.Check(context.WithoutCancel(r.Context()), body.Text, lang)
+		if err != nil {
+			return nil, err
+		}
+		h.cacheSet(context.WithoutCancel(r.Context()), key, matches)
+		return matches, nil
+	})
 	if err != nil {
 		http.Error(w, "grammar unavailable", http.StatusBadGateway)
 		return
 	}
+	matches, ok := v.([]Match)
+	if !ok {
+		http.Error(w, "grammar unavailable", http.StatusBadGateway)
+		return
+	}
+	respond(w, matches)
+}
 
+func respond(w http.ResponseWriter, matches []Match) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(checkResp{Matches: matches})
+}
+
+// cacheKey : hash du couple langue+texte — le texte n'apparaît jamais en
+// clair dans Redis côté clé. La langue résolue (fr-FR, pas fr) fait partie
+// de la clé : les alias pointant sur la même variante partagent l'entrée.
+func cacheKey(text, lang string) string {
+	sum := sha256.Sum256([]byte(lang + "\x00" + text))
+	return "grcache:" + hex.EncodeToString(sum[:])
+}
+
+// cachedMatches : forme compacte stockée dans Redis. Un texte sans faute est
+// cachable aussi (M vide) — c'est même le cas le plus fréquent.
+type cachedMatches struct {
+	M []Match `json:"m"`
+}
+
+// cacheGet / cacheSet : best-effort, jamais bloquants pour la requête (une
+// erreur Redis dégrade en simple cache-miss).
+func (h *Handler) cacheGet(ctx context.Context, key string) ([]Match, bool) {
+	if h.RDB == nil {
+		return nil, false
+	}
+	raw, err := h.RDB.Get(ctx, key).Result()
+	if err != nil {
+		return nil, false
+	}
+	var c cachedMatches
+	if json.Unmarshal([]byte(raw), &c) != nil || c.M == nil {
+		return nil, false
+	}
+	return c.M, true
+}
+
+func (h *Handler) cacheSet(ctx context.Context, key string, matches []Match) {
+	if h.RDB == nil || matches == nil {
+		return
+	}
+	raw, err := json.Marshal(cachedMatches{M: matches})
+	if err != nil {
+		return
+	}
+	_ = h.RDB.Set(ctx, key, raw, cacheTTL).Err()
 }
