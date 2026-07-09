@@ -24,9 +24,10 @@ const cacheTTL = 7 * 24 * time.Hour
 
 // Codes BCP-47 acceptés. On accepte le code court (ex: "fr") en plus du
 // long (ex: "fr-FR") pour coller au format `lang` qu'envoie le frontend
-// quand l'utilisateur choisit sa langue. Les langues non gérées par
-// LanguageTool (ex: le coréen) sont volontairement absentes : la requête
-// retourne alors 400 et le frontend dégrade en « vérification indisponible ».
+// quand l'utilisateur choisit sa langue. Le coréen, non géré par
+// LanguageTool, passe par le correcteur IA (voir aiLangs) — sans IA
+// configurée la requête retourne 400 et le frontend dégrade en
+// « vérification indisponible ».
 var langAliases = map[string]string{
 	"fr":    "fr",
 	"fr-fr": "fr-FR",
@@ -47,6 +48,8 @@ var langAliases = map[string]string{
 	"zh-cn": "zh-CN",
 	"ja":    "ja-JP",
 	"ja-jp": "ja-JP",
+	"ko":    "ko",
+	"ko-kr": "ko",
 }
 
 type checkReq struct {
@@ -62,6 +65,9 @@ type checkResp struct {
 // lancement — l'appel est déclenché manuellement par le user (bouton).
 type Handler struct {
 	Client *Client
+	// AI : correcteur Claude pour les langues sans support LanguageTool
+	// (aiLangs, coréen). nil = ces langues répondent 400 comme avant.
+	AI *AIChecker
 	// RDB : cache partagé des vérifications. nil = pas de cache. Même
 	// contrat que le cache de traductions : clé SHA-256 (texte jamais stocké
 	// en clair côté clé), valeur = matches dérivés, aucune identité user.
@@ -97,6 +103,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid lang", http.StatusBadRequest)
 		return
 	}
+	// Langues hors LanguageTool : servies par l'IA, sinon même 400 que si
+	// l'alias n'existait pas (le frontend dégrade en « indisponible »).
+	_, viaAI := aiLangs[lang]
+	if viaAI && !h.AI.Enabled() {
+		http.Error(w, "invalid lang", http.StatusBadRequest)
+		return
+	}
 
 	// Cache : un hit répond immédiatement sans toucher LanguageTool.
 	key := cacheKey(body.Text, lang)
@@ -111,11 +124,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// leur résultat et le cache se remplit quand même. Borné par le timeout
 	// du client HTTP.
 	v, err, _ := h.sf.Do(key, func() (any, error) {
-		matches, err := h.Client.Check(context.WithoutCancel(r.Context()), body.Text, lang)
+		ctx := context.WithoutCancel(r.Context())
+		var matches []Match
+		var err error
+		if viaAI {
+			matches, err = h.AI.Check(ctx, body.Text, lang)
+		} else {
+			matches, err = h.Client.Check(ctx, body.Text, lang)
+		}
 		if err != nil {
 			return nil, err
 		}
-		h.cacheSet(context.WithoutCancel(r.Context()), key, matches)
+		h.cacheSet(ctx, key, matches)
 		return matches, nil
 	})
 	if err != nil {

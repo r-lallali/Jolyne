@@ -140,7 +140,25 @@ func run() error {
 			// identité user) : un hit ne touche pas LanguageTool.
 			RDB: rdb,
 		}
-		log.Info("grammar endpoint ready", "url", cfg.LanguageToolURL)
+		// Correcteur IA pour les langues hors LanguageTool (coréen). Client
+		// dédié : la liste JSON de corrections dépasse les 256 tokens du
+		// prof IA.
+		if cfg.AnthropicAPIKey != "" {
+			aiClient := claudeapi.New(cfg.AnthropicAPIKey,
+				claudeapi.WithModel(cfg.AnthropicModel),
+				claudeapi.WithLogger(log),
+				claudeapi.WithMaxTokens(1024),
+			)
+			svc.grammar.AI = &grammar.AIChecker{
+				Reply: func(ctx context.Context, system, userMsg string) (string, error) {
+					return aiClient.Reply(ctx, system, nil, userMsg)
+				},
+			}
+		}
+		log.Info("grammar endpoint ready",
+			"url", cfg.LanguageToolURL,
+			"ai_langs", cfg.AnthropicAPIKey != "",
+		)
 	} else {
 		log.Info("grammar désactivé — LANGUAGETOOL_URL non renseigné")
 	}
