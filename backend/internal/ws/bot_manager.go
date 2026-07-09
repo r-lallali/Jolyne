@@ -296,9 +296,13 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 
 	// On attend que le user ait rejoint la room avant de parler : sinon le
 	// greeting partirait avant son abonnement et serait perdu (pub/sub ne
-	// bufferise pas), d'où un prof IA muet. Fallback sur timeout si le `join`
-	// est raté.
-	if !m.waitForPeerJoin(ctx, events) {
+	// bufferise pas), d'où un prof IA muet. `joined=false` = sortie sur le
+	// timer de repli, la présence du user n'est PAS confirmée : le greeting
+	// sera re-publié à son premier signe de vie (cf. presence plus bas).
+	// `pending` = premier message reçu pendant l'attente (join perdu) — à
+	// traiter comme un vrai tour, pas seulement comme un signe de présence.
+	pending, joined, ok := m.waitForPeerJoin(ctx, events)
+	if !ok {
 		return
 	}
 	// Petite pause pour laisser le client afficher son ServerMatched avant
@@ -353,7 +357,17 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 		}
 	}
 
-	history := make([]claudeapi.Message, 0, maxBotHistoryTurns*2)
+	st := &botTurnState{
+		system:         system,
+		history:        make([]claudeapi.Message, 0, maxBotHistoryTurns*2),
+		botQuotaID:     botQuotaID,
+		scenario:       scenario,
+		scenarioActive: scenarioActive,
+	}
+	// ID stable du greeting : s'il doit être re-publié (presence ci-dessous),
+	// le client dédoublonne par ID et ne l'affiche qu'une seule fois.
+	greetingID := uuid.NewString()
+	var greetingBody string
 	if scenarioActive {
 		// Ouverture de scène générée par Claude (impossible à canner : elle
 		// dépend du scénario ET de la langue). Un seul appel, non décompté du
@@ -369,11 +383,11 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 		}
 		// Défense : jamais de marqueur mission dans l'ouverture.
 		opening, _ = stripMissionMarker(opening)
-		history = append(history,
+		st.history = append(st.history,
 			claudeapi.Message{Role: "user", Content: scenarioOpeningSeed},
 			claudeapi.Message{Role: "assistant", Content: opening},
 		)
-		m.sendBotMessage(ctx, room, "greeting", opening)
+		greetingBody = opening
 	} else {
 		// Greeting de la persona (aucun appel Claude) : 1er message instantané,
 		// TOUJOURS identique pour cette langue (peu importe que le prof soit assigné
@@ -384,14 +398,40 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 		// `user`, sinon le 1er vrai message formerait [assistant, user] → 400 et le
 		// bot ne répondrait plus. Le seed donne aussi à Claude le contexte de son
 		// ouverture pour la suite de l'échange.
-		history = append(history,
+		st.history = append(st.history,
 			claudeapi.Message{Role: "user", Content: greetingSeed(userSess.Wants)},
 			claudeapi.Message{Role: "assistant", Content: p.Greeting},
 		)
-		m.sendBotMessage(ctx, room, "greeting", p.Greeting)
+		greetingBody = p.Greeting
 	}
-	msgCount := 1
-	missionDone := false
+	m.sendBotMessageWithID(ctx, room, "greeting", greetingID, greetingBody)
+	st.msgCount = 1
+
+	// presence : premier signe de vie du user alors que le greeting est parti
+	// sur le timer de repli. Le user n'était alors très probablement pas encore
+	// abonné à la room (pub/sub ne bufferise pas pour un abonné en retard) :
+	// son écran est vide alors que le prof croit avoir parlé — c'était le
+	// « prof IA muet ». On re-publie le greeting avec le MÊME ID : le client
+	// dédoublonne, donc aucun doublon si le premier était finalement passé.
+	presence := func() {
+		if joined {
+			return
+		}
+		joined = true
+		if m.log != nil {
+			m.log.Info("bot greeting resent after late presence")
+		}
+		m.sendBotMessageWithID(ctx, room, "greeting", greetingID, greetingBody)
+	}
+
+	// Message arrivé pendant l'attente de présence (join perdu) : on y répond
+	// immédiatement — avant, il ne servait que de signe de vie et restait sans
+	// réponse (prof IA qui « ignore » le premier message).
+	if pending != nil {
+		if m.botTurn(ctx, room, events, userSess, st, pending.Body) {
+			return
+		}
+	}
 
 	for {
 		select {
@@ -404,105 +444,132 @@ func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Se
 			switch env.Kind {
 			case roomKindLeft:
 				return
+			case roomKindJoin, roomKindTyping:
+				presence()
 			case roomKindMsg:
-				if msgCount >= maxBotMessages {
-					m.sendBotMessage(ctx, room, "goodbye", goodbyeMsg(userSess.Wants))
+				presence()
+				if m.botTurn(ctx, room, events, userSess, st, env.Body) {
 					return
 				}
-				// Rafale : on draine les évènements déjà bufferisés AVANT de
-				// consommer du quota et de payer un appel Claude. Si un Left y
-				// figure (le user a fait Next/quitté pendant le tour
-				// précédent), on sort tout de suite — sinon le bot répondrait
-				// message par message dans une room morte, en gardant son slot
-				// activeBots occupé (et le nouveau prof du même user compterait
-				// double, jusqu'à saturer maxConcurrent sous charge). Les
-				// messages drainés sont coalescés en un seul tour user → une
-				// seule réponse pour la rafale, un seul appel API.
-				bodies, left := drainPending(events, env.Body)
-				if left {
-					return
-				}
-				// Quota quotidien prof IA (Free = 50 msg/j ; Premium illimité).
-				// Un crédit par message du user, rafale comprise — pas le
-				// greeting. Dépassement → adieu + upsell Premium.
-				quotaUsed := int64(0)
-				if userSess.Plan != session.PlanPremium && m.quota != nil {
-					for range bodies {
-						_, qerr := m.quota.CheckAndIncrement(ctx, quota.KindBot, botQuotaID, quota.FreeBotDaily)
-						if errors.Is(qerr, quota.ErrQuotaExceeded) {
-							m.sendBotMessage(ctx, room, "limit", botDailyLimitMsg(userSess.Wants))
-							return
-						}
-						if qerr != nil {
-							// Redis indisponible : on log et on laisse passer
-							// plutôt que de casser la conversation. Rien à
-							// rembourser pour ce crédit non compté.
-							if m.log != nil {
-								m.log.Warn("bot quota incr", "err", qerr)
-							}
-							continue
-						}
-						quotaUsed++
-					}
-				}
-				// CLAUDE.md règle d'or #2 : les bodies sont arrivés HTML-escaped
-				// via moderation.SanitizeAndCheck côté sender. On les déchiffre
-				// pour les envoyer en clair à Claude — sans logguer le contenu.
-				userMsg := html.UnescapeString(strings.Join(bodies, "\n"))
-				reply, err := m.callClaude(ctx, room, system, history, userMsg)
-				if err != nil {
-					// Échec malgré retries + jitter : l'API est vraiment en
-					// difficulté. On rembourse les crédits consommés, on envoie
-					// la réponse de repli et on prend congé (cf. bot_fallback.go)
-					// — continuer ne produirait que des fallbacks en chaîne (qui
-					// pollueraient aussi l'historique) en gardant le slot occupé.
-					// Si ça arrive à CHAQUE conversation, c'est un souci de
-					// clé/modèle Anthropic (et non la room).
-					if m.log != nil {
-						m.log.Warn("bot reply fell back (claude call failed)", "err", err)
-					}
-					if quotaUsed > 0 {
-						refundCtx, rc := context.WithTimeout(context.Background(), time.Second)
-						if rerr := m.quota.Refund(refundCtx, quota.KindBot, botQuotaID, quotaUsed); rerr != nil && m.log != nil {
-							m.log.Warn("bot quota refund", "err", rerr)
-						}
-						rc()
-					}
-					m.sendBotMessage(ctx, room, "fallback", fallbackReply(userSess.Wants))
-					return
-				}
-				// Fin de mission roleplay : le marqueur est TOUJOURS strippé
-				// (défense contre les répétitions) mais ne déclenche l'évènement
-				// qu'une fois.
-				completedNow := false
-				if scenarioActive {
-					var found bool
-					reply, found = stripMissionMarker(reply)
-					completedNow = found && !missionDone
-				}
-				history = appendHistory(history, claudeapi.Message{Role: "user", Content: userMsg})
-				history = appendHistory(history, claudeapi.Message{Role: "assistant", Content: reply})
-				m.sendBotMessage(ctx, room, "reply", reply)
-				if completedNow {
-					missionDone = true
-					sendCtx, sc := context.WithTimeout(context.Background(), time.Second)
-					if err := room.SendMissionComplete(sendCtx); err != nil && m.log != nil {
-						m.log.Warn("bot mission complete publish failed", "err", err)
-					}
-					sc()
-					m.tracker.Emit(analytics.Event{
-						Name:      analytics.EventScenarioCompleted,
-						UserID:    userSess.UserID,
-						SessionID: userSess.ID,
-						LangFrom:  userSess.Speaks,
-						LangTo:    userSess.Wants,
-						Props:     map[string]any{"scenario": scenario.ID},
-					})
-				}
-				msgCount++
 			}
 		}
 	}
+}
+
+// botTurnState : état mutable d'une conversation bot, partagé entre les tours
+// (voir botTurn). Sorti de runBot pour que le tour du message en attente
+// (join perdu) et ceux de la boucle principale passent par le même code.
+type botTurnState struct {
+	system         string
+	history        []claudeapi.Message
+	msgCount       int
+	missionDone    bool
+	botQuotaID     string
+	scenario       botScenario
+	scenarioActive bool
+}
+
+// botTurn : traite un message du user (rafale coalescée comprise) — cap de
+// messages, quota, appel Claude, publication de la réponse, marqueur mission.
+// Renvoie true si la conversation doit se terminer (Left drainé, quota épuisé,
+// échec Claude, cap atteint) — le caller sort alors de runBot.
+func (m *BotManager) botTurn(ctx context.Context, room *Room, events <-chan roomEnvelope, userSess session.Session, st *botTurnState, body string) bool {
+	if st.msgCount >= maxBotMessages {
+		m.sendBotMessage(ctx, room, "goodbye", goodbyeMsg(userSess.Wants))
+		return true
+	}
+	// Rafale : on draine les évènements déjà bufferisés AVANT de
+	// consommer du quota et de payer un appel Claude. Si un Left y
+	// figure (le user a fait Next/quitté pendant le tour
+	// précédent), on sort tout de suite — sinon le bot répondrait
+	// message par message dans une room morte, en gardant son slot
+	// activeBots occupé (et le nouveau prof du même user compterait
+	// double, jusqu'à saturer maxConcurrent sous charge). Les
+	// messages drainés sont coalescés en un seul tour user → une
+	// seule réponse pour la rafale, un seul appel API.
+	bodies, left := drainPending(events, body)
+	if left {
+		return true
+	}
+	// Quota quotidien prof IA (Free = 50 msg/j ; Premium illimité).
+	// Un crédit par message du user, rafale comprise — pas le
+	// greeting. Dépassement → adieu + upsell Premium.
+	quotaUsed := int64(0)
+	if userSess.Plan != session.PlanPremium && m.quota != nil {
+		for range bodies {
+			_, qerr := m.quota.CheckAndIncrement(ctx, quota.KindBot, st.botQuotaID, quota.FreeBotDaily)
+			if errors.Is(qerr, quota.ErrQuotaExceeded) {
+				m.sendBotMessage(ctx, room, "limit", botDailyLimitMsg(userSess.Wants))
+				return true
+			}
+			if qerr != nil {
+				// Redis indisponible : on log et on laisse passer
+				// plutôt que de casser la conversation. Rien à
+				// rembourser pour ce crédit non compté.
+				if m.log != nil {
+					m.log.Warn("bot quota incr", "err", qerr)
+				}
+				continue
+			}
+			quotaUsed++
+		}
+	}
+	// CLAUDE.md règle d'or #2 : les bodies sont arrivés HTML-escaped
+	// via moderation.SanitizeAndCheck côté sender. On les déchiffre
+	// pour les envoyer en clair à Claude — sans logguer le contenu.
+	userMsg := html.UnescapeString(strings.Join(bodies, "\n"))
+	reply, err := m.callClaude(ctx, room, st.system, st.history, userMsg)
+	if err != nil {
+		// Échec malgré retries + jitter : l'API est vraiment en
+		// difficulté. On rembourse les crédits consommés, on envoie
+		// la réponse de repli et on prend congé (cf. bot_fallback.go)
+		// — continuer ne produirait que des fallbacks en chaîne (qui
+		// pollueraient aussi l'historique) en gardant le slot occupé.
+		// Si ça arrive à CHAQUE conversation, c'est un souci de
+		// clé/modèle Anthropic (et non la room).
+		if m.log != nil {
+			m.log.Warn("bot reply fell back (claude call failed)", "err", err)
+		}
+		if quotaUsed > 0 {
+			refundCtx, rc := context.WithTimeout(context.Background(), time.Second)
+			if rerr := m.quota.Refund(refundCtx, quota.KindBot, st.botQuotaID, quotaUsed); rerr != nil && m.log != nil {
+				m.log.Warn("bot quota refund", "err", rerr)
+			}
+			rc()
+		}
+		m.sendBotMessage(ctx, room, "fallback", fallbackReply(userSess.Wants))
+		return true
+	}
+	// Fin de mission roleplay : le marqueur est TOUJOURS strippé
+	// (défense contre les répétitions) mais ne déclenche l'évènement
+	// qu'une fois.
+	completedNow := false
+	if st.scenarioActive {
+		var found bool
+		reply, found = stripMissionMarker(reply)
+		completedNow = found && !st.missionDone
+	}
+	st.history = appendHistory(st.history, claudeapi.Message{Role: "user", Content: userMsg})
+	st.history = appendHistory(st.history, claudeapi.Message{Role: "assistant", Content: reply})
+	m.sendBotMessage(ctx, room, "reply", reply)
+	if completedNow {
+		st.missionDone = true
+		sendCtx, sc := context.WithTimeout(context.Background(), time.Second)
+		if err := room.SendMissionComplete(sendCtx); err != nil && m.log != nil {
+			m.log.Warn("bot mission complete publish failed", "err", err)
+		}
+		sc()
+		m.tracker.Emit(analytics.Event{
+			Name:      analytics.EventScenarioCompleted,
+			UserID:    userSess.UserID,
+			SessionID: userSess.ID,
+			LangFrom:  userSess.Speaks,
+			LangTo:    userSess.Wants,
+			Props:     map[string]any{"scenario": st.scenario.ID},
+		})
+	}
+	st.msgCount++
+	return false
 }
 
 // drainPending vide sans bloquer les évènements déjà bufferisés de la room et
@@ -534,39 +601,49 @@ func drainPending(events <-chan roomEnvelope, current string) (bodies []string, 
 // waitForPeerJoin attend que le user soit présent dans la room avant que le
 // bot n'ouvre la conversation. Le user publie un `join` à l'ouverture de sa
 // room ; tant qu'on ne l'a pas vu (ou un autre signe de vie : msg/typing), un
-// greeting partirait potentiellement dans le vide. Renvoie false si le user
-// quitte ou si le contexte est annulé avant. Fallback sur botJoinWait au cas
-// où le `join` aurait été raté (le user est alors abonné depuis longtemps).
-func (m *BotManager) waitForPeerJoin(ctx context.Context, events <-chan roomEnvelope) bool {
+// greeting partirait potentiellement dans le vide. Fallback sur botJoinWait au
+// cas où le `join` aurait été raté. Renvoie :
+//   - pending : premier message du user reçu pendant l'attente (join perdu) —
+//     le caller DOIT y répondre comme à un tour normal, jamais l'avaler ;
+//   - joined : un signe de vie a été vu ; false = sortie sur le timer de
+//     repli, la présence n'est pas confirmée (le greeting peut se perdre) ;
+//   - ok : false si le user quitte / canal fermé / contexte annulé — pas de
+//     greeting à envoyer.
+func (m *BotManager) waitForPeerJoin(ctx context.Context, events <-chan roomEnvelope) (pending *roomEnvelope, joined, ok bool) {
 	timer := time.NewTimer(botJoinWait)
 	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			return false
+			return nil, false, false
 		case <-timer.C:
-			// Le greeting partira sans signe de vie du user — il est censé
-			// être abonné depuis longtemps, mais si ce log précède un prof
-			// muet, le `join` se perd quelque part.
+			// Le greeting partira sans signe de vie du user — soit il est
+			// abonné depuis longtemps (join perdu), soit il ne l'est pas
+			// encore et le greeting sera re-publié à son premier signe de vie.
 			if m.log != nil {
 				m.log.Warn("bot join signal missed, greeting on fallback timer")
 			}
-			return true
-		case env, ok := <-events:
-			if !ok {
+			return nil, false, true
+		case env, chOK := <-events:
+			if !chOK {
 				if m.log != nil {
 					m.log.Warn("bot room channel closed before peer join")
 				}
-				return false
+				return nil, false, false
 			}
 			switch env.Kind {
 			case roomKindLeft:
 				if m.log != nil {
 					m.log.Info("peer left before bot greeting")
 				}
-				return false
-			case roomKindJoin, roomKindMsg, roomKindTyping:
-				return true
+				return nil, false, false
+			case roomKindMsg:
+				// Join perdu mais le user parle déjà : présence confirmée ET
+				// message à traiter après le greeting.
+				e := env
+				return &e, true, true
+			case roomKindJoin, roomKindTyping:
+				return nil, true, true
 			}
 		}
 	}
@@ -616,9 +693,16 @@ func (m *BotManager) callClaude(ctx context.Context, room *Room, system string, 
 // d'or #1). On évite d'appeler moderation.SanitizeAndCheck — pas de
 // blocklist pertinente pour la sortie d'une IA prof.
 func (m *BotManager) sendBotMessage(ctx context.Context, room *Room, kind, body string) {
+	m.sendBotMessageWithID(ctx, room, kind, uuid.NewString(), body)
+}
+
+// sendBotMessageWithID : variante à ID imposé. Sert au greeting, dont l'ID
+// doit rester stable entre l'envoi initial et une éventuelle re-publication
+// (présence tardive) pour que le client dédoublonne par ID.
+func (m *BotManager) sendBotMessageWithID(ctx context.Context, room *Room, kind, id, body string) {
 	_ = ctx // contexte parent ignoré pour le SendMsg — on veut envoyer même si
 	// le parent est en train d'être annulé pour propager le goodbye.
-	id := uuid.NewString() // même ID sur les 2 tentatives : c'est le même message
+	// L'ID est identique sur les 2 tentatives : c'est le même message.
 	escaped := html.EscapeString(body)
 	for attempt := 1; attempt <= 2; attempt++ {
 		sendCtx, cancel := context.WithTimeout(context.Background(), time.Second)

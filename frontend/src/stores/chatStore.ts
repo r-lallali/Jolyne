@@ -189,13 +189,18 @@ export const useChatStore = create<ChatState>((set) => ({
   pushPeer: (id, body) => {
     // L'arrivée d'un message du peer signifie qu'il a fini de taper.
     clearTypingTimer();
-    set((s) => ({
-      messages: [
-        ...s.messages,
-        { id, from: "peer", body, at: Date.now() },
-      ],
-      peerTyping: false,
-    }));
+    set((s) => {
+      // Dédoublonnage par ID : le prof IA re-publie son greeting (même ID) si
+      // le premier est parti avant notre abonnement à la room — si les deux
+      // sont finalement arrivés, on n'affiche que le premier.
+      if (s.messages.some((m) => m.id === id)) {
+        return { peerTyping: false };
+      }
+      return {
+        messages: [...s.messages, { id, from: "peer", body, at: Date.now() }],
+        peerTyping: false,
+      };
+    });
   },
 
   pushSystem: (body) =>
