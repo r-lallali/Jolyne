@@ -114,6 +114,10 @@ type ServerFrame struct {
 	// Frame `matched` : indique que le peer est un bot prof IA. Le front
 	// affiche un badge "🤖 Prof IA" et n'affiche pas le prompt friend.
 	IsBot bool `json:"is_bot,omitempty"`
+	// Frame `matched` (bot uniquement) : salle d'attente — le user reste dans
+	// la file de matching pendant la conversation bot ; un partenaire humain
+	// peut arriver à tout moment. Le front affiche l'indication en ligne système.
+	Waiting bool `json:"waiting,omitempty"`
 
 	// Frame `icebreakers` : amorces dans la langue pratiquée, affichées en
 	// chips au-dessus de l'input tant que la conversation est vide.

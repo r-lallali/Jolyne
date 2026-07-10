@@ -20,6 +20,10 @@ const (
 	chatNext chatExit = iota
 	chatPeerLeft
 	chatDisconnect
+	// chatHumanArrived : salle d'attente uniquement — un partenaire humain a
+	// matché le user pendant sa conversation avec le prof IA. runChat renvoie
+	// alors le WakeupEvent humain ; runSession enchaîne dessus sans re-queue.
+	chatHumanArrived
 )
 
 // chatPeer regroupe les infos du peer pour cette conversation (utilisées
@@ -47,7 +51,12 @@ type chatPeer struct {
 // (envoyés ET reçus) pour pouvoir les joindre à un éventuel signalement.
 //
 // Aucun contenu de message n'est loggé — règle d'or #1.
-func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session, peer chatPeer, roomID string, canNext func() bool) chatExit {
+//
+// `humanArrival` (nil hors salle d'attente) : canal wakeup de la session,
+// écouté pendant une conversation bot quand le user est TOUJOURS dans la file
+// de matching. À l'arrivée d'un humain, on sort en chatHumanArrived avec
+// l'évènement — le defer envoie le Left au bot, qui se termine proprement.
+func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session, peer chatPeer, roomID string, canNext func() bool, humanArrival <-chan WakeupEvent) (chatExit, WakeupEvent) {
 	// Transport de la conversation : canal in-process pour un prof IA (même
 	// process, rien ne peut se perdre), room Redis pub/sub pour un humain.
 	var room roomTransport
@@ -58,7 +67,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 		if err != nil {
 			h.d.Log.Error("room open", "err", err)
 			conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal})
-			return chatDisconnect
+			return chatDisconnect, WakeupEvent{}
 		}
 		room = r
 	}
@@ -81,7 +90,13 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 		h.d.Log.Warn("room join publish", "err", err)
 	}
 
-	conn.Send(ServerFrame{Type: ServerMatched, Room: roomID, PeerNick: peer.Nick, IsBot: peer.IsBot})
+	conn.Send(ServerFrame{
+		Type:     ServerMatched,
+		Room:     roomID,
+		PeerNick: peer.Nick,
+		IsBot:    peer.IsBot,
+		Waiting:  humanArrival != nil,
+	})
 
 	// Si le peer est authentifié + qu'on a accès au store profil, on
 	// pousse un peer_profile (avatar + prompts) — best-effort, on ne
@@ -199,9 +214,26 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 	for {
 		select {
 		case <-ctx.Done():
-			return chatDisconnect
+			return chatDisconnect, WakeupEvent{}
 		case <-conn.Done():
-			return chatDisconnect
+			return chatDisconnect, WakeupEvent{}
+		case ev, ok := <-humanArrival:
+			if !ok {
+				// Canal fermé (ne devrait pas arriver tant que la session est
+				// enregistrée) : on neutralise le case pour ne pas boucler.
+				humanArrival = nil
+				break
+			}
+			if ev.IsBot {
+				// Un seul bot par session — défensif : on l'écarte proprement
+				// pour ne pas laisser une conversation fantôme derrière.
+				h.dismissWakeup(ctx, sess.ID, ev)
+				break
+			}
+			// Un partenaire humain est arrivé pendant la salle d'attente : on
+			// quitte le prof IA (Left via defer) et on bascule. Valable aussi
+			// si le bot avait déjà pris congé (peerGone) — le user attend.
+			return chatHumanArrived, ev
 		case <-promptTimer:
 			// Émet le prompt aux deux côtés. Chacun déclenche son propre
 			// timer 10 min — ils tirent quasi simultanément.
@@ -242,7 +274,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			endTandem()
 		case env, ok := <-peerCh:
 			if !ok {
-				return chatDisconnect
+				return chatDisconnect, WakeupEvent{}
 			}
 			if peerGone {
 				// Plus rien à relayer une fois que le peer est parti.
@@ -304,7 +336,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 			}
 		case msg, ok := <-conn.Inbound:
 			if !ok {
-				return chatDisconnect
+				return chatDisconnect, WakeupEvent{}
 			}
 			switch msg.Type {
 			case ClientMsg:
@@ -323,7 +355,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				push(sess.Pseudo, safe)
 				if err := room.SendMsg(ctx, msg.ID, safe); err != nil {
 					h.d.Log.Error("room publish", "err", err)
-					return chatDisconnect
+					return chatDisconnect, WakeupEvent{}
 				}
 				// Rappel « pratique ta langue cible » — évalué hors de tout
 				// appel réseau (détection offline), émis au plus une fois.
@@ -376,7 +408,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				original := html.EscapeString(truncate(strings.TrimSpace(msg.Original), correctionTextMax))
 				if err := room.SendCorrection(ctx, msg.TargetID, original, corrected, note); err != nil {
 					h.d.Log.Error("room correction publish", "err", err)
-					return chatDisconnect
+					return chatDisconnect, WakeupEvent{}
 				}
 				lastCorrectAt = time.Now()
 			case ClientTyping:
@@ -416,7 +448,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				// Après signalement on quitte la conv proprement et on
 				// re-queue. Le crédit swipe n'est décompté qu'au prochain match
 				// (1 par nouveau partenaire), pas sur cette sortie.
-				return chatPeerLeft
+				return chatPeerLeft, WakeupEvent{}
 			case ClientNext:
 				if !canNext() {
 					continue
@@ -425,9 +457,9 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				// Dans les deux cas le crédit swipe est décompté au prochain
 				// match (1 par nouveau partenaire humain), pas ici.
 				if peerGone {
-					return chatPeerLeft
+					return chatPeerLeft, WakeupEvent{}
 				}
-				return chatNext
+				return chatNext, WakeupEvent{}
 			case ClientFriendAccept:
 				// Le client accepte le prompt. Refusé si pas éligible OU
 				// pas dans la fenêtre OU peer déjà parti.

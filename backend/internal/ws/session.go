@@ -38,7 +38,22 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		return true
 	}
 
+search:
 	for {
+		// Salle d'attente : un évènement de réveil peut être resté en buffer
+		// si on a quitté la conversation précédente à l'instant exact où il
+		// arrivait. On l'écarte proprement plutôt que d'entrer dans une room
+		// morte : Left au bot (il se termine), ghost Left à l'humain (il
+		// re-queue aussitôt au lieu d'attendre dans le vide).
+		select {
+		case ev, ok := <-wakeup:
+			if !ok {
+				return
+			}
+			h.dismissWakeup(ctx, sess.ID, ev)
+		default:
+		}
+
 		// Mode prof IA direct : le user a coché "Prof IA" sur l'écran de
 		// setup. On court-circuite le matching humain et on lance un bot tout
 		// de suite. Le bot consomme son propre quota (50 msg/j en Free) et ne
@@ -69,12 +84,14 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 				if !ok {
 					return
 				}
-				exit := h.runChat(ctx, conn, sess, chatPeer{
+				// Pas de salle d'attente ici : le user a explicitement choisi
+				// le prof IA, il n'est inscrit dans aucune file (humanArrival nil).
+				exit, _ := h.runChat(ctx, conn, sess, chatPeer{
 					ID:    ev.PeerID,
 					Nick:  ev.PeerNick,
 					IsBot: true,
 					Local: ev.Local,
-				}, ev.RoomID, canNext)
+				}, ev.RoomID, canNext, nil)
 				if exit == chatDisconnect {
 					return
 				}
@@ -144,9 +161,10 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		default:
 			conn.Send(ServerFrame{Type: ServerQueued})
 			defer func() { _ = h.d.Matcher.Cancel(ctx, speaks, wants, sess.ID) }()
-			// Bot prof IA : arme un timer 10s. Si personne ne match avant,
-			// le bot prend la main et réveille notre user via Hub.Wakeup
-			// (qui débloque le `<-wakeup` ci-dessous).
+			// Bot prof IA : arme un timer 10s. Si personne ne match avant, le
+			// bot occupe l'attente (salle d'attente) et réveille notre user via
+			// Hub.Wakeup (qui débloque le `<-wakeup` ci-dessous). Le user RESTE
+			// dans la file : un humain peut interrompre la conversation bot.
 			if h.d.Bot != nil {
 				h.d.Bot.SpawnFor(ctx, sess)
 			}
@@ -191,76 +209,132 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 			}
 		}
 
-		lastPeer = peerID
+		// Conversation(s) : une salle d'attente bot peut être interrompue par
+		// l'arrivée d'un humain — on enchaîne alors sur lui dans cette boucle
+		// interne, sans repasser par la file (il nous en a déjà sortis).
+		for {
+			lastPeer = peerID
 
-		// Auto-block sur signalement : si on a déjà reporté ce peer dans une
-		// session passée, on bail immédiatement. On ouvre brièvement la room
-		// pour envoyer un Left au peer (qui re-queue), puis on re-loop.
-		// Jamais pour un bot : pas de fingerprint à bloquer, et ghostMatch
-		// publierait dans une room Redis que le bot (transport local) n'écoute pas.
-		if h.d.Blocking != nil && !peerIsBot {
-			blocked, err := h.d.Blocking.IsBlocked(ctx, sess.Fingerprint, peerFingerprint)
-			if err != nil {
-				h.d.Log.Warn("blocking check failed", "err", err)
-			} else if blocked {
-				ghostMatch(ctx, h.d.RDB, roomID, sess.ID)
-				continue
+			// Auto-block sur signalement : si on a déjà reporté ce peer dans une
+			// session passée, on bail immédiatement. On ouvre brièvement la room
+			// pour envoyer un Left au peer (qui re-queue), puis on re-loop.
+			// Jamais pour un bot : pas de fingerprint à bloquer, et ghostMatch
+			// publierait dans une room Redis que le bot (transport local) n'écoute pas.
+			if h.d.Blocking != nil && !peerIsBot {
+				blocked, err := h.d.Blocking.IsBlocked(ctx, sess.Fingerprint, peerFingerprint)
+				if err != nil {
+					h.d.Log.Warn("blocking check failed", "err", err)
+				} else if blocked {
+					ghostMatch(ctx, h.d.RDB, roomID, sess.ID)
+					continue search
+				}
 			}
-		}
 
-		// Décompte 1 crédit dès qu'un partenaire HUMAIN est sécurisé. Le bot
-		// prof IA ne consomme rien (il est limité séparément, 50 msg/j).
-		if sess.Plan != session.PlanPremium && !peerIsBot {
-			_, err := h.d.Quota.CheckAndIncrement(ctx, quota.KindNext, quotaID, quota.FreeNextDaily)
-			if errors.Is(err, quota.ErrQuotaExceeded) {
-				// Limite atteinte entre le pré-check et ici : relâche le peer
-				// (il re-queue via Left) puis présente le paywall.
-				ghostMatch(ctx, h.d.RDB, roomID, sess.ID)
-				conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeQuotaExceeded})
+			// Décompte 1 crédit dès qu'un partenaire HUMAIN est sécurisé — y
+			// compris celui qui interrompt une salle d'attente. Le bot prof IA
+			// ne consomme rien (il est limité séparément, 50 msg/j).
+			if sess.Plan != session.PlanPremium && !peerIsBot {
+				_, err := h.d.Quota.CheckAndIncrement(ctx, quota.KindNext, quotaID, quota.FreeNextDaily)
+				if errors.Is(err, quota.ErrQuotaExceeded) {
+					// Limite atteinte entre le pré-check et ici : relâche le peer
+					// (il re-queue via Left) puis présente le paywall.
+					ghostMatch(ctx, h.d.RDB, roomID, sess.ID)
+					conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeQuotaExceeded})
+					return
+				}
+				if err != nil {
+					h.d.Log.Error("quota incr", "err", err)
+				}
+			}
+
+			peerType := "human"
+			if peerIsBot {
+				peerType = "bot"
+			}
+			h.d.Tracker.Emit(analytics.Event{
+				Name:      analytics.EventMatchFound,
+				UserID:    sess.UserID,
+				SessionID: sess.ID,
+				LangFrom:  string(speaks),
+				LangTo:    string(wants),
+				IPHash:    sess.IPHash,
+				Props:     map[string]any{"peer": peerType},
+			})
+
+			// Salle d'attente : pendant une conversation bot issue de la file,
+			// le user y est TOUJOURS inscrit — runChat écoute le canal wakeup
+			// et bascule si un humain le matche. Jamais pour un peer humain ni
+			// pour le mode Prof IA direct (géré plus haut, hors file).
+			var humanArrival <-chan WakeupEvent
+			if peerIsBot {
+				humanArrival = wakeup
+			}
+
+			convStart := time.Now()
+			exit, humanEv := h.runChat(ctx, conn, sess, chatPeer{
+				ID:          peerID,
+				Nick:        peerNick,
+				Fingerprint: peerFingerprint,
+				IPHash:      peerIPHash,
+				IsBot:       peerIsBot,
+				UserID:      peerUserID,
+				Local:       peerLocal,
+			}, roomID, canNext, humanArrival)
+			h.d.Tracker.Emit(analytics.Event{
+				Name:      analytics.EventConversationEnded,
+				UserID:    sess.UserID,
+				SessionID: sess.ID,
+				Props: map[string]any{
+					"peer":       peerType,
+					"duration_s": int(time.Since(convStart).Seconds()),
+				},
+			})
+			switch exit {
+			case chatDisconnect:
 				return
+			case chatHumanArrived:
+				// L'humain nous a sortis de la file en nous poppant : on
+				// enchaîne sur sa conversation. Block-list et crédit swipe
+				// sont re-déroulés au tour suivant de cette boucle.
+				peerID = humanEv.PeerID
+				peerNick = humanEv.PeerNick
+				peerFingerprint = humanEv.PeerFingerprint
+				peerIPHash = humanEv.PeerIPHash
+				peerUserID = humanEv.PeerUserID
+				peerIsBot = humanEv.IsBot
+				peerLocal = humanEv.Local
+				roomID = humanEv.RoomID
+				continue
+			default:
+				// chatNext / chatPeerLeft. Sortie de salle d'attente : on se
+				// retire de la file avant de re-boucler (TryMatch ré-inscrira)
+				// pour ne pas laisser une entrée fantôme qu'un peer pourrait
+				// popper pendant la conversation suivante.
+				if humanArrival != nil {
+					_ = h.d.Matcher.Cancel(ctx, speaks, wants, sess.ID)
+				}
+				// On reboucle. Le prochain partenaire humain reconsommera un
+				// crédit au moment du match (pré-check en tête de loop).
+				continue search
 			}
-			if err != nil {
-				h.d.Log.Error("quota incr", "err", err)
-			}
 		}
-
-		peerType := "human"
-		if peerIsBot {
-			peerType = "bot"
-		}
-		h.d.Tracker.Emit(analytics.Event{
-			Name:      analytics.EventMatchFound,
-			UserID:    sess.UserID,
-			SessionID: sess.ID,
-			LangFrom:  string(speaks),
-			LangTo:    string(wants),
-			IPHash:    sess.IPHash,
-			Props:     map[string]any{"peer": peerType},
-		})
-
-		convStart := time.Now()
-		exit := h.runChat(ctx, conn, sess, chatPeer{
-			ID:          peerID,
-			Nick:        peerNick,
-			Fingerprint: peerFingerprint,
-			IPHash:      peerIPHash,
-			IsBot:       peerIsBot,
-			UserID:      peerUserID,
-			Local:       peerLocal,
-		}, roomID, canNext)
-		h.d.Tracker.Emit(analytics.Event{
-			Name:      analytics.EventConversationEnded,
-			UserID:    sess.UserID,
-			SessionID: sess.ID,
-			Props: map[string]any{
-				"peer":       peerType,
-				"duration_s": int(time.Since(convStart).Seconds()),
-			},
-		})
-		if exit == chatDisconnect {
-			return
-		}
-		// exit == chatNext : on reboucle. Le prochain partenaire humain
-		// reconsommera un crédit au moment du match (pré-check en tête de loop).
 	}
+}
+
+// dismissWakeup écarte proprement un évènement de réveil qu'on ne peut plus
+// honorer (resté en buffer pendant qu'on quittait une conversation). Le bot
+// reçoit un Left sur son transport local et se termine ; le peer humain reçoit
+// un ghost Left dans sa room et re-queue aussitôt. Sans ça, l'un ou l'autre
+// resterait planté devant une conversation où personne n'arrivera.
+func (h *Handler) dismissWakeup(ctx context.Context, selfID string, ev WakeupEvent) {
+	if ev.IsBot {
+		if ev.Local != nil {
+			dctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			_ = ev.Local.SendLeft(dctx)
+			cancel()
+			_ = ev.Local.Close()
+		}
+		return
+	}
+	ghostMatch(ctx, h.d.RDB, ev.RoomID, selfID)
 }

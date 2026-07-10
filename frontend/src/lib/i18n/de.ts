@@ -71,6 +71,9 @@ export const de: Messages = {
     nudgePractice: ({ lang }) => `💡 Kleine Erinnerung: Du bist hier, um ${lang} zu üben — trau dich!`,
     nudgeTandem: ({ lang }) => `🔄 Dieser Teil ist auf ${lang} — Zeit zu wechseln!`,
     missionComplete: "🎉 Mission erfüllt!",
+    waitingRoomHint:
+      "⏳ Die Partnersuche läuft weiter — plaudere solange mit deinem KI-Lehrer!",
+    partnerArrived: ({ nick }) => `✨ ${nick} ist da — viel Spaß beim Gespräch!`,
     tandemSwitch: ({ lang }) => `🔄 Wechsel: das Gespräch läuft jetzt auf ${lang}`,
     tandemEnd: "🏁 Tandem-Sitzung beendet — freier Chat",
     cefrBadgeTitle: "Von der KI geschätztes Niveau",

@@ -68,6 +68,8 @@ export const ar: Messages = {
     nudgePractice: ({ lang }) => `💡 تذكير: أنت هنا للتدرّب على ${lang} — جرّب!`,
     nudgeTandem: ({ lang }) => `🔄 هذا الجزء بِـ${lang} — حان وقت التبديل!`,
     missionComplete: "🎉 المهمّة أُنجزت!",
+    waitingRoomHint: "⏳ البحث عن شريك مستمرّ — دردش مع معلّمك الذكي في الأثناء!",
+    partnerArrived: ({ nick }) => `✨ وصل ${nick} — دردشة ممتعة!`,
     tandemSwitch: ({ lang }) => `🔄 تبديل: تنتقل المحادثة إلى ${lang}`,
     tandemEnd: "🏁 انتهت جلسة التبادل — دردشة حرّة",
     cefrBadgeTitle: "المستوى المقدَّر بالذكاء الاصطناعي",

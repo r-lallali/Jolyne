@@ -117,9 +117,21 @@ export function useMatch() {
           case "queued":
             c.setStatus("queued");
             break;
-          case "matched":
-            c.matched(f.peer_nick, f.is_bot);
+          case "matched": {
+            // Salle d'attente : si on quitte un prof IA "waiting" pour un
+            // humain, on signale l'arrivée du partenaire (le matched reset
+            // les messages — la ligne système part sur la nouvelle conv).
+            const fromWaitingBot =
+              c.status === "matched" && c.peerIsBot && c.waitingRoom;
+            c.matched(f.peer_nick, f.is_bot, f.waiting);
+            const st = chat.getState();
+            if (f.is_bot && f.waiting) {
+              st.pushSystem(t.chat.waitingRoomHint);
+            } else if (fromWaitingBot && !f.is_bot) {
+              st.pushSystem(t.chat.partnerArrived({ nick: f.peer_nick }));
+            }
             break;
+          }
           case "msg":
             c.pushPeer(f.id ?? newMessageId(), sanitizeMessage(f.body));
             break;

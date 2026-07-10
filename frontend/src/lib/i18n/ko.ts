@@ -67,6 +67,8 @@ export const ko: Messages = {
     nudgePractice: ({ lang }) => `💡 알림: ${lang} 연습하러 오셨잖아요 — 용기 내서 써 보세요!`,
     nudgeTandem: ({ lang }) => `🔄 지금은 ${lang} 파트예요 — 언어를 바꿔 주세요!`,
     missionComplete: "🎉 미션 완료!",
+    waitingRoomHint: "⏳ 파트너를 계속 찾는 중이에요 — 기다리는 동안 AI 선생님과 대화해 보세요!",
+    partnerArrived: ({ nick }) => `✨ ${nick} 님이 도착했어요 — 즐거운 대화 되세요!`,
     tandemSwitch: ({ lang }) => `🔄 전환: 지금부터 ${lang} 차례예요`,
     tandemEnd: "🏁 탄뎀 세션 종료 — 자유 대화",
     cefrBadgeTitle: "AI가 추정한 레벨",

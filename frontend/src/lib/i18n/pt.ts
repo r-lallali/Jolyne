@@ -71,6 +71,9 @@ export const pt: Messages = {
     nudgePractice: ({ lang }) => `💡 Lembrete: estás aqui para praticar ${lang} — atreve-te!`,
     nudgeTandem: ({ lang }) => `🔄 Esta parte é em ${lang} — hora de mudar!`,
     missionComplete: "🎉 Missão cumprida!",
+    waitingRoomHint:
+      "⏳ A procura de um parceiro continua — conversa com o teu professor IA enquanto esperas!",
+    partnerArrived: ({ nick }) => `✨ ${nick} chegou — boa conversa!`,
     tandemSwitch: ({ lang }) => `🔄 Mudança: a conversa passa para ${lang}`,
     tandemEnd: "🏁 Sessão tandem terminada — chat livre",
     cefrBadgeTitle: "Nível estimado pela IA",

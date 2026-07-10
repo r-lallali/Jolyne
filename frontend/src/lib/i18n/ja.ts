@@ -68,6 +68,8 @@ export const ja: Messages = {
     nudgePractice: ({ lang }) => `💡 リマインダー：${lang}を練習しに来たんですよね——思い切って使ってみましょう！`,
     nudgeTandem: ({ lang }) => `🔄 今は${lang}のパートです——切り替えましょう！`,
     missionComplete: "🎉 ミッション達成！",
+    waitingRoomHint: "⏳ パートナーを探し続けています——待っている間、AI先生とおしゃべりしましょう！",
+    partnerArrived: ({ nick }) => `✨ ${nick}さんが来ました——楽しい会話を！`,
     tandemSwitch: ({ lang }) => `🔄 切り替え：ここからは${lang}で話しましょう`,
     tandemEnd: "🏁 タンデムセッション終了——フリーチャットへ",
     cefrBadgeTitle: "AIが推定したレベル",

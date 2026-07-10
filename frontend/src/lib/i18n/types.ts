@@ -131,6 +131,10 @@ export interface Messages {
     nudgeTandem: FormatString<{ lang: string }>;
     // Ligne système de célébration quand la mission roleplay est accomplie.
     missionComplete: string;
+    // Salle d'attente : lignes système quand le prof IA occupe l'attente
+    // (la recherche continue) puis quand un partenaire humain arrive.
+    waitingRoomHint: string;
+    partnerArrived: FormatString<{ nick: string }>;
     // Lignes système tandem : début de phase / fin de session.
     tandemSwitch: FormatString<{ lang: string }>;
     tandemEnd: string;

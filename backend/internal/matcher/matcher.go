@@ -125,6 +125,27 @@ func (m *Matcher) Cancel(ctx context.Context, speaks, wants LangCode, sessionID 
 	return nil
 }
 
+// InQueue indique si un sessionID est encore inscrit dans sa queue, SANS le
+// retirer. Utilisé par le botpeer en mode salle d'attente : le bot ne se lance
+// que si le user attend toujours, mais le laisse dans la file pour qu'un
+// humain puisse encore le matcher pendant la conversation bot.
+func (m *Matcher) InQueue(ctx context.Context, speaks, wants LangCode, sessionID string) (bool, error) {
+	if err := ValidatePair(speaks, wants); err != nil {
+		return false, err
+	}
+	if sessionID == "" {
+		return false, fmt.Errorf("matcher: sessionID vide")
+	}
+	_, err := m.rdb.ZScore(ctx, queueOwn(speaks, wants), sessionID).Result()
+	if errors.Is(err, redis.Nil) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("matcher: zscore: %w", err)
+	}
+	return true, nil
+}
+
 // RemoveFromQueue retire un sessionID PRÉCIS d'une queue donnée et
 // indique si la session y était (true) ou pas (false). Utilisé par le
 // botpeer pour s'assurer qu'il "prend la main" sur un user en attente

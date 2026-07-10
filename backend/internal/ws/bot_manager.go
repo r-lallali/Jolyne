@@ -45,7 +45,9 @@ const (
 
 // BotManager : arme un timer 10s par user mis en queue, et lance un bot
 // IA pour le matcher si le timer expire (= personne ne s'est pointé).
-// Singleton injecté dans le Handler ws.
+// Mode « salle d'attente » : le user reste inscrit dans sa file pendant la
+// conversation bot — si un humain le matche, runChat bascule dessus et le
+// bot reçoit un Left. Singleton injecté dans le Handler ws.
 type BotManager struct {
 	matcher *matcher.Matcher
 	hub     *Hub
@@ -173,16 +175,18 @@ func (m *BotManager) attemptSpawn(parent context.Context, userSess session.Sessi
 	// canned (sans appel Claude) puis prend congé. Voir runBot.
 	speaks := matcher.LangCode(userSess.Speaks)
 	wants := matcher.LangCode(userSess.Wants)
-	// Sort le user de sa queue. Si la session a déjà été matchée ou
-	// retirée (race avec un peer humain), on abort proprement.
-	taken, err := m.matcher.RemoveFromQueue(ctx, speaks, wants, userSess.ID)
+	// Salle d'attente : on vérifie que le user attend toujours mais on le
+	// LAISSE dans la file — un humain peut encore le matcher pendant la
+	// conversation bot (runChat écoute alors le canal wakeup et bascule).
+	// Si la session a déjà été matchée/retirée, on abort proprement.
+	waiting, err := m.matcher.InQueue(ctx, speaks, wants, userSess.ID)
 	if err != nil {
 		if m.log != nil {
-			m.log.Warn("bot remove from queue failed", "err", err)
+			m.log.Warn("bot queue check failed", "err", err)
 		}
 		return
 	}
-	if !taken {
+	if !waiting {
 		return
 	}
 

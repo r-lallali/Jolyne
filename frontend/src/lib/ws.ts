@@ -4,7 +4,15 @@
 
 export type ServerFrame =
   | { type: "queued" }
-  | { type: "matched"; room: string; peer_nick: string; is_bot?: boolean }
+  | {
+      type: "matched";
+      room: string;
+      peer_nick: string;
+      is_bot?: boolean;
+      // Salle d'attente : prof IA lancé pendant que la recherche d'un
+      // partenaire humain continue — un humain peut arriver à tout moment.
+      waiting?: boolean;
+    }
   | { type: "msg"; body: string; id?: string }
   | {
       type: "correction";

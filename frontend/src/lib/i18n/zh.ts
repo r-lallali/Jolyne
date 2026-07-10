@@ -67,6 +67,8 @@ export const zh: Messages = {
     nudgePractice: ({ lang }) => `💡 小提醒：你是来练习${lang}的——大胆试试吧！`,
     nudgeTandem: ({ lang }) => `🔄 现在是${lang}环节——该换语言啦！`,
     missionComplete: "🎉 任务完成！",
+    waitingRoomHint: "⏳ 仍在为你寻找伙伴——等待期间先和 AI 老师聊聊吧！",
+    partnerArrived: ({ nick }) => `✨ ${nick} 来了——聊得开心！`,
     tandemSwitch: ({ lang }) => `🔄 切换：现在开始用${lang}聊天`,
     tandemEnd: "🏁 双语交换结束——自由聊天",
     cefrBadgeTitle: "AI 估计的水平",

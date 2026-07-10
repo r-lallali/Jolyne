@@ -91,6 +91,10 @@ interface ChatState {
   // True si le peer est un bot prof IA (cf. backend internal/ws/bot_manager.go).
   // Le front affiche un badge "🤖 Prof IA" et masque le prompt friend.
   peerIsBot: boolean;
+  // Salle d'attente : true si la conversation bot tourne pendant que la
+  // recherche d'un partenaire humain continue côté serveur. Le user reste
+  // dans la file — un `matched` humain peut remplacer le prof à tout moment.
+  waitingRoom: boolean;
   // Timestamp du dernier match (ms). Sert au ring de cooldown anti-zap du
   // bouton Suivant. On le persiste dans le store plutôt qu'en state local
   // de ChatView pour qu'un remount (switch d'onglet "mes conversations" →
@@ -102,7 +106,7 @@ interface ChatState {
   tandem: TandemState;
 
   setStatus: (s: ChatStatus) => void;
-  matched: (peerNick: string, isBot?: boolean) => void;
+  matched: (peerNick: string, isBot?: boolean, waiting?: boolean) => void;
   pushMe: (id: string, body: string) => void;
   pushPeer: (id: string, body: string) => void;
   // Ligne d'événement dans le flux (peer parti, etc.). Pas d'ID partagé
@@ -156,13 +160,14 @@ export const useChatStore = create<ChatState>((set) => ({
   friendPrompt: null,
   peerProfile: null,
   peerIsBot: false,
+  waitingRoom: false,
   matchedAt: null,
   icebreakers: [],
   tandem: null,
 
   setStatus: (status) => set({ status }),
 
-  matched: (peerNick, isBot) => {
+  matched: (peerNick, isBot, waiting) => {
     clearTypingTimer();
     set({
       status: "matched",
@@ -175,6 +180,7 @@ export const useChatStore = create<ChatState>((set) => ({
       friendPrompt: null,
       peerProfile: null,
       peerIsBot: !!isBot,
+      waitingRoom: !!waiting,
       matchedAt: Date.now(),
       icebreakers: [],
       tandem: null,
@@ -283,6 +289,7 @@ export const useChatStore = create<ChatState>((set) => ({
       friendPrompt: null,
       peerProfile: null,
       peerIsBot: false,
+      waitingRoom: false,
       matchedAt: null,
       icebreakers: [],
       tandem: null,
