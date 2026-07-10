@@ -1,4 +1,10 @@
 Flask==3.0.3
-# detoxify tire transformers + sentencepiece (tokenizer XLM-R). torch est
-# installé séparément dans le Dockerfile (wheel CPU — évite ~2 Go de CUDA).
+# Pins indispensables : detoxify 0.5.2 ne contraint pas ses dépendances.
+# Sans eux, pip tire un transformers récent (qui exige torch ≥ 2.4 et
+# désactive PyTorch sinon → ImportError XLMRobertaForSequenceClassification)
+# et numpy 2.x (incompatible avec un torch compilé contre numpy 1.x) — vu au
+# déploiement. torch lui-même est installé dans le Dockerfile (index CPU).
+numpy==1.26.4
+transformers==4.44.2
+sentencepiece==0.2.0
 detoxify==0.5.2

@@ -7,9 +7,11 @@ ENV PIP_ROOT_USER_ACTION=ignore \
 
 # torch CPU d'abord (index dédié — le wheel CUDA par défaut pèse ~2 Go de
 # plus pour rien sur un serveur sans GPU), puis le reste. L'ordre compte :
-# si detoxify était installé avant, pip tirerait le torch CUDA.
+# si detoxify était installé avant, pip tirerait le torch CUDA. Version ≥ 2.4
+# obligatoire : en deçà, transformers désactive PyTorch et le modèle ne
+# charge pas (vu au déploiement).
 COPY requirements.txt .
-RUN pip install --no-cache-dir torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu \
+RUN pip install --no-cache-dir torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir -r requirements.txt
 
 # Pré-téléchargement des poids du modèle DANS l'image : le conteneur démarre
