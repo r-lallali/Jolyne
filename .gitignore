@@ -42,4 +42,4 @@ infra/data/
 *.tgz
 
 # Sorties brutes k6 (volumineuses, régénérées à chaque run)
-infra/k6/*-timeseries.json
+infra/k6/*-timeseries.json__pycache__/
