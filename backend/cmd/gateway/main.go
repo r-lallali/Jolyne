@@ -519,7 +519,6 @@ func run() error {
 				claudeapi.WithUsageFunc(aiUsage),
 			)
 			wsDeps.Bot = ws.NewBotManager(ws.BotManagerConfig{
-				RDB:           rdb,
 				Matcher:       wsDeps.Matcher,
 				Hub:           wsDeps.Hub,
 				Claude:        claudeClient.ForFeature("bot"),

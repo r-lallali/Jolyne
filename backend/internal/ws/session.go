@@ -73,6 +73,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 					ID:    ev.PeerID,
 					Nick:  ev.PeerNick,
 					IsBot: true,
+					Local: ev.Local,
 				}, ev.RoomID, canNext)
 				if exit == chatDisconnect {
 					return
@@ -116,6 +117,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		var peerID, peerNick, peerFingerprint, peerIPHash, roomID string
 		var peerUserID int64
 		var peerIsBot bool
+		var peerLocal *localRoom
 		switch {
 		case out.Matched:
 			peerID = out.PeerID
@@ -163,6 +165,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 				peerIPHash = ev.PeerIPHash
 				peerUserID = ev.PeerUserID
 				peerIsBot = ev.IsBot
+				peerLocal = ev.Local
 				// Si on a été matché avant que le timer bot ne tire (cas
 				// nominal humain ou bot lui-même), on annule proprement.
 				if h.d.Bot != nil && !peerIsBot {
@@ -193,7 +196,9 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 		// Auto-block sur signalement : si on a déjà reporté ce peer dans une
 		// session passée, on bail immédiatement. On ouvre brièvement la room
 		// pour envoyer un Left au peer (qui re-queue), puis on re-loop.
-		if h.d.Blocking != nil {
+		// Jamais pour un bot : pas de fingerprint à bloquer, et ghostMatch
+		// publierait dans une room Redis que le bot (transport local) n'écoute pas.
+		if h.d.Blocking != nil && !peerIsBot {
 			blocked, err := h.d.Blocking.IsBlocked(ctx, sess.Fingerprint, peerFingerprint)
 			if err != nil {
 				h.d.Log.Warn("blocking check failed", "err", err)
@@ -241,6 +246,7 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 			IPHash:      peerIPHash,
 			IsBot:       peerIsBot,
 			UserID:      peerUserID,
+			Local:       peerLocal,
 		}, roomID, canNext)
 		h.d.Tracker.Emit(analytics.Event{
 			Name:      analytics.EventConversationEnded,

@@ -34,21 +34,33 @@ type chatPeer struct {
 	// IsBot = peer est un bot prof IA. Désactive le prompt ami 10-min et
 	// l'auto-block on report (pas de fingerprint réel à bloquer).
 	IsBot bool
+	// Local : transport in-process fourni par le BotManager (bot uniquement,
+	// nil pour un humain). Remplace la room Redis : livraison garantie.
+	Local *localRoom
 }
 
 // runChat est la boucle de chat avec un peer. Sort proprement sur "next",
-// peer_left ou déconnexion. La room Redis est ouverte ici, fermée au retour.
+// peer_left ou déconnexion. Le transport (room Redis pour un humain, canal
+// in-process pour un prof IA) est ouvert/repris ici, fermé au retour.
 //
 // Maintient un ring buffer des `captureWindow` derniers messages échangés
 // (envoyés ET reçus) pour pouvoir les joindre à un éventuel signalement.
 //
 // Aucun contenu de message n'est loggé — règle d'or #1.
 func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session, peer chatPeer, roomID string, canNext func() bool) chatExit {
-	room, err := openRoom(ctx, h.d.RDB, roomID, sess.ID)
-	if err != nil {
-		h.d.Log.Error("room open", "err", err)
-		conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal})
-		return chatDisconnect
+	// Transport de la conversation : canal in-process pour un prof IA (même
+	// process, rien ne peut se perdre), room Redis pub/sub pour un humain.
+	var room roomTransport
+	if peer.Local != nil {
+		room = peer.Local
+	} else {
+		r, err := openRoom(ctx, h.d.RDB, roomID, sess.ID)
+		if err != nil {
+			h.d.Log.Error("room open", "err", err)
+			conn.Send(ServerFrame{Type: ServerError, Code: ErrCodeInternal})
+			return chatDisconnect
+		}
+		room = r
 	}
 	defer func() {
 		sendCtx, cancel := context.WithTimeout(context.Background(), time.Second)

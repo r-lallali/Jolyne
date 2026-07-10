@@ -15,6 +15,10 @@ type WakeupEvent struct {
 	PeerIPHash      string // idem
 	PeerUserID      int64  // > 0 si peer authentifié — éligible au prompt ami 10-min
 	IsBot           bool   // true si le peer est un bot prof IA (cf. bot_manager.go)
+	// Local : transport in-process de la conversation (bot prof IA uniquement,
+	// nil pour un peer humain). Le bot vit dans le même process : ce canal
+	// remplace Redis pub/sub et rend la livraison des messages garantie.
+	Local *localRoom
 }
 
 // pending est l'entrée du registre par sessionID en attente.

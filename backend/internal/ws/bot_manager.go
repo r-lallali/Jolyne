@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 
 	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/claudeapi"
@@ -48,7 +47,6 @@ const (
 // IA pour le matcher si le timer expire (= personne ne s'est pointé).
 // Singleton injecté dans le Handler ws.
 type BotManager struct {
-	rdb     *redis.Client
 	matcher *matcher.Matcher
 	hub     *Hub
 	claude  *claudeapi.Client
@@ -71,7 +69,6 @@ type BotManager struct {
 }
 
 type BotManagerConfig struct {
-	RDB           *redis.Client
 	Matcher       *matcher.Matcher
 	Hub           *Hub
 	Claude        *claudeapi.Client
@@ -91,7 +88,6 @@ func NewBotManager(cfg BotManagerConfig) *BotManager {
 		cfg.MaxConcurrent = 20
 	}
 	return &BotManager{
-		rdb:           cfg.RDB,
 		matcher:       cfg.Matcher,
 		hub:           cfg.Hub,
 		claude:        cfg.Claude,
@@ -240,25 +236,22 @@ func (m *BotManager) startBot(ctx context.Context, userSess session.Session) boo
 	roomID := uuid.NewString()
 	botPeerID := "bot:" + uuid.NewString()
 
-	// On s'abonne à la room AVANT de réveiller le user : le bot est ainsi
-	// garanti présent quand le user publie son `join`, donc le greeting est
-	// toujours capté et n'est jamais publié dans le vide (le timer de repli
-	// dans runBot ne reste qu'un filet de sécurité).
-	room, err := openRoom(ctx, m.rdb, roomID, botPeerID)
-	if err != nil {
-		if m.log != nil {
-			m.log.Warn("bot open room", "err", err)
-		}
-		return false
-	}
+	// Transport in-process : le bot vit dans le même process que la WS du
+	// user, passer par Redis pub/sub n'apportait que des occasions de perdre
+	// des messages (fire-and-forget — un blip de la connexion subscriber =
+	// greeting perdu ou message du user jamais reçu, d'où un prof IA « muet »
+	// ou « sourd » intermittent). Ici tout ce qui est publié avant que l'autre
+	// côté ne lise est bufferisé — rien ne peut se perdre.
+	userEnd, botEnd := newLocalRoomPair()
 
 	if !m.hub.Wakeup(userSess.ID, WakeupEvent{
 		RoomID:   roomID,
 		PeerNick: persona.Name,
 		PeerID:   botPeerID,
 		IsBot:    true,
+		Local:    userEnd,
 	}) {
-		_ = room.Close()
+		_ = botEnd.Close()
 		if m.log != nil {
 			m.log.Warn("bot wakeup refused (session gone or channel busy)")
 		}
@@ -270,7 +263,7 @@ func (m *BotManager) startBot(ctx context.Context, userSess session.Session) boo
 		m.log.Info("bot started", "lang", userSess.Wants)
 	}
 
-	m.runBot(ctx, room, userSess, persona)
+	m.runBot(ctx, botEnd, userSess, persona)
 	return true
 }
 
@@ -278,7 +271,7 @@ func (m *BotManager) startBot(ctx context.Context, userSess session.Session) boo
 // startBot. Attend le `join` du user, envoie un greeting, puis répond à
 // chaque message via Claude. S'arrête quand le user quitte (Left) ou que le
 // quota maxBotMessages est atteint.
-func (m *BotManager) runBot(ctx context.Context, room *Room, userSess session.Session, p botPersona) {
+func (m *BotManager) runBot(ctx context.Context, room roomTransport, userSess session.Session, p botPersona) {
 	defer func() {
 		sendCtx, c := context.WithTimeout(context.Background(), time.Second)
 		// Un Left perdu = le user fixe un prof parti sans le savoir — à
@@ -473,7 +466,7 @@ type botTurnState struct {
 // messages, quota, appel Claude, publication de la réponse, marqueur mission.
 // Renvoie true si la conversation doit se terminer (Left drainé, quota épuisé,
 // échec Claude, cap atteint) — le caller sort alors de runBot.
-func (m *BotManager) botTurn(ctx context.Context, room *Room, events <-chan roomEnvelope, userSess session.Session, st *botTurnState, body string) bool {
+func (m *BotManager) botTurn(ctx context.Context, room roomTransport, events <-chan roomEnvelope, userSess session.Session, st *botTurnState, body string) bool {
 	if st.msgCount >= maxBotMessages {
 		m.sendBotMessage(ctx, room, "goodbye", goodbyeMsg(userSess.Wants))
 		return true
@@ -654,7 +647,7 @@ func (m *BotManager) waitForPeerJoin(ctx context.Context, events <-chan roomEnve
 // sur Haiku 4.5). Ajoute aussi un jitter humain 800-1500ms après réponse.
 // N'est appelée QUE pour répondre à un vrai message du user — le greeting
 // d'ouverture part en dur depuis runBot (persona.Greeting), jamais via Claude.
-func (m *BotManager) callClaude(ctx context.Context, room *Room, system string, history []claudeapi.Message, userMsg string) (string, error) {
+func (m *BotManager) callClaude(ctx context.Context, room roomTransport, system string, history []claudeapi.Message, userMsg string) (string, error) {
 	typingCtx, typingCancel := context.WithCancel(ctx)
 	defer typingCancel()
 	go func() {
@@ -692,14 +685,14 @@ func (m *BotManager) callClaude(ctx context.Context, room *Room, system string, 
 // logs (greeting/reply/goodbye/limit/fallback) — jamais le contenu (règle
 // d'or #1). On évite d'appeler moderation.SanitizeAndCheck — pas de
 // blocklist pertinente pour la sortie d'une IA prof.
-func (m *BotManager) sendBotMessage(ctx context.Context, room *Room, kind, body string) {
+func (m *BotManager) sendBotMessage(ctx context.Context, room roomTransport, kind, body string) {
 	m.sendBotMessageWithID(ctx, room, kind, uuid.NewString(), body)
 }
 
 // sendBotMessageWithID : variante à ID imposé. Sert au greeting, dont l'ID
 // doit rester stable entre l'envoi initial et une éventuelle re-publication
 // (présence tardive) pour que le client dédoublonne par ID.
-func (m *BotManager) sendBotMessageWithID(ctx context.Context, room *Room, kind, id, body string) {
+func (m *BotManager) sendBotMessageWithID(ctx context.Context, room roomTransport, kind, id, body string) {
 	_ = ctx // contexte parent ignoré pour le SendMsg — on veut envoyer même si
 	// le parent est en train d'être annulé pour propager le goodbye.
 	// L'ID est identique sur les 2 tentatives : c'est le même message.
