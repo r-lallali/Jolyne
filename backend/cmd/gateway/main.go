@@ -103,6 +103,12 @@ func run() error {
 		adminEmails    map[string]struct{}         // emails admin (séparation stricte admin/user)
 	)
 
+	// Métriques Prometheus créées AVANT le câblage des clients IA : chaque
+	// client Claude est branché sur l'observateur d'usage (tokens + requêtes
+	// par poste de dépense) — indispensable pour arbitrer les coûts IA.
+	met := metrics.New()
+	aiUsage := met.RegisterAIUsage()
+
 	if cfg.LibreTranslateURL != "" {
 		svc.translate = &translate.Handler{
 			Client: translate.NewClient(cfg.LibreTranslateURL, cfg.LibreTranslateAPIKey),
@@ -118,6 +124,8 @@ func run() error {
 				claudeapi.WithModel(cfg.AnthropicModel),
 				claudeapi.WithLogger(log),
 				claudeapi.WithMaxTokens(1024),
+				claudeapi.WithFeature("translate"),
+				claudeapi.WithUsageFunc(aiUsage),
 			)
 			svc.translate.AI = &translate.AITranslator{
 				Reply: func(ctx context.Context, system, userMsg string) (string, error) {
@@ -148,6 +156,8 @@ func run() error {
 				claudeapi.WithModel(cfg.AnthropicModel),
 				claudeapi.WithLogger(log),
 				claudeapi.WithMaxTokens(1024),
+				claudeapi.WithFeature("grammar"),
+				claudeapi.WithUsageFunc(aiUsage),
 			)
 			svc.grammar.AI = &grammar.AIChecker{
 				Reply: func(ctx context.Context, system, userMsg string) (string, error) {
@@ -500,15 +510,19 @@ func run() error {
 		// BotManager qui spawnera des bots après TriggerDelaySec si aucun
 		// peer humain ne se connecte. Sinon comportement chat = avant.
 		if cfg.AnthropicAPIKey != "" {
+			// Client partagé (même pool de connexions) mais ventilé par poste
+			// de dépense via ForFeature — les métriques distinguent bot,
+			// modération, icebreakers et analyse.
 			claudeClient := claudeapi.New(cfg.AnthropicAPIKey,
 				claudeapi.WithModel(cfg.AnthropicModel),
 				claudeapi.WithLogger(log),
+				claudeapi.WithUsageFunc(aiUsage),
 			)
 			wsDeps.Bot = ws.NewBotManager(ws.BotManagerConfig{
 				RDB:           rdb,
 				Matcher:       wsDeps.Matcher,
 				Hub:           wsDeps.Hub,
-				Claude:        claudeClient,
+				Claude:        claudeClient.ForFeature("bot"),
 				Quota:         wsDeps.Quota,
 				Log:           log,
 				TriggerDelay:  time.Duration(cfg.BotTriggerDelaySec) * time.Second,
@@ -526,8 +540,21 @@ func run() error {
 			})
 			// Modération IA du chat anonyme (hors chemin critique) : réutilise le
 			// même client Claude. Avertit puis suspend les récidivistes.
+			toxClassifier := moderation.NewClassifier(claudeClient.ForFeature("moderation"), log)
+			// Étage supervisé local (sidecar Detoxify) : les messages
+			// manifestement sains ne remontent pas à Claude. Le compteur
+			// d'étages rend le taux d'économie lisible dans Grafana.
+			toxClassifier.Observe = met.RegisterLabeledCounter(
+				"jolyne_moderation_stage_total",
+				"Messages de chat par étage décideur de la cascade de modération.",
+				"stage",
+			)
+			if cfg.ToxicityScorerURL != "" {
+				toxClassifier.Scorer = moderation.NewLocalScorer(cfg.ToxicityScorerURL)
+				log.Info("toxicity local scorer ready", "url", cfg.ToxicityScorerURL)
+			}
 			wsDeps.Toxicity = &ws.ToxicityGuard{
-				Classifier: moderation.NewClassifier(claudeClient, log),
+				Classifier: toxClassifier,
 				RDB:        rdb,
 				Bans:       banSvc,
 				Tracker:    tracker,
@@ -536,7 +563,7 @@ func run() error {
 			// Amorces de conversation générées par Claude, cachées dans Redis
 			// par langue pratiquée (TTL 6 h) — servies au match humain-humain.
 			wsDeps.Icebreakers = &ws.IcebreakerService{
-				Claude: claudeClient,
+				Claude: claudeClient.ForFeature("icebreaker"),
 				RDB:    rdb,
 				Log:    log,
 			}
@@ -544,7 +571,7 @@ func run() error {
 			// fautes corrigées → items de révision (leçon du jour), niveau
 			// CECRL → profil user (EWMA). Réutilise le même client Claude.
 			wsDeps.Analyzer = &ws.SessionAnalyzer{
-				Claude: claudeClient,
+				Claude: claudeClient.ForFeature("analyzer"),
 				SaveWord: func(ctx context.Context, userID int64, term, translation, sourceLang, targetLang string) error {
 					_, err := vocabStore.Add(ctx, userID, vocab.Entry{
 						Term:        term,
@@ -568,6 +595,19 @@ func run() error {
 					return vocabStore.ReviewTermsInContext(ctx, userID, lang, terms, time.Now())
 				},
 				Log: log,
+			}
+			// Batch API pour l'analyse (−50 % sur les tokens) : le matériau
+			// pédagogique arrive quelques minutes plus tard — invisible, il
+			// n'est pas affiché à chaud. File en mémoire uniquement (la
+			// transcription n'est jamais persistée — règle d'or #1).
+			if cfg.AnalyzerBatch {
+				batcher := &ws.AnalysisBatcher{
+					Claude: claudeClient.ForFeature("analyzer"),
+					Log:    log,
+				}
+				batcher.Start(ctx)
+				wsDeps.Analyzer.Batcher = batcher
+				log.Info("analyzer batch mode ready")
 			}
 			log.Info("bot peer ready",
 				"model", cfg.AnthropicModel,
@@ -688,8 +728,8 @@ func run() error {
 		log.Info("user auth disabled — Postgres / USER_SESSION_SECRET manquants")
 	}
 
-	// --- Métriques Prometheus + beacon analytics + données live du back-office.
-	met := metrics.New()
+	// --- Métriques Prometheus (créées en tête de run) + beacon analytics +
+	// données live du back-office.
 	met.RegisterPoolStats(svc.pg)
 	if svc.wsHandler != nil {
 		met.RegisterGauge("jolyne_ws_online", "Connexions WebSocket actives.",

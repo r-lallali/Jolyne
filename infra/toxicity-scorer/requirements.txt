@@ -1,0 +1,4 @@
+Flask==3.0.3
+# detoxify tire transformers + sentencepiece (tokenizer XLM-R). torch est
+# installé séparément dans le Dockerfile (wheel CPU — évite ~2 Go de CUDA).
+detoxify==0.5.2

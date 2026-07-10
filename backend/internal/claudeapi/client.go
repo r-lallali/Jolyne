@@ -49,7 +49,7 @@ const (
 	maxRetries5xx       = 1
 	maxRetries429       = 2
 	maxRetriesTransport = 1
-	retryBackoff  = 600 * time.Millisecond
+	retryBackoff        = 600 * time.Millisecond
 	// retryJitter étale les re-tentatives des appels concurrents : sans lui,
 	// N bots pris dans le même pic 429 re-tentent au même instant et
 	// re-collisionnent — le retry ne sert alors à rien.
@@ -61,14 +61,23 @@ const (
 // appel échoue immédiatement, à charge du caller de fallback.
 var ErrDisabled = errors.New("claudeapi: disabled (no API key)")
 
+// UsageFunc observe l'issue de chaque appel API : tokens facturés (0 sur
+// échec) et outcome ("ok" / "error"). Types simples volontairement — le
+// package ne connaît pas Prometheus, main.go fait la colle vers metrics.
+type UsageFunc func(feature, outcome string, inputTokens, outputTokens int64)
+
 type Client struct {
 	apiKey    string
 	model     string
 	endpoint  string
 	apiVer    string
 	maxTokens int
-	http      *http.Client
-	log       *slog.Logger
+	// feature : étiquette du poste de dépense ("bot", "moderation",
+	// "translate"…) relayée à usageFn. Vide = "unknown".
+	feature string
+	usageFn UsageFunc
+	http    *http.Client
+	log     *slog.Logger
 }
 
 type Option func(*Client)
@@ -78,6 +87,13 @@ func WithLogger(l *slog.Logger) Option { return func(c *Client) { c.log = l } }
 func WithHTTPClient(h *http.Client) Option {
 	return func(c *Client) { c.http = h }
 }
+
+// WithFeature étiquette le client pour la télémétrie d'usage (un client
+// dédié = un poste de dépense, ex: "translate").
+func WithFeature(name string) Option { return func(c *Client) { c.feature = name } }
+
+// WithUsageFunc branche l'observateur d'usage (tokens/requêtes par feature).
+func WithUsageFunc(fn UsageFunc) Option { return func(c *Client) { c.usageFn = fn } }
 
 // WithMaxTokens relève le plafond de génération (défaut 256 — taillé pour
 // les réponses courtes du prof IA). Le traducteur de phrases en a besoin :
@@ -120,6 +136,30 @@ func New(apiKey string, opts ...Option) *Client {
 // pour décider de ne pas armer son timer 10s par exemple.
 func (c *Client) Enabled() bool { return c != nil && c.apiKey != "" }
 
+// ForFeature : copie du client ré-étiquetée pour la télémétrie. Permet à
+// plusieurs postes de dépense (bot, modération, analyse…) de partager le même
+// pool de connexions tout en étant ventilés dans les métriques.
+func (c *Client) ForFeature(name string) *Client {
+	if c == nil {
+		return nil
+	}
+	cp := *c
+	cp.feature = name
+	return &cp
+}
+
+// observeUsage relaie une issue d'appel à l'observateur (no-op si absent).
+func (c *Client) observeUsage(outcome string, in, out int64) {
+	if c.usageFn == nil {
+		return
+	}
+	feature := c.feature
+	if feature == "" {
+		feature = "unknown"
+	}
+	c.usageFn(feature, outcome, in, out)
+}
+
 // Message : tour d'historique passé à Reply. Le rôle vaut "user" ou
 // "assistant" — strict, l'API d'Anthropic rejette les autres valeurs.
 type Message struct {
@@ -139,9 +179,16 @@ type contentBlock struct {
 	Text string `json:"text"`
 }
 
+// usagePayload : tokens facturés remontés par l'API sur chaque réponse.
+type usagePayload struct {
+	InputTokens  int64 `json:"input_tokens"`
+	OutputTokens int64 `json:"output_tokens"`
+}
+
 type messagesResponse struct {
 	Content    []contentBlock `json:"content"`
 	StopReason string         `json:"stop_reason"`
+	Usage      usagePayload   `json:"usage"`
 }
 
 type apiError struct {
@@ -161,8 +208,20 @@ type apiErrorEnvelope struct {
 // donc `history` sans le tour user courant et passe `userMsg` à part.
 func (c *Client) Reply(ctx context.Context, system string, history []Message, userMsg string) (string, error) {
 	if !c.Enabled() {
+		// Client désactivé = aucun appel réseau : rien à comptabiliser.
 		return "", ErrDisabled
 	}
+	text, usage, err := c.reply(ctx, system, history, userMsg)
+	if err != nil {
+		c.observeUsage("error", 0, 0)
+		return "", err
+	}
+	c.observeUsage("ok", usage.InputTokens, usage.OutputTokens)
+	return text, nil
+}
+
+// reply : implémentation de Reply, sans la télémétrie.
+func (c *Client) reply(ctx context.Context, system string, history []Message, userMsg string) (string, usagePayload, error) {
 	msgs := make([]Message, 0, len(history)+1)
 	msgs = append(msgs, history...)
 	msgs = append(msgs, Message{Role: "user", Content: userMsg})
@@ -183,7 +242,7 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 		Messages:  msgs,
 	})
 	if err != nil {
-		return "", fmt.Errorf("claudeapi: marshal request: %w", err)
+		return "", usagePayload{}, fmt.Errorf("claudeapi: marshal request: %w", err)
 	}
 
 	backoff := retryBackoff
@@ -192,14 +251,14 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 			// Backoff entre deux tentatives (429/5xx) — respecte l'annulation.
 			select {
 			case <-ctx.Done():
-				return "", ctx.Err()
+				return "", usagePayload{}, ctx.Err()
 			case <-time.After(backoff):
 			}
 		}
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewReader(reqBody))
 		if err != nil {
-			return "", fmt.Errorf("claudeapi: new request: %w", err)
+			return "", usagePayload{}, fmt.Errorf("claudeapi: new request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("x-api-key", c.apiKey)
@@ -217,14 +276,14 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 				}
 				continue
 			}
-			return "", fmt.Errorf("claudeapi: http do: %w", err)
+			return "", usagePayload{}, fmt.Errorf("claudeapi: http do: %w", err)
 		}
 		body, rerr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 		status := resp.StatusCode
 		retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"))
 		_ = resp.Body.Close()
 		if rerr != nil {
-			return "", fmt.Errorf("claudeapi: read body: %w", rerr)
+			return "", usagePayload{}, fmt.Errorf("claudeapi: read body: %w", rerr)
 		}
 
 		// 429 / 5xx : transitoire (rate limit, overload). On re-tente s'il
@@ -254,7 +313,7 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 			if c.log != nil {
 				c.log.Warn("claudeapi error response", "status", status, "type", env.Error.Type)
 			}
-			return "", lastErr
+			return "", usagePayload{}, lastErr
 		}
 
 		if status >= 400 {
@@ -265,19 +324,19 @@ func (c *Client) Reply(ctx context.Context, system string, history []Message, us
 				// On log uniquement le type d'erreur, jamais le content envoyé.
 				c.log.Warn("claudeapi error response", "status", status, "type", env.Error.Type)
 			}
-			return "", fmt.Errorf("claudeapi: status %d: %s", status, env.Error.Type)
+			return "", usagePayload{}, fmt.Errorf("claudeapi: status %d: %s", status, env.Error.Type)
 		}
 
 		var parsed messagesResponse
 		if err := json.Unmarshal(body, &parsed); err != nil {
-			return "", fmt.Errorf("claudeapi: parse response: %w", err)
+			return "", usagePayload{}, fmt.Errorf("claudeapi: parse response: %w", err)
 		}
 		for _, b := range parsed.Content {
 			if b.Type == "text" && b.Text != "" {
-				return b.Text, nil
+				return b.Text, parsed.Usage, nil
 			}
 		}
-		return "", fmt.Errorf("claudeapi: empty response")
+		return "", usagePayload{}, fmt.Errorf("claudeapi: empty response")
 	}
 }
 

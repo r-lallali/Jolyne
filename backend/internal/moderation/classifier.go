@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"strings"
+	"unicode"
 
 	"github.com/ralys/jolyne/backend/internal/claudeapi"
 )
@@ -18,10 +19,32 @@ import (
 // Il n'est JAMAIS sur le chemin critique du chat : le caller l'invoque en
 // arrière-plan (le message est déjà relayé). Aucun contenu n'est loggé
 // (règle d'or #1) — seul le verdict l'est éventuellement.
+//
+// Cascade de coût : (1) pré-filtre gratuit (message sans aucune lettre =
+// sain), (2) scorer supervisé local si branché — un score sous SkipBelow
+// court-circuite Claude, (3) Claude pour tout le reste. Le scorer réduit le
+// volume d'appels API sans jamais décider seul d'une sanction : au moindre
+// doute (score au-dessus du seuil, erreur sidecar), Claude tranche comme
+// avant.
 type Classifier struct {
 	client *claudeapi.Client
 	log    *slog.Logger
+
+	// Scorer : étage supervisé local (sidecar toxicity-scorer). nil = la
+	// cascade se réduit à pré-filtre + Claude.
+	Scorer *LocalScorer
+	// SkipBelow : score local en-deçà duquel le message est jugé sain sans
+	// appel Claude. ≤ 0 → defaultSkipBelow.
+	SkipBelow float64
+	// Observe : hook de télémétrie sur l'étage qui a tranché
+	// ("prefilter", "local_clean", "claude", "scorer_error"). Optionnel.
+	Observe func(stage string)
 }
+
+// defaultSkipBelow : seuil volontairement bas — le but est d'écarter les
+// messages MANIFESTEMENT sains (l'écrasante majorité du chat), pas de
+// remplacer le jugement de Claude sur la zone grise.
+const defaultSkipBelow = 0.10
 
 // Verdict : résultat d'une classification. Severity va de 0 (sain) à 3 (grave :
 // menace, contenu haineux, sexuel non consenti). Category est un label court
@@ -62,6 +85,33 @@ func (c *Classifier) Classify(ctx context.Context, message string) Verdict {
 	if !c.Enabled() {
 		return Verdict{}
 	}
+
+	// Étage 0 (gratuit) : un message sans aucune lettre (emoji, ponctuation,
+	// chiffres) ne peut pas porter de harcèlement textuel — la blocklist
+	// statique a déjà vu passer le reste.
+	if !hasLetter(message) {
+		c.observe("prefilter")
+		return Verdict{}
+	}
+
+	// Étage 1 (local, gratuit) : scorer supervisé. Sous le seuil → sain sans
+	// appel API. Erreur sidecar → on dégrade sur Claude, comportement d'avant.
+	if c.Scorer != nil {
+		score, err := c.Scorer.Score(ctx, message)
+		switch {
+		case err != nil:
+			c.observe("scorer_error")
+			if c.log != nil {
+				c.log.Warn("toxicity local score failed", "err", err)
+			}
+		case score < c.skipBelow():
+			c.observe("local_clean")
+			return Verdict{}
+		}
+	}
+
+	// Étage 2 : Claude, juge nuancé de la zone grise.
+	c.observe("claude")
 	raw, err := c.client.Reply(ctx, toxSystemPrompt, nil, message)
 	if err != nil {
 		if c.log != nil {
@@ -70,6 +120,30 @@ func (c *Classifier) Classify(ctx context.Context, message string) Verdict {
 		return Verdict{}
 	}
 	return parseVerdict(raw)
+}
+
+func (c *Classifier) skipBelow() float64 {
+	if c.SkipBelow <= 0 {
+		return defaultSkipBelow
+	}
+	return c.SkipBelow
+}
+
+func (c *Classifier) observe(stage string) {
+	if c.Observe != nil {
+		c.Observe(stage)
+	}
+}
+
+// hasLetter : vrai si le message contient au moins une lettre (toutes
+// écritures — latin, hangul, kanji, arabe…).
+func hasLetter(s string) bool {
+	for _, r := range s {
+		if unicode.IsLetter(r) {
+			return true
+		}
+	}
+	return false
 }
 
 // parseVerdict extrait le premier objet JSON de la réponse et le décode. Un

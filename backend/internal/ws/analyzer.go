@@ -49,6 +49,11 @@ type SessionAnalyzer struct {
 	ReviewInContext func(ctx context.Context, userID int64, lang string, terms []string) error
 	Log             *slog.Logger
 
+	// Batcher : si branché, l'appel Claude passe par la Batch API (−50 % sur
+	// les tokens, résultat différé de quelques minutes — invisible : le
+	// matériau pédagogique n'est consommé que plus tard). nil = appel direct.
+	Batcher *AnalysisBatcher
+
 	// MaxWords : nombre max d'entrées de vocabulaire extraites (défaut 8).
 	MaxWords int
 	// MaxMistakes : nombre max de fautes extraites (défaut 6).
@@ -139,7 +144,31 @@ func (s *SessionAnalyzer) Analyze(userID int64, learnerNick, speaks, wants strin
 			}
 		}
 	}
-	system := fmt.Sprintf(`Tu analyses une conversation d'échange linguistique pour aider un apprenant.
+	system := s.buildSystem(learnerNick, speaks, wants)
+
+	// Chemin batch : la requête rejoint le prochain lot (−50 %), le résultat
+	// sera appliqué par le batcher via applyAnalysis. La transcription ne vit
+	// qu'en mémoire du process, jamais persistée (règle d'or #1).
+	if s.Batcher != nil {
+		s.Batcher.Enqueue(system, convo, func(ctx context.Context, raw string) {
+			s.applyAnalysis(ctx, userID, speaks, wants, raw)
+		})
+		return
+	}
+
+	raw, err := s.Claude.Reply(ctx, system, nil, convo)
+	if err != nil {
+		if s.Log != nil {
+			s.Log.Warn("session analysis failed", "err", err)
+		}
+		return
+	}
+	s.applyAnalysis(ctx, userID, speaks, wants, raw)
+}
+
+// buildSystem : system prompt de l'analyse (partagé chemins direct et batch).
+func (s *SessionAnalyzer) buildSystem(learnerNick, speaks, wants string) string {
+	return fmt.Sprintf(`Tu analyses une conversation d'échange linguistique pour aider un apprenant.
 L'apprenant signe ses messages "%s", sa langue est "%s" et il pratique "%s".
 
 Produis trois choses :
@@ -166,14 +195,11 @@ Réponds UNIQUEMENT par un objet JSON compact, sans texte autour :
 		s.maxMistakes(), learnerNick, wants, speaks, learnerNick,
 		learnerNick, wants, learnerNick, wants,
 		wants, speaks)
+}
 
-	raw, err := s.Claude.Reply(ctx, system, nil, convo)
-	if err != nil {
-		if s.Log != nil {
-			s.Log.Warn("session analysis failed", "err", err)
-		}
-		return
-	}
+// applyAnalysis parse la réponse de Claude et persiste le matériau dérivé
+// (vocab, fautes, CECRL) — commun aux chemins direct et batch.
+func (s *SessionAnalyzer) applyAnalysis(ctx context.Context, userID int64, speaks, wants, raw string) {
 	analysis := parseAnalysis(raw, s.maxWords(), s.maxMistakes())
 
 	for _, it := range analysis.Vocab {

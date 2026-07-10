@@ -94,6 +94,45 @@ func (m *Metrics) RegisterPoolStats(pool *pgxpool.Pool) {
 	)
 }
 
+// RegisterAIUsage expose les compteurs de consommation de l'API Claude,
+// ventilés par poste de dépense (bot, moderation, translate, grammar,
+// analyzer, icebreaker…). Renvoie l'observateur à brancher sur
+// claudeapi.WithUsageFunc — signature en types simples pour que ni metrics ni
+// claudeapi ne dépendent l'un de l'autre. C'est LA source de vérité pour
+// arbitrer les optimisations de coût IA (cache, batch, modèle local).
+func (m *Metrics) RegisterAIUsage() func(feature, outcome string, inputTokens, outputTokens int64) {
+	reqs := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "jolyne_ai_requests_total",
+		Help: "Appels à l'API Claude par poste de dépense et issue (ok/error).",
+	}, []string{"feature", "outcome"})
+	tokens := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "jolyne_ai_tokens_total",
+		Help: "Tokens Claude facturés par poste de dépense et direction (input/output).",
+	}, []string{"feature", "direction"})
+	m.reg.MustRegister(reqs, tokens)
+	return func(feature, outcome string, inputTokens, outputTokens int64) {
+		reqs.WithLabelValues(feature, outcome).Inc()
+		if inputTokens > 0 {
+			tokens.WithLabelValues(feature, "input").Add(float64(inputTokens))
+		}
+		if outputTokens > 0 {
+			tokens.WithLabelValues(feature, "output").Add(float64(outputTokens))
+		}
+	}
+}
+
+// RegisterLabeledCounter expose un compteur à un label et renvoie son
+// incrémenteur — hook en types simples pour ne pas propager Prometheus dans
+// les autres packages (ex : étage décideur de la cascade de modération).
+func (m *Metrics) RegisterLabeledCounter(name, help, label string) func(value string) {
+	c := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: name,
+		Help: help,
+	}, []string{label})
+	m.reg.MustRegister(c)
+	return func(value string) { c.WithLabelValues(value).Inc() }
+}
+
 // RegisterGauge expose une jauge calculée à la scrape (ex : utilisateurs en
 // ligne lus depuis le Hub WS). Découple metrics des autres packages.
 func (m *Metrics) RegisterGauge(name, help string, fn func() float64) {

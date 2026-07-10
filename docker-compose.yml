@@ -32,6 +32,10 @@ services:
       POSTGRES_DSN: ${POSTGRES_DSN:-}
       POSTGRES_AUTO_MIGRATE: ${POSTGRES_AUTO_MIGRATE:-true}
       FACE_MATCHER_URL: http://face-matcher:5001
+      # Scorer de toxicité local (Detoxify) : 1er étage de la cascade de
+      # modération — les messages manifestement sains ne remontent pas à
+      # Claude. Vide → cascade réduite à pré-filtre + Claude (comme avant).
+      TOXICITY_SCORER_URL: http://toxicity-scorer:5002
       # Clé AES-256 base64 (32 octets) pour chiffrer les messages capturés
       # lors d'un signalement. Génération : openssl rand -base64 32.
       REPORT_ENCRYPTION_KEY: ${REPORT_ENCRYPTION_KEY:-}
@@ -94,6 +98,10 @@ services:
       languagetool:
         condition: service_started
       face-matcher:
+        condition: service_started
+      # Le chargement du modèle Detoxify prend ~30 s au boot — on n'attend
+      # pas (la cascade de modération dégrade sur Claude entre-temps).
+      toxicity-scorer:
         condition: service_started
     networks:
       - dokploy-network
@@ -182,6 +190,20 @@ services:
     restart: unless-stopped
     environment:
       PORT: 5001
+    networks:
+      - dokploy-network
+
+  # Scorer de toxicité supervisé (Detoxify multilingue, CPU). 1er étage de la
+  # cascade de modération : il écarte gratuitement les messages manifestement
+  # sains, Claude ne juge que la zone grise. Les poids (~1 Go) sont dans
+  # l'image — pas de téléchargement au boot.
+  toxicity-scorer:
+    build:
+      context: ./infra/toxicity-scorer
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 5002
     networks:
       - dokploy-network
 

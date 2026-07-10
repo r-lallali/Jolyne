@@ -83,6 +83,16 @@ type Config struct {
 	BotMaxConcurrent   int
 	BotTriggerDelaySec int
 
+	// Scorer de toxicité local (sidecar Detoxify) : 1er étage de la cascade
+	// de modération. Vide → cascade réduite à pré-filtre + Claude.
+	ToxicityScorerURL string
+
+	// AnalyzerBatch : analyse post-conversation via la Batch API Anthropic
+	// (−50 % sur les tokens, résultats différés de quelques minutes — le
+	// matériau pédagogique n'est pas affiché à chaud, le délai est invisible).
+	// false → appel direct synchrone comme avant.
+	AnalyzerBatch bool
+
 	// MatchLevelAware : préférence de niveau CECRL au matching (voir
 	// matcher.Matcher.LevelAware). Off par défaut — à activer une fois les
 	// estimations de niveau suffisamment denses pour ne pas biaiser les files.
@@ -140,6 +150,8 @@ func Load() (Config, error) {
 		AnthropicModel:       getEnv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
 		BotMaxConcurrent:     getEnvInt("BOT_MAX_CONCURRENT", 20),
 		BotTriggerDelaySec:   getEnvInt("BOT_TRIGGER_DELAY_SEC", 10),
+		ToxicityScorerURL:    os.Getenv("TOXICITY_SCORER_URL"),
+		AnalyzerBatch:        getEnvBool("ANALYZER_BATCH", true),
 		MatchLevelAware:      getEnvBool("MATCH_LEVEL_AWARE", false),
 		StripeSecretKey:      os.Getenv("STRIPE_SECRET_KEY"),
 		StripeWebhookSecret:  os.Getenv("STRIPE_WEBHOOK_SECRET"),
