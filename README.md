@@ -1,6 +1,6 @@
 # Jolyne
 
-Chat d'échange linguistique en temps réel. Les utilisateurs sont mis en relation par **paire de langues** (je parle X / je veux pratiquer Y) via des files Redis. Quand aucun partenaire humain n'est disponible, un **tuteur IA** (Claude) prend le relais avec une persona déterministe par langue. Translation et correction grammaticale intégrées, comptes utilisateurs, amis & streaks, premium Stripe, notifications push.
+Chat d'échange linguistique en temps réel. Les utilisateurs sont appariés par **paire de langues** (je parle X / je veux pratiquer Y) via des files Redis. Quand aucun partenaire humain n'est disponible, un **tuteur IA** (Claude) prend le relais — puis s'efface dès qu'un humain arrive. Autour du chat : mode Cours façon Duolingo, carnet de vocabulaire à répétition espacée, traduction et correction grammaticale intégrées, comptes et profils vérifiés, amis & streaks, premium Stripe, modération multi-étages et back-office analytics.
 
 ## Stack
 
@@ -8,27 +8,42 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont mis en relati
 |--------|--------|
 | Backend | Go 1.25 — gateway HTTP + WebSocket (`gorilla/websocket`), `pgx` (Postgres), `go-redis`, JWT, `golang-migrate` |
 | Frontend | Next.js 15 (App Router, Turbopack), React 19, TypeScript, Tailwind, Zustand, Framer Motion |
-| Données | PostgreSQL (persistance), Redis (matching, sessions, quotas) |
-| Services | LibreTranslate, LanguageTool, face-matcher (Flask + `face_recognition`), Cloudinary (photos) |
-| IA | Anthropic Messages API (`claude-haiku-4-5`) — tuteur conversationnel |
+| Données | PostgreSQL (persistance), Redis (matching, sessions, quotas, caches) |
+| IA | Anthropic Messages API — `claude-haiku-4-5` : tuteur, traduction/grammaire de repli, modération nuancée, icebreakers, analyse post-conversation (Batch API) |
+| Services | LibreTranslate, LanguageTool, toxicity-scorer (Detoxify / XLM-RoBERTa), face-matcher (Flask + `face_recognition`), Cloudinary |
 | Paiement | Stripe (checkout, portal, webhooks) |
 | Infra | Docker Compose, Caddy (reverse proxy, TLS auto, CSP), GitHub Actions, tests de charge k6 |
 
 ## Fonctionnalités
 
-- **Matchmaking** — appariement atomique par paire de langues via scripts Lua Redis (stateless, tout l'état vit dans Redis).
-- **Chat temps réel** — WebSocket (`/ws/match`), salles éphémères, reconnexion, présence.
-- **Tuteur IA** — repli automatique quand la file est vide : personas par langue (greeting déterministe, correction des fautes en contexte, ton chat). Aucun contenu de message n'est loggé.
-- **Traduction & grammaire** — traduction inline (LibreTranslate) et vérification grammaticale (LanguageTool) exposées en `/api/translate` et `/api/grammar`.
-- **Comptes** — signup / login / vérification e-mail / reset password, sessions JWT.
-- **Profils & photos** — upload Cloudinary + **vérification de visage** (selfie vs photos de profil) via service Python (`face_recognition`, seuil dlib 0.6).
-- **Amis & streaks** — demandes d'amis, inbox, chats persistants, streaks avec cron de perte.
-- **Premium** — abonnement Stripe (checkout/portal/webhook) et système de quotas.
+**Matchmaking & chat**
+- **Appariement** atomique par paire de langues via scripts Lua Redis — 100 % stateless, tout l'état vit dans Redis. Taille de file exposée en public (`/api/queue-size`).
+- **Chat temps réel** — WebSocket (`/ws/match`), salles éphémères, présence, reconnexion.
+- **Icebreakers** — amorces de conversation générées par Claude, cachées par langue (repli statique local si l'API est froide).
+- **Tuteur IA « salle d'attente »** — repli quand la file est vide : personas déterministes par langue (10 langues), greeting, correction en contexte. L'utilisateur **reste en file** pendant la session bot et bascule sur un humain dès qu'il arrive. Cap de messages, aucun contenu jamais loggé.
+
+**Apprentissage**
+- **Mode Cours** (type Duolingo) — cours → unités → leçons (contenu seedé/généré par Claude). Leçons de **vocabulaire** et d'**écriture** (kana, jamo Hangul, formes positionnelles arabes, tracé SVG des caractères). XP, **streak quotidien**, **cœurs** (5 max, régén 30 min, ou demande à un ami), succès, objectif quotidien réglable, test de placement.
+- **Leçon du jour** — rejeu des fautes corrigées extraites de vos vraies conversations.
+- **Carnet de vocabulaire** — révision espacée SM-2 (again/hard/good/easy), pile de cartes dues, cron de rappel.
+- **Analyse post-conversation IA** — un seul appel Claude (via Batch API, −50 %) dérive de chaque chat : vocabulaire → carnet, fautes corrigées → leçon du jour, niveau **CECRL** (lissé EWMA), et réactivation SRS des mots revus en contexte. La transcription n'est **jamais** persistée.
+- **Traduction & grammaire** — traduction de phrases par Claude Haiku (+ romanisation zh/ja/ko/ar), repli LibreTranslate ; correction grammaticale LanguageTool complétée par Claude pour les langues non couvertes. Exposées en `/api/translate` et `/api/grammar`.
+
+**Comptes & social**
+- **Comptes** — signup / login / vérification e-mail / reset password / logout, sessions JWT avec invalidation par version.
+- **Profils** — photos Cloudinary (upload signé, réordonnancement), **vérification de visage** (selfie vs photos) via service Python (`face_recognition`, seuil dlib 0.6), prompts de profil style Hinge.
+- **Amis & streaks** — demandes d'amis, inbox temps réel (`/ws/inbox`), chats persistants (`/ws/friend/`), édition/suppression de messages, streaks avec restauration et cron de perte, signalements.
+- **Premium** — abonnement Stripe (checkout / portal / webhook), système de quotas, cœurs illimités.
 - **Notifications push** — Web Push / VAPID.
-- **Modération** — filtre de profanité, modération des pseudos, signalements, bans, blocage.
-- **Back-office admin** — gestion des bans, des signalements, login admin dédié.
-- **i18n** — 10 langues (fr, en, es, de, it, pt, ar, ja, ko, zh).
-- **Sécurité** — headers durcis via Caddy (HSTS, CSP stricte, X-Frame-Options), CORS contrôlé.
+
+**Modération & sécurité**
+- **Modération en cascade** — blocklist statique instantanée → scorer local (sidecar Detoxify/XLM-RoBERTa, gratuit, CPU) → classifieur Claude pour la zone nuancée. Toxicité récidivante → **strikes** puis suspension automatique (fingerprint + IP).
+- **Modération des pseudos**, **signalements**, **bans**, **blocage** utilisateur ↔ utilisateur, age gate.
+- **Back-office admin** — login dédié + IP allowlist. Gestion des signalements et bans, dashboards analytics (overview, funnel, rétention, séries temporelles, engagement, revenu, serveur, audit), gestion des utilisateurs (premium, ban, export/suppression RGPD).
+- **Analytics** — beacon d'événements front (page_view, signup, recherche de match…) et endpoint Prometheus `/metrics` (protégé par l'allowlist admin).
+- **Durcissement** — Caddy (TLS auto, HSTS, CSP stricte, X-Frame-Options), CORS contrôlé, fingerprint device, scrubbing PII.
+
+**i18n** — interface disponible en 10 langues (fr, en, es, de, it, pt, ar, ja, ko, zh).
 
 ## Architecture
 
@@ -41,10 +56,10 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont mis en relati
                  │ backend │  │ frontend │  Next.js
                  │  (Go)   │  └──────────┘
                  └──┬───┬──┘
-        ┌───────────┘   └──────────┬─────────────┐
-   ┌────▼────┐  ┌──────────┐  ┌────▼─────┐  ┌─────▼──────┐
-   │  Redis  │  │ Postgres │  │ Anthropic│  │ face-matcher│
-   │ (match) │  │          │  │  (Claude)│  │ LibreTrans. │
-   └─────────┘  └──────────┘  └──────────┘  │ LanguageTool│
-                                            └─────────────┘
+       ┌────────┬───┘   └────┬──────────┬──────────────┐
+  ┌────▼───┐ ┌──▼─────┐ ┌────▼─────┐ ┌──▼────────┐ ┌───▼──────────┐
+  │ Redis  │ │Postgres│ │ Anthropic│ │face-matcher│ │ LibreTranslate│
+  │(match) │ │        │ │ (Claude) │ │  (visage)  │ │ LanguageTool  │
+  └────────┘ └────────┘ └──────────┘ └───────────┘ │ toxicity-scorer│
+                                                    └───────────────┘
 ```
