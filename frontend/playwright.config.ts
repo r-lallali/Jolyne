@@ -4,12 +4,10 @@ import { defineConfig, devices } from "@playwright/test";
 // Next en dev server. Aucune clé Anthropic/Stripe : le match teste deux
 // humains via Redis, l'auth teste signup/login contre Postgres.
 //
-// Local :
-//   docker run --rm -d -p 6379:6379 redis:7-alpine
-//   docker run --rm -d -p 5432:5432 -e POSTGRES_USER=jolyne \
-//     -e POSTGRES_PASSWORD=jolyne -e POSTGRES_DB=jolyne postgres:16-alpine
-//   pnpm test:e2e
-// CI : services GitHub Actions (cf. .github/workflows/frontend.yml).
+// Ces tests tournent en CI (services GitHub Actions — voir
+// .github/workflows/e2e.yml) : AUCUN Docker local requis. Exécution locale
+// optionnelle : pointer E2E_REDIS_ADDR / E2E_POSTGRES_DSN vers n'importe
+// quel Redis + Postgres joignables, puis `pnpm test:e2e`.
 const BACKEND_PORT = 18080;
 const FRONT_PORT = 3100;
 const REDIS_ADDR = process.env.E2E_REDIS_ADDR ?? "127.0.0.1:6379";
