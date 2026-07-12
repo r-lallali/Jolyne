@@ -87,6 +87,11 @@ services:
       STRIPE_PRICE_ID: ${STRIPE_PRICE_ID:-}
       STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-}
       STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-}
+      # Sentry : les logs Error du gateway partent vers Sentry (taxonomie
+      # seule — jamais de contenu de message ni de PII). Un DSN n'est pas un
+      # secret (il vit aussi dans le bundle client) : défaut committé,
+      # surchargeable dans Dokploy → Environment.
+      SENTRY_DSN: ${SENTRY_DSN:-https://7a7c3559220e4408f52e607e941143cf@o4511721029435392.ingest.de.sentry.io/4511722307911760}
     depends_on:
       redis:
         condition: service_healthy

@@ -14,6 +14,8 @@ import (
 
 	"encoding/base64"
 
+	sentry "github.com/getsentry/sentry-go"
+
 	"github.com/ralys/jolyne/backend/internal/admin"
 	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/bans"
@@ -54,12 +56,39 @@ func run() error {
 	}
 
 	log := obs.NewLogger(cfg.Env)
+	// Sentry : chaque log de niveau Error part aussi vers Sentry (message +
+	// attributs — la taxonomie des logs est garantie sans contenu ni PII,
+	// règles d'or #1/#6). Sans DSN, comportement inchangé.
+	if cfg.SentryDSN != "" {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:            cfg.SentryDSN,
+			Environment:    cfg.Env,
+			Release:        buildCommit,
+			SendDefaultPII: false,
+		}); err != nil {
+			log.Warn("sentry init failed — forwarding désactivé", "err", err)
+		} else {
+			defer sentry.Flush(2 * time.Second)
+			log = obs.WithErrorForwarding(log, func(msg string, attrs map[string]string) {
+				sentry.WithScope(func(scope *sentry.Scope) {
+					logCtx := make(sentry.Context, len(attrs))
+					for k, v := range attrs {
+						logCtx[k] = v
+					}
+					scope.SetContext("log", logCtx)
+					scope.SetLevel(sentry.LevelError)
+					sentry.CaptureMessage(msg)
+				})
+			})
+		}
+	}
 	slog.SetDefault(log)
 	log.Info("gateway boot",
 		"env", cfg.Env,
 		"port", cfg.Port,
 		"commit", buildCommit,
-		"version", buildVersion)
+		"version", buildVersion,
+		"sentry", cfg.SentryDSN != "")
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

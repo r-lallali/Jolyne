@@ -108,6 +108,11 @@ type Config struct {
 	StripeSuccessURL    string
 	StripeCancelURL     string
 
+	// Sentry (observabilité erreurs). Vide → aucun forwarding, comme avant.
+	// Seule la taxonomie des logs Error part vers Sentry — jamais de contenu
+	// de message ni de PII (règles d'or #1 et #6).
+	SentryDSN string
+
 	ShutdownGrace time.Duration
 }
 
@@ -158,6 +163,7 @@ func Load() (Config, error) {
 		StripePriceID:        os.Getenv("STRIPE_PRICE_ID"),
 		StripeSuccessURL:     os.Getenv("STRIPE_SUCCESS_URL"),
 		StripeCancelURL:      os.Getenv("STRIPE_CANCEL_URL"),
+		SentryDSN:            os.Getenv("SENTRY_DSN"),
 		// 30 s : le shutdown draine le batcher d'analyses (appels IA directs)
 		// après l'arrêt HTTP — 10 s ne suffisaient qu'à l'arrêt HTTP seul.
 		ShutdownGrace: getEnvDuration("SHUTDOWN_GRACE", 30*time.Second),

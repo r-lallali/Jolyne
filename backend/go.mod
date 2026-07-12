@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/abadojack/whatlanggo v1.0.1
+	github.com/getsentry/sentry-go v0.47.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
@@ -13,7 +14,7 @@ require (
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/stripe/stripe-go/v82 v82.5.1
 	golang.org/x/crypto v0.45.0
-	golang.org/x/sync v0.18.0
+	golang.org/x/sync v0.20.0
 )
 
 require (
@@ -31,7 +32,7 @@ require (
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 )
