@@ -140,9 +140,9 @@ func ipAllowed(r *http.Request, allowlist []*net.IPNet) bool {
 	return false
 }
 
-// trustedProxies : nombre de reverse-proxies frontaux (Caddy = 1). Configuré
+// trustedProxies : nombre de reverse-proxies frontaux (Traefik = 1). Configuré
 // une fois au boot via SetTrustedProxies. Défaut 1 : on lit l'entrée la plus
-// à droite de X-Forwarded-For (l'IP réelle vue par Caddy), pas la première
+// à droite de X-Forwarded-For (l'IP réelle vue par Traefik), pas la première
 // (forgeable par le client pour usurper une IP allowlistée).
 var trustedProxies = 1
 

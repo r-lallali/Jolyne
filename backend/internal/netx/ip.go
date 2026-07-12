@@ -12,11 +12,11 @@ import (
 
 // ClientIP renvoie l'IP cliente réelle en tenant compte de `trustedProxies`
 // reverse-proxies qui AJOUTENT leur pair immédiat à X-Forwarded-For (cas de
-// Caddy en frontal).
+// Traefik en frontal).
 //
-// Avec Caddy comme unique proxy de bord, passer trustedProxies=1 : Caddy
+// Avec Traefik comme unique proxy de bord, passer trustedProxies=1 : Traefik
 // ajoute l'IP réelle du client à la FIN de X-Forwarded-For, donc l'entrée la
-// plus à droite est l'adresse observée par Caddy (le vrai client). Toute
+// plus à droite est l'adresse observée par Traefik (le vrai client). Toute
 // valeur injectée à gauche par le client (« X-Forwarded-For: 1.2.3.4 » pour
 // usurper une IP allowlistée) est ignorée.
 //

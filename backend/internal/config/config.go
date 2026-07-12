@@ -11,7 +11,7 @@ type Config struct {
 	Env  string
 	Port int
 
-	// TrustedProxies : nombre de reverse-proxies de confiance en frontal (Caddy
+	// TrustedProxies : nombre de reverse-proxies de confiance en frontal (Traefik
 	// = 1). Sert à extraire l'IP cliente réelle depuis X-Forwarded-For sans se
 	// faire usurper par un client qui forge l'en-tête. 0 = exposition directe,
 	// on ignore X-Forwarded-For (voir netx.ClientIP).

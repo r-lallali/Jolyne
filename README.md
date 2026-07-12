@@ -12,7 +12,7 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont appariés par
 | IA | Anthropic Messages API — `claude-haiku-4-5` : tuteur, traduction/grammaire de repli, modération nuancée, icebreakers, analyse post-conversation (Batch API) |
 | Services | LibreTranslate, LanguageTool, toxicity-scorer (Detoxify / XLM-RoBERTa), face-matcher (Flask + `face_recognition`), Cloudinary |
 | Paiement | Stripe (checkout, portal, webhooks) |
-| Infra | Docker Compose, Caddy (reverse proxy, TLS auto, CSP), GitHub Actions, tests de charge k6 |
+| Infra | Docker Compose sur VPS via Dokploy (Traefik, TLS auto), GitHub Actions, tests de charge k6 |
 
 ## Fonctionnalités
 
@@ -41,7 +41,7 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont appariés par
 - **Modération des pseudos**, **signalements**, **bans**, **blocage** utilisateur ↔ utilisateur, age gate.
 - **Back-office admin** — login dédié + IP allowlist. Gestion des signalements et bans, dashboards analytics (overview, funnel, rétention, séries temporelles, engagement, revenu, serveur, audit), gestion des utilisateurs (premium, ban, export/suppression RGPD).
 - **Analytics** — beacon d'événements front (page_view, signup, recherche de match…) et endpoint Prometheus `/metrics` (protégé par l'allowlist admin).
-- **Durcissement** — Caddy (TLS auto, HSTS, CSP stricte, X-Frame-Options), CORS contrôlé, fingerprint device, scrubbing PII.
+- **Durcissement** — TLS auto (Traefik/Dokploy), headers de sécurité versionnés dans le code (CSP stricte + HSTS : `next.config.ts` côté front, middleware Go côté API), CORS contrôlé, fingerprint device, scrubbing PII.
 
 **i18n** — interface disponible en 10 langues (fr, en, es, de, it, pt, ar, ja, ko, zh).
 
@@ -49,9 +49,9 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont appariés par
 
 ```
                  ┌─────────┐
-   navigateur ──▶│  Caddy  │  TLS, CSP, reverse proxy
+   navigateur ──▶│ Traefik │  TLS auto (géré par Dokploy)
                  └────┬────┘
-          /ws/* /api/*│        │ /*
+        api.jolyne.*  │        │ jolyne.*
                  ┌────▼────┐  ┌─▼────────┐
                  │ backend │  │ frontend │  Next.js
                  │  (Go)   │  └──────────┘
@@ -63,3 +63,13 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont appariés par
   └────────┘ └────────┘ └──────────┘ └───────────┘ │ toxicity-scorer│
                                                     └───────────────┘
 ```
+
+## Déploiement
+
+Prod = un VPS OVH orchestré par **Dokploy** (Traefik en frontal, TLS auto). Le `docker-compose.yml` à la racine est le compose de prod : Dokploy le build et injecte les variables d'environnement (UI → Environment Variables — aucune n'est versionnée).
+
+- **Domaines** (Dokploy UI → Domains) : `jolyne.ralys.ovh` → frontend port 3000, `api.jolyne.ralys.ovh` → backend port 8080. Pas de labels Traefik dans le compose : Dokploy les pose lui-même.
+- **Postgres** tourne comme service Dokploy séparé sur `dokploy-network` (hors compose) ; `POSTGRES_DSN` pointe dessus.
+- **Headers de sécurité** : Traefik ne pose que le TLS. La CSP/HSTS du front vit dans `next.config.ts`, celle de l'API dans le middleware `secHeaders` du gateway Go — versionnées, donc reconstructibles.
+- **Traçabilité** : poser `BUILD_COMMIT` / `BUILD_VERSION` en args de build côté Dokploy, sinon le binaire log `dev`.
+- **Dev local** : `docker compose -f infra/docker-compose.dev.yml up` (backend + Redis + Postgres + services) et `cd frontend && pnpm dev` à côté. Le compose racine ne monte pas en local (réseau `dokploy-network` externe).

@@ -12,7 +12,7 @@ Jolyne = chat d'échange linguistique temps réel. Appariement par paire de lang
   - `cmd/gateway/` — entrypoint + `routes.go` (toutes les routes HTTP/WS, lecture rapide pour la carte des endpoints).
   - `internal/<domaine>/` — un package par domaine : `matcher` (Lua/Redis), `ws` (chat, bot IA, amis, inbox), `users`, `profile`, `friends`, `billing`, `quota`, `moderation`, `admin`, `claudeapi`, `translate`, `grammar`, `push`, `db` (migrations SQL numérotées).
 - `frontend/` — Next.js 15 App Router, React 19, TS, Tailwind, Zustand. `src/app/` (pages), `src/components/`, `src/lib/` (clients API, i18n 10 langues), `src/stores/` (Zustand).
-- `infra/` — Docker Compose, Caddy (TLS/CSP), `face-matcher/` (Flask + face_recognition), k6 (charge).
+- `infra/` — compose **dev**, `face-matcher/` (Flask + face_recognition), `toxicity-scorer/` (Detoxify), k6 (charge). Prod = `docker-compose.yml` racine déployé par Dokploy/Traefik (env vars dans l'UI Dokploy, voir README §Déploiement).
 
 ## Commandes
 
@@ -24,7 +24,7 @@ Jolyne = chat d'échange linguistique temps réel. Appariement par paire de lang
 | Back build | `cd backend && go build ./...` |
 | Back tests | `go test ./...` (intégration : nécessite Redis/Postgres) |
 | Back lint | `golangci-lint run` (config `.golangci.yml`) |
-| Stack complète | `docker compose up` (racine) |
+| Stack dev complète | `docker compose -f infra/docker-compose.dev.yml up` (le compose racine = prod Dokploy, réseau externe) |
 
 Pas de Makefile. Front = **pnpm** (pas npm).
 

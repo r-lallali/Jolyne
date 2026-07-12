@@ -29,7 +29,7 @@ type pending struct {
 
 // Hub maintient un registre en mémoire des sessions actuellement en attente
 // d'un peer. Single-instance pour le MVP : suffit tant qu'on n'a qu'un seul
-// process Go derrière Caddy. À remplacer par Redis pub/sub si on scale out.
+// process Go derrière Traefik. À remplacer par Redis pub/sub si on scale out.
 type Hub struct {
 	mu       sync.RWMutex
 	sessions map[string]*pending

@@ -23,7 +23,7 @@ type Beacon struct {
 	// ResolveUser (optionnel) renvoie l'userID si un cookie de session valide
 	// est présent, sinon 0. Permet d'attacher l'event à un compte connu.
 	ResolveUser func(r *http.Request) int64
-	// TrustedProxies : nombre de reverse-proxies frontaux (Caddy = 1) pour
+	// TrustedProxies : nombre de reverse-proxies frontaux (Traefik = 1) pour
 	// résoudre l'IP cliente réelle sans se faire usurper par X-Forwarded-For.
 	TrustedProxies int
 	Log            *slog.Logger

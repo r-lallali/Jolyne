@@ -104,9 +104,9 @@ type Deps struct {
 	// Tracker analytics (optionnel). Émet les events de funnel (match_found,
 	// bot_fallback, message_sent, conversation_ended…). Nil-safe.
 	Tracker *analytics.Tracker
-	// TrustedProxies : nombre de reverse-proxies frontaux (Caddy = 1). Sert à
+	// TrustedProxies : nombre de reverse-proxies frontaux (Traefik = 1). Sert à
 	// résoudre l'IP cliente réelle pour le hash IP (bans/report) — sans ça,
-	// r.RemoteAddr = IP du conteneur Caddy, identique pour toutes les sessions.
+	// r.RemoteAddr = IP du conteneur Traefik, identique pour toutes les sessions.
 	TrustedProxies int
 	Log            *slog.Logger
 }
@@ -291,7 +291,7 @@ func (h *Handler) resolveUserID(r *http.Request) int64 {
 // hashIP hashe l'IP cliente avec SHA-256. Les logs ou la télémétrie ne
 // doivent jamais voir l'IP brute (CLAUDE.md règle d'or #6). L'IP réelle est
 // résolue via netx en tenant compte des proxies frontaux — sinon toutes les
-// sessions partageraient le hash de l'IP de Caddy et les bans/report par IP
+// sessions partageraient le hash de l'IP de Traefik et les bans/report par IP
 // seraient inopérants (ou globaux).
 func (h *Handler) hashIP(r *http.Request) string {
 	sum := sha256.Sum256([]byte(netx.ClientIP(r, h.d.TrustedProxies)))

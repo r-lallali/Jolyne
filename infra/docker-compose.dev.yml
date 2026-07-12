@@ -1,6 +1,6 @@
 name: jolyne-dev
 
-# Stack de dev : pas de Caddy, ports backend/redis exposés en local.
+# Stack de dev : pas de reverse proxy, ports backend/redis exposés en local.
 # Le frontend tourne hors compose via `pnpm dev` pour profiter du HMR.
 #
 # Usage : docker compose -f docker-compose.dev.yml up
