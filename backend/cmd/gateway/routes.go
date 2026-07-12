@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -149,45 +148,32 @@ func routes(s services) http.Handler {
 			cors(auth(methodOnly("PUT", http.HandlerFunc(s.profile.HandleReorderPhotos)))))
 		mux.Handle("/api/account/photos",
 			cors(auth(methodOnly("POST", http.HandlerFunc(s.profile.HandleSetPhoto)))))
-		// DELETE /api/account/photos/{position}
-		mux.Handle("/api/account/photos/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodDelete {
-				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-				return
-			}
-			s.profile.HandleDeletePhoto(w, r)
-		}))))
+		// Les routes littérales sign/reorder (ci-dessus) priment sur {position}.
+		mux.Handle("/api/account/photos/{position}",
+			cors(auth(methodOnly("DELETE", http.HandlerFunc(s.profile.HandleDeletePhoto)))))
 	}
 
+	// Routes amis : patterns ServeMux à wildcard (Go 1.22+). On ne met PAS la
+	// méthode dans le pattern — un `POST /path` renverrait 405 aux preflights
+	// OPTIONS avant le middleware CORS ; methodOnly garde ce rôle.
 	if s.friends != nil && s.users != nil {
 		auth := s.users.RequireAuth
 		cors := publicCORS(s.publicCORS)
 		mux.Handle("/api/friends", cors(auth(methodOnly("GET", http.HandlerFunc(s.friends.HandleList)))))
-		// `/api/friends/{id}` (DELETE), `/api/friends/{id}/messages`
-		// (GET/POST), `/api/friends/{id}/profile` (GET).
-		mux.Handle("/api/friends/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			path := r.URL.Path
-			switch {
-			case strings.HasSuffix(path, "/messages") && r.Method == http.MethodGet:
+		mux.Handle("/api/friends/{id}", cors(auth(methodOnly("DELETE", http.HandlerFunc(s.friends.HandleRemove)))))
+		mux.Handle("/api/friends/{id}/messages", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet:
 				s.friends.HandleGetMessages(w, r)
-			case strings.HasSuffix(path, "/messages") && r.Method == http.MethodPost:
+			case http.MethodPost:
 				s.friends.HandlePostMessage(w, r)
-			case strings.HasSuffix(path, "/profile") && r.Method == http.MethodGet:
-				s.friends.HandleGetProfile(w, r)
-			case strings.HasSuffix(path, "/report") && r.Method == http.MethodPost:
-				s.friends.HandleReport(w, r)
-			case strings.HasSuffix(path, "/streak/restore") && r.Method == http.MethodPost:
-				s.friends.HandleRestoreStreak(w, r)
-			case r.Method == http.MethodDelete &&
-				!strings.HasSuffix(path, "/messages") &&
-				!strings.HasSuffix(path, "/profile") &&
-				!strings.HasSuffix(path, "/report") &&
-				!strings.HasSuffix(path, "/streak/restore"):
-				s.friends.HandleRemove(w, r)
 			default:
-				http.NotFound(w, r)
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			}
 		}))))
+		mux.Handle("/api/friends/{id}/profile", cors(auth(methodOnly("GET", http.HandlerFunc(s.friends.HandleGetProfile)))))
+		mux.Handle("/api/friends/{id}/report", cors(auth(methodOnly("POST", http.HandlerFunc(s.friends.HandleReport)))))
+		mux.Handle("/api/friends/{id}/streak/restore", cors(auth(methodOnly("POST", http.HandlerFunc(s.friends.HandleRestoreStreak)))))
 	}
 
 	// Carnet de vocabulaire. Toutes les routes requièrent l'auth user.
@@ -207,18 +193,10 @@ func routes(s services) http.Handler {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			}
 		}))))
-		// Route exacte prioritaire sur le subtree `/api/vocab/` (ServeMux).
+		// Route littérale prioritaire sur `/api/vocab/{id}` (ServeMux).
 		mux.Handle("/api/vocab/review", cors(auth(methodOnly("GET", http.HandlerFunc(s.vocab.HandleReviewList)))))
-		mux.Handle("/api/vocab/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch {
-			case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/review"):
-				s.vocab.HandleReviewGrade(w, r)
-			case r.Method == http.MethodDelete && !strings.HasSuffix(r.URL.Path, "/review"):
-				s.vocab.HandleDelete(w, r)
-			default:
-				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			}
-		}))))
+		mux.Handle("/api/vocab/{id}", cors(auth(methodOnly("DELETE", http.HandlerFunc(s.vocab.HandleDelete)))))
+		mux.Handle("/api/vocab/{id}/review", cors(auth(methodOnly("POST", http.HandlerFunc(s.vocab.HandleReviewGrade)))))
 	}
 
 	// Mode Cours. Toutes les routes requièrent l'auth user (progression +
@@ -240,40 +218,15 @@ func routes(s services) http.Handler {
 		mux.Handle("/api/learn/daily", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleDaily)))))
 		mux.Handle("/api/learn/daily/complete", cors(auth(methodOnly("POST", http.HandlerFunc(s.learn.HandleDailyComplete)))))
 		mux.Handle("/api/learn/courses", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleListCourses)))))
-		// Sous-arbre /api/learn/courses/{lang}[/placement] — dispatch par méthode/suffixe.
-		mux.Handle("/api/learn/courses/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch {
-			case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/placement"):
-				s.learn.HandlePlacement(w, r)
-			case r.Method == http.MethodGet && !strings.HasSuffix(r.URL.Path, "/placement"):
-				s.learn.HandleTree(w, r)
-			default:
-				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			}
-		}))))
+		mux.Handle("/api/learn/courses/{lang}", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleTree)))))
+		mux.Handle("/api/learn/courses/{lang}/placement", cors(auth(methodOnly("POST", http.HandlerFunc(s.learn.HandlePlacement)))))
 		mux.Handle("/api/learn/state", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleState)))))
 		mux.Handle("/api/learn/state/daily-goal", cors(auth(methodOnly("PUT", http.HandlerFunc(s.learn.HandleSetGoal)))))
 		mux.Handle("/api/learn/hearts/request", cors(auth(methodOnly("POST", http.HandlerFunc(s.learn.HandleRequestHeart)))))
 		mux.Handle("/api/learn/hearts/requests", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleListHeartRequests)))))
-		// Sous-arbre /api/learn/hearts/requests/{id}/grant.
-		mux.Handle("/api/learn/hearts/requests/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/grant") {
-				s.learn.HandleGrantHeart(w, r)
-				return
-			}
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}))))
-		// Sous-arbre /api/learn/lessons/{id}[/complete] — dispatch par suffixe.
-		mux.Handle("/api/learn/lessons/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch {
-			case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/complete"):
-				s.learn.HandleComplete(w, r)
-			case r.Method == http.MethodGet && !strings.HasSuffix(r.URL.Path, "/complete"):
-				s.learn.HandleLessonPlay(w, r)
-			default:
-				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			}
-		}))))
+		mux.Handle("/api/learn/hearts/requests/{id}/grant", cors(auth(methodOnly("POST", http.HandlerFunc(s.learn.HandleGrantHeart)))))
+		mux.Handle("/api/learn/lessons/{id}", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleLessonPlay)))))
+		mux.Handle("/api/learn/lessons/{id}/complete", cors(auth(methodOnly("POST", http.HandlerFunc(s.learn.HandleComplete)))))
 	}
 
 	// Routes notifications enregistrées dès qu'on a l'auth user. Si VAPID
@@ -418,32 +371,15 @@ func mountAdmin(mux *http.ServeMux, h *admin.Handlers) {
 	mux.Handle("/api/admin/me", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleMe)))))
 	mux.Handle("/api/admin/reports", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleListReports)))))
 
-	// Subtree /api/admin/reports/{id}[/resolve|/reopen|/ban] — dispatch
-	// par méthode + suffix.
-	mux.Handle("/api/admin/reports/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		switch {
-		case r.Method == http.MethodGet && !hasAnySuffix(path, "/resolve", "/reopen", "/ban"):
-			h.HandleGetReport(w, r)
-		case r.Method == http.MethodPost && strings.HasSuffix(path, "/resolve"):
-			h.HandleResolveReport(w, r)
-		case r.Method == http.MethodPost && strings.HasSuffix(path, "/reopen"):
-			h.HandleReopenReport(w, r)
-		case r.Method == http.MethodPost && strings.HasSuffix(path, "/ban"):
-			h.HandleBanFromReport(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	}))))
+	// Patterns à wildcard (Go 1.22+) — méthode hors pattern pour laisser les
+	// preflights OPTIONS atteindre le CORS middleware (cf. routes friends).
+	mux.Handle("/api/admin/reports/{id}", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleGetReport)))))
+	mux.Handle("/api/admin/reports/{id}/resolve", cors(auth(methodOnly("POST", http.HandlerFunc(h.HandleResolveReport)))))
+	mux.Handle("/api/admin/reports/{id}/reopen", cors(auth(methodOnly("POST", http.HandlerFunc(h.HandleReopenReport)))))
+	mux.Handle("/api/admin/reports/{id}/ban", cors(auth(methodOnly("POST", http.HandlerFunc(h.HandleBanFromReport)))))
 
 	mux.Handle("/api/admin/bans", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleListBans)))))
-	mux.Handle("/api/admin/bans/", cors(auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/lift") {
-			h.HandleLiftBan(w, r)
-			return
-		}
-		http.NotFound(w, r)
-	}))))
+	mux.Handle("/api/admin/bans/{id}/lift", cors(auth(methodOnly("POST", http.HandlerFunc(h.HandleLiftBan)))))
 
 	// Dashboards analytics (lecture). Tout sous /api/admin/stats/*.
 	mux.Handle("/api/admin/stats/overview", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleStatsOverview)))))
@@ -457,15 +393,6 @@ func mountAdmin(mux *http.ServeMux, h *admin.Handlers) {
 	mux.Handle("/api/admin/stats/users", cors(auth(methodOnly("GET", http.HandlerFunc(h.HandleUsersList)))))
 	// Sous-arbre /api/admin/stats/users/{id}[/premium|/ban|/data] — GET/POST/DELETE.
 	mux.Handle("/api/admin/stats/users/", cors(auth(http.HandlerFunc(h.HandleUsersSubtree))))
-}
-
-func hasAnySuffix(s string, suffixes ...string) bool {
-	for _, suf := range suffixes {
-		if strings.HasSuffix(s, suf) {
-			return true
-		}
-	}
-	return false
 }
 
 // methodOnly renvoie 405 pour toute méthode autre que celle attendue.
