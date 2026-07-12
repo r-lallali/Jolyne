@@ -136,7 +136,7 @@ func (h *Handlers) HandleSignPhotoUpload(w http.ResponseWriter, r *http.Request)
 	}
 	params := h.Cloudinary.Sign()
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(params)
+	_ = json.NewEncoder(w).Encode(params) //nolint:gosec // G117 : api_key Cloudinary publique, nécessaire à l'upload signé côté client
 }
 
 // HandleSetPhoto : POST /api/account/photos {position, public_id} →
@@ -171,7 +171,7 @@ func (h *Handlers) HandleSetPhoto(w http.ResponseWriter, r *http.Request) {
 
 	if oldPublicID != "" && oldPublicID != body.PublicID {
 		// Supprimer l'ancienne photo de Cloudinary de manière asynchrone
-		go func(pid string) {
+		go func(pid string) { //nolint:gosec // G118 : purge fire-and-forget, survit à la requête (voulu)
 			bgCtx, bgCancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer bgCancel()
 			if err := h.Cloudinary.Destroy(bgCtx, pid); err != nil {
@@ -210,7 +210,7 @@ func (h *Handlers) HandleDeletePhoto(w http.ResponseWriter, r *http.Request) {
 
 	if deletedPublicID != "" {
 		// Supprimer la photo de Cloudinary de manière asynchrone
-		go func(pid string) {
+		go func(pid string) { //nolint:gosec // G118 : purge fire-and-forget, survit à la requête (voulu)
 			bgCtx, bgCancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer bgCancel()
 			if err := h.Cloudinary.Destroy(bgCtx, pid); err != nil {
@@ -298,7 +298,7 @@ func photoToDTO(p Photo) photoDTO {
 // auth) — renvoie le cloud_name pour que le front construise les URLs
 // de display (https://res.cloudinary.com/{cloud_name}/image/upload/...).
 // Pas confidentiel.
-func (h *Handlers) HandleCloudConfig(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandleCloudConfig(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"cloud_name": h.Cloudinary.CloudName,

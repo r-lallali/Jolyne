@@ -200,7 +200,7 @@ func (s *Store) SetPhoto(ctx context.Context, userID int64, position int, public
 	if err != nil {
 		return Photo{}, "", fmt.Errorf("profile: set begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// 1. Récupérer l'ancien public_id s'il existe
 	var oldPublicID string
@@ -280,7 +280,7 @@ func (s *Store) DeletePhoto(ctx context.Context, userID int64, position int) (st
 	if err != nil {
 		return "", fmt.Errorf("profile: delete begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// 1. Récupérer le public_id de la photo à supprimer
 	var publicID string
@@ -362,7 +362,7 @@ func (s *Store) ReorderPhotos(ctx context.Context, userID int64, ordering []int)
 	if err != nil {
 		return nil, fmt.Errorf("profile: reorder begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Défère la contrainte UNIQUE (user_id, position) jusqu'au COMMIT pour
 	// permettre des positions transitoirement dupliquées pendant le swap.
@@ -478,15 +478,15 @@ func (s *Store) MarkProfileVerified(ctx context.Context, userID int64, verified 
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if len(s) <= max {
+func truncate(s string, limit int) string {
+	if len(s) <= limit {
 		return s
 	}
-	return s[:max]
+	return s[:limit]
 }
 
 // sanitizeField : trim, truncate puis escape HTML pour les champs texte
 // libres rendus côté client. Voir Upsert pour la motivation.
-func sanitizeField(s string, max int) string {
-	return html.EscapeString(truncate(strings.TrimSpace(s), max))
+func sanitizeField(s string, limit int) string {
+	return html.EscapeString(truncate(strings.TrimSpace(s), limit))
 }

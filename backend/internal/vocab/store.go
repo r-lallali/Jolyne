@@ -108,10 +108,10 @@ func (s *Store) Delete(ctx context.Context, userID, id int64) error {
 
 // sanitize : trim, tronque (par runes) puis échappe le HTML. Mirroir de
 // profile.sanitizeField — texte libre rendu côté client.
-func sanitize(s string, max int) string {
+func sanitize(s string, limit int) string {
 	s = strings.TrimSpace(s)
-	if r := []rune(s); len(r) > max {
-		s = string(r[:max])
+	if r := []rune(s); len(r) > limit {
+		s = string(r[:limit])
 	}
 	return html.EscapeString(s)
 }

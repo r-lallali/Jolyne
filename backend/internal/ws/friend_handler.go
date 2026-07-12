@@ -222,7 +222,7 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 	// Auto mark-as-read : ouvrir la conv = avoir tout lu. Publie aussi un
 	// receipt pub/sub pour que l'autre côté (s'il est connecté) bascule
 	// son indicateur "Vu" en temps réel. Best-effort des deux côtés.
-	go func() {
+	go func() { //nolint:gosec // G118 : accusé de lecture asynchrone, hors chemin critique
 		readCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if err := h.d.Friends.MarkRead(readCtx, f.ID, uid); err != nil {
@@ -314,7 +314,7 @@ func (h *FriendHandler) runFriend(ctx context.Context, conn *Conn, uid int64, f 
 				// cela signifie qu'on a la conversation ouverte. On le marque automatiquement
 				// comme lu en base et on notifie le peer via pub/sub pour le "Vu" en temps réel.
 				if env.Kind == friendKindMsg && env.SenderID != uid {
-					go func() {
+					go func() { //nolint:gosec // G118 : accusé de lecture asynchrone, hors chemin critique
 						readCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 						defer cancel()
 						if err := h.d.Friends.MarkRead(readCtx, f.ID, uid); err == nil {
@@ -422,7 +422,7 @@ func (h *FriendHandler) handleSend(
 			Kind: friendKindStreak, FromConn: connID,
 			Streak: streak.Current, StreakAtRisk: streak.AtRisk,
 		})
-		go func() {
+		go func() { //nolint:gosec // G118 : écriture asynchrone assumée, hors chemin critique
 			bgCtx, bgCancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer bgCancel()
 			ids := []int64{uid}
@@ -438,7 +438,7 @@ func (h *FriendHandler) handleSend(
 	// brut n'est pas envoyé. Pas de log du body côté push (CLAUDE.md règle
 	// d'or #1).
 	if h.d.Push != nil && peerUID > 0 {
-		go func() {
+		go func() { //nolint:gosec // G118 : notification fire-and-forget, survit à la requête (voulu)
 			bgCtx, bgCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer bgCancel()
 			preview := body
@@ -468,7 +468,7 @@ func (h *FriendHandler) handleSend(
 	// deux users (sender ET peer) via leur inbox channel respectif, et on
 	// envoie un push web spécial avec un titre "🔥 N jours". Détaché.
 	if streak.NewMilestone > 0 {
-		go func() {
+		go func() { //nolint:gosec // G118 : push fire-and-forget, survit à la requête (voulu)
 			bgCtx, bgCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer bgCancel()
 			publishMilestone(bgCtx, h.d.RDB, friendID, uid, streak.NewMilestone)

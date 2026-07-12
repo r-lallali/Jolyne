@@ -64,7 +64,7 @@ type Result struct {
 // Translate renvoie la traduction de `text` de `source` vers `target`.
 // `source` peut être "auto" pour laisser LibreTranslate détecter.
 func (c *Client) Translate(ctx context.Context, text, source, target string) (Result, error) {
-	body, err := json.Marshal(translateRequest{
+	body, err := json.Marshal(translateRequest{ //nolint:gosec // G117 : api_key attendue par le protocole LibreTranslate
 		Q:      text,
 		Source: source,
 		Target: target,

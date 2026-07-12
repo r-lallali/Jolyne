@@ -89,7 +89,7 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	exp := time.Now().Add(SessionTTL)
 	token := Sign(Session{Email: email, ExpiresAt: exp}, h.Cfg.SessionSecret)
 
-	cookie := &http.Cookie{
+	cookie := &http.Cookie{ //nolint:gosec // G124 : HttpOnly+SameSite posés, Secure conditionné dev/prod
 		Name:     SessionCookieName,
 		Value:    token,
 		Path:     "/",
@@ -104,8 +104,8 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleLogout (POST /api/admin/logout) supprime le cookie.
-func (h *Handlers) HandleLogout(w http.ResponseWriter, r *http.Request) {
-	cookie := &http.Cookie{
+func (h *Handlers) HandleLogout(w http.ResponseWriter, _ *http.Request) {
+	cookie := &http.Cookie{ //nolint:gosec // G124 : HttpOnly+SameSite posés, Secure conditionné dev/prod
 		Name:     SessionCookieName,
 		Value:    "",
 		Path:     "/",

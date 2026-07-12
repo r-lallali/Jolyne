@@ -67,7 +67,7 @@ func openRoom(ctx context.Context, rdb *redis.Client, roomID, selfID string) (*R
 }
 
 // Channel renvoie le canal Redis dont les frames sont déjà filtrées du self.
-func (r *Room) Channel() <-chan roomEnvelope {
+func (r *Room) Channel() <-chan roomEnvelope { //nolint:revive // type enveloppe volontairement interne au package
 	out := make(chan roomEnvelope, outboundBuffer)
 	go func() {
 		defer close(out)

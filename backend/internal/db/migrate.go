@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
+	// Effet de bord voulu : enregistre le driver pgx v5 auprès de golang-migrate.
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )

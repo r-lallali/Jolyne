@@ -4,6 +4,7 @@ package bans
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -139,7 +140,7 @@ func (s *Service) CheckActive(ctx context.Context, ipHash, fingerprint string) (
 	var b Ban
 	err := row.Scan(&b.ID, &b.TargetType, &b.TargetValue, &b.Reason,
 		&b.BannedBy, &b.ExpiresAt, &b.CreatedAt, &b.RelatedReportID)
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {

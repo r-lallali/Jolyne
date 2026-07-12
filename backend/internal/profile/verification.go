@@ -79,14 +79,14 @@ func (v *Verifier) VerifyProfile(ctx context.Context, userID int64, livePhotoPub
 		return false, 0, "", fmt.Errorf("verify: marshal payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", compareURL, bytes.NewBuffer(jsonBytes))
+	req, err := http.NewRequestWithContext(ctx, "POST", compareURL, bytes.NewBuffer(jsonBytes)) //nolint:gosec // G704 : URL fixée par la config (FACE_MATCHER_URL), pas une entrée utilisateur
 	if err != nil {
 		return false, 0, "", fmt.Errorf("verify: create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 40 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //nolint:gosec // G704 : idem — cible interne configurée au boot
 	if err != nil {
 		v.log.Warn("verify: face matcher is unreachable or timed out", "err", err)
 		v.deleteLivePhotoAsync(livePhotoPublicID)

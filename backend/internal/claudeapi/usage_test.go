@@ -2,6 +2,7 @@ package claudeapi
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -74,7 +75,7 @@ func TestReply_ReportsErrorOutcome(t *testing.T) {
 func TestReply_DisabledDoesNotObserve(t *testing.T) {
 	var cap usageCapture
 	c := New("", WithUsageFunc(cap.fn()))
-	if _, err := c.Reply(context.Background(), "sys", nil, "salut"); err != ErrDisabled {
+	if _, err := c.Reply(context.Background(), "sys", nil, "salut"); !errors.Is(err, ErrDisabled) {
 		t.Fatalf("attendu ErrDisabled, got %v", err)
 	}
 	if cap.calls != 0 {

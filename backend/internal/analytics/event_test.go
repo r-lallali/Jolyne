@@ -28,7 +28,7 @@ func TestHashID(t *testing.T) {
 	if got := HashID("abc"); len(got) != 16 {
 		t.Fatalf("HashID doit faire 16 chars hex, got %q (%d)", got, len(got))
 	}
-	if HashID("abc") != HashID("abc") {
+	if a, b := HashID("abc"), HashID("abc"); a != b {
 		t.Fatalf("HashID doit être déterministe")
 	}
 }

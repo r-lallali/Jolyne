@@ -127,7 +127,7 @@ func parseCourseJSON(raw string) (Course, error) {
 }
 
 // validateCourse : garde-fous avant persistance (slugs, langues, traductions).
-func validateCourse(c Course, target string, sources []string) error {
+func validateCourse(c Course, _ string, sources []string) error {
 	if len(c.Units) == 0 {
 		return fmt.Errorf("learn: cours sans unité")
 	}

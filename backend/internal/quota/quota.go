@@ -20,7 +20,7 @@ const (
 	KindBeacon    Kind = "beacon"    // événements analytics du beacon public
 )
 
-// Plafonds gratuits quotidiens (Free). Premium = illimité (passer max=0).
+// Plafonds gratuits quotidiens (Free). Premium = illimité (passer limit=0).
 // Untyped pour s'utiliser indifféremment en int ou int64.
 const (
 	FreeNextDaily      = 10   // nouveaux partenaires / jour
@@ -47,12 +47,12 @@ func NewEngine(rdb *redis.Client, loc *time.Location) *Engine {
 }
 
 // CheckAndIncrement incrémente le compteur (kind, id) et renvoie le total du
-// jour. Renvoie ErrQuotaExceeded si la limite Free est dépassée (max>0). Pour
-// Premium, passer max=0 pour désactiver le plafond.
+// jour. Renvoie ErrQuotaExceeded si la limite Free est dépassée (limit>0). Pour
+// Premium, passer limit=0 pour désactiver le plafond.
 //
 // La clé suit `quota:{kind}:{id}` avec un TTL aligné minuit local — le premier
 // INCR de la journée pose le TTL (ExpireNX ne le prolonge jamais ensuite).
-func (e *Engine) CheckAndIncrement(ctx context.Context, kind Kind, id string, max int64) (used int64, err error) {
+func (e *Engine) CheckAndIncrement(ctx context.Context, kind Kind, id string, limit int64) (used int64, err error) {
 	if id == "" {
 		return 0, fmt.Errorf("quota: id vide")
 	}
@@ -64,25 +64,25 @@ func (e *Engine) CheckAndIncrement(ctx context.Context, kind Kind, id string, ma
 		return 0, fmt.Errorf("quota incr: %w", err)
 	}
 	used = incr.Val()
-	if max > 0 && used > max {
+	if limit > 0 && used > limit {
 		return used, ErrQuotaExceeded
 	}
 	return used, nil
 }
 
 // CheckAndIncrementNext : wrapper rétro-compatible pour le quota "next".
-func (e *Engine) CheckAndIncrementNext(ctx context.Context, id string, max int64) (int64, error) {
-	return e.CheckAndIncrement(ctx, KindNext, id, max)
+func (e *Engine) CheckAndIncrementNext(ctx context.Context, id string, limit int64) (int64, error) {
+	return e.CheckAndIncrement(ctx, KindNext, id, limit)
 }
 
 // Allow implémente un rate-limit à fenêtre fixe : incrémente un compteur
 // `rl:{name}:{id}` avec un TTL = `window` (posé au premier hit, jamais
-// prolongé). Renvoie false dès que le compteur dépasse `max` dans la fenêtre.
+// prolongé). Renvoie false dès que le compteur dépasse `limit` dans la fenêtre.
 // Sert au throttling anti-abus des endpoints publics (login/signup/forgot).
 // Fail-open sur erreur Redis : on préfère laisser passer qu'ouvrir un déni de
 // service si Redis flanche (le caller loggue). id vide → toujours autorisé.
-func (e *Engine) Allow(ctx context.Context, name, id string, max int64, window time.Duration) (bool, error) {
-	if id == "" || max <= 0 {
+func (e *Engine) Allow(ctx context.Context, name, id string, limit int64, window time.Duration) (bool, error) {
+	if id == "" || limit <= 0 {
 		return true, nil
 	}
 	key := "rl:" + name + ":" + id
@@ -92,7 +92,7 @@ func (e *Engine) Allow(ctx context.Context, name, id string, max int64, window t
 	if _, err := pipe.Exec(ctx); err != nil {
 		return true, fmt.Errorf("quota allow: %w", err)
 	}
-	return incr.Val() <= max, nil
+	return incr.Val() <= limit, nil
 }
 
 // Refund rend n crédits (kind, id). Best-effort : appelé quand l'action déjà

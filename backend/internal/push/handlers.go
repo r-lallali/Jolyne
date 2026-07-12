@@ -26,7 +26,7 @@ func (h *Handlers) log() *slog.Logger {
 // HandleVAPIDPublicKey : GET /api/notifications/vapid-public-key. Le front
 // en a besoin pour PushManager.subscribe(). La clé est publique par
 // design — pas de secret ici.
-func (h *Handlers) HandleVAPIDPublicKey(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandleVAPIDPublicKey(w http.ResponseWriter, _ *http.Request) {
 	if h.VAPIDPub == "" {
 		http.Error(w, "push disabled", http.StatusServiceUnavailable)
 		return
@@ -62,12 +62,7 @@ func (h *Handlers) HandleSubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	if err := h.Store.Upsert(ctx, user.ID, Subscription{
-		Endpoint:  body.Endpoint,
-		P256dh:    body.P256dh,
-		Auth:      body.Auth,
-		UserAgent: body.UserAgent,
-	}); err != nil {
+	if err := h.Store.Upsert(ctx, user.ID, Subscription(body)); err != nil {
 		h.log().Error("push subscribe", "err", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return

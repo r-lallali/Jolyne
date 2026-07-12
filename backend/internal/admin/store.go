@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -142,7 +143,7 @@ func (s *Store) GetReport(ctx context.Context, id int64) (ReportDetail, error) {
 		&ciphered,
 	)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ReportDetail{}, fmt.Errorf("admin: report %d not found", id)
 		}
 		return ReportDetail{}, fmt.Errorf("admin: get report: %w", err)
@@ -221,7 +222,7 @@ func (s *Store) BanTargets(ctx context.Context, reportID int64) (fingerprint, ip
 		SELECT reported_fingerprint, reported_ip_hash
 		FROM reports WHERE id = $1`, reportID)
 	if err := row.Scan(&fingerprint, &ipHash); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return "", "", fmt.Errorf("admin: report %d introuvable", reportID)
 		}
 		return "", "", fmt.Errorf("admin: scan ban targets: %w", err)

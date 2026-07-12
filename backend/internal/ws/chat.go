@@ -108,7 +108,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 	// Amorces de conversation fraîches — asynchrone, jamais bloquant pour le
 	// match. Pas avec un bot : le prof IA ouvre déjà la conversation lui-même.
 	if !peer.IsBot && h.d.Icebreakers.Enabled() {
-		go h.d.Icebreakers.Serve(conn, sess.Wants)
+		go h.d.Icebreakers.Serve(conn, sess.Wants) //nolint:gosec // G118 : envoi d icebreakers fire-and-forget
 	}
 
 	captured := make([]reports.CapturedMessage, 0, captureWindow)
@@ -366,7 +366,7 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				// on le classe en arrière-plan (avertissement + strikes). Jamais
 				// avec un bot prof IA (pas un vrai peer à surveiller).
 				if h.d.Toxicity.Enabled() && !peer.IsBot {
-					go h.d.Toxicity.Inspect(conn, sess, safe)
+					go h.d.Toxicity.Inspect(conn, sess, safe) //nolint:gosec // G118 : modération hors chemin critique, fire-and-forget voulu
 				}
 				// Analytics : on compte le message (jamais son contenu).
 				peerKind := "human"
@@ -512,9 +512,9 @@ func ghostMatch(ctx context.Context, rdb *redis.Client, roomID, selfID string) {
 	_ = room.Close()
 }
 
-func truncate(s string, max int) string {
-	if len(s) <= max {
+func truncate(s string, limit int) string {
+	if len(s) <= limit {
 		return s
 	}
-	return s[:max]
+	return s[:limit]
 }

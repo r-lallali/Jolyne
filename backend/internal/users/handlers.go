@@ -49,7 +49,7 @@ type Handlers struct {
 // RateLimiter : fenêtre glissante anti-abus. Renvoie false quand la limite est
 // dépassée pour (name, id) dans la fenêtre. Fail-open côté implémentation.
 type RateLimiter interface {
-	Allow(ctx context.Context, name, id string, max int64, window time.Duration) (bool, error)
+	Allow(ctx context.Context, name, id string, limit int64, window time.Duration) (bool, error)
 }
 
 // ProfileWriter : sous-ensemble de profile.Store dont users a besoin.
@@ -78,11 +78,11 @@ func (h *Handlers) clientIP(r *http.Request) string {
 // allow applique un rate-limit à fenêtre fixe et, si dépassé, écrit un 429 et
 // renvoie false (le caller stoppe). RateLimiter nil (dev) → toujours true.
 // Fail-open sur erreur : on préfère servir que bloquer si Redis flanche.
-func (h *Handlers) allow(w http.ResponseWriter, r *http.Request, name, id string, max int64, window time.Duration) bool {
+func (h *Handlers) allow(w http.ResponseWriter, r *http.Request, name, id string, limit int64, window time.Duration) bool {
 	if h.RateLimiter == nil || id == "" {
 		return true
 	}
-	ok, err := h.RateLimiter.Allow(r.Context(), name, id, max, window)
+	ok, err := h.RateLimiter.Allow(r.Context(), name, id, limit, window)
 	if err != nil {
 		h.log().Warn("rate limit check failed, allowing", "name", name, "err", err)
 		return true
@@ -97,11 +97,11 @@ func (h *Handlers) allow(w http.ResponseWriter, r *http.Request, name, id string
 // allowSilent : variante sans réponse HTTP. Renvoie false si la limite est
 // dépassée — le caller décide quoi faire (typiquement forgot : drop l'envoi
 // mais répond quand même 204). Fail-open sur erreur.
-func (h *Handlers) allowSilent(r *http.Request, name, id string, max int64, window time.Duration) bool {
+func (h *Handlers) allowSilent(r *http.Request, name, id string, limit int64, window time.Duration) bool {
 	if h.RateLimiter == nil || id == "" {
 		return true
 	}
-	ok, err := h.RateLimiter.Allow(r.Context(), name, id, max, window)
+	ok, err := h.RateLimiter.Allow(r.Context(), name, id, limit, window)
 	if err != nil {
 		h.log().Warn("rate limit check failed, allowing", "name", name, "err", err)
 		return true
@@ -180,7 +180,7 @@ func (h *Handlers) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	h.openSession(w, user.ID, user.SessionVersion)
 
 	if body.Fingerprint != "" && h.OnUserAuthenticated != nil {
-		go h.OnUserAuthenticated(context.Background(), user.ID, body.Fingerprint)
+		go h.OnUserAuthenticated(context.Background(), user.ID, body.Fingerprint) //nolint:gosec // G118 : hook fire-and-forget, survit à la requête (voulu)
 	}
 
 	h.Tracker.Emit(analytics.Event{
@@ -226,7 +226,7 @@ func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	h.openSession(w, user.ID, user.SessionVersion)
 
 	if body.Fingerprint != "" && h.OnUserAuthenticated != nil {
-		go h.OnUserAuthenticated(context.Background(), user.ID, body.Fingerprint)
+		go h.OnUserAuthenticated(context.Background(), user.ID, body.Fingerprint) //nolint:gosec // G118 : hook fire-and-forget, survit à la requête (voulu)
 	}
 
 	h.Tracker.Emit(analytics.Event{
@@ -350,7 +350,7 @@ func (h *Handlers) HandleReset(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleLogout : POST /api/auth/logout → 204 + cookie expiré.
-func (h *Handlers) HandleLogout(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandleLogout(w http.ResponseWriter, _ *http.Request) {
 	h.setSessionCookie(w, "", -time.Hour)
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -419,7 +419,7 @@ func (h *Handlers) openSession(w http.ResponseWriter, userID, version int64) {
 }
 
 func (h *Handlers) setSessionCookie(w http.ResponseWriter, value string, ttl time.Duration) {
-	c := &http.Cookie{
+	c := &http.Cookie{ //nolint:gosec // G124 : HttpOnly+SameSite posés, Secure conditionné dev/prod
 		Name:     SessionCookieName,
 		Value:    value,
 		Path:     "/",

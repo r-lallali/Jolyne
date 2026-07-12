@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -156,7 +157,6 @@ func (s *Store) Retention(ctx context.Context, unit string, since time.Time) ([]
 
 	// Activité par offset.
 	type cell struct {
-		cohort string
 		offset int
 		users  int64
 	}
@@ -425,7 +425,7 @@ func (s *Store) UserDetail(ctx context.Context, id int64) (UserDetail, error) {
 		&d.SubscriptionStatus, &d.CurrentPeriodEnd, &d.HasStripeCustomer,
 	)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return UserDetail{}, fmt.Errorf("admin: user %d introuvable", id)
 		}
 		return UserDetail{}, fmt.Errorf("admin: user detail: %w", err)
@@ -500,7 +500,7 @@ func (s *Store) ExportUser(ctx context.Context, id int64) (map[string]any, error
 		SELECT email, plan, created_at, last_seen_at, email_verified_at
 		FROM users WHERE id = $1`, id).Scan(&email, &plan, &createdAt, &lastSeen, &verifiedAt)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("admin: user %d introuvable", id)
 		}
 		return nil, fmt.Errorf("admin: export user: %w", err)

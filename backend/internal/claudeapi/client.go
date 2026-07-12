@@ -270,7 +270,7 @@ func (c *Client) reply(ctx context.Context, system string, history []Message, us
 			// des cas (pointe de latence API, connexion idle recyclée). Voir
 			// note sur maxRetriesTransport en tête de fichier.
 			if attempt < maxRetriesTransport {
-				backoff = retryBackoff + time.Duration(rand.Int63n(int64(retryJitter)))
+				backoff = retryBackoff + time.Duration(rand.Int63n(int64(retryJitter))) //nolint:gosec // G404 : jitter de backoff, pas un usage crypto
 				if c.log != nil {
 					c.log.Warn("claudeapi retrying", "err", err, "attempt", attempt+1)
 				}
@@ -304,7 +304,7 @@ func (c *Client) reply(ctx context.Context, system string, history []Message, us
 				}
 				// Jitter anti-troupeau : étale les retries des bots
 				// concurrents pris dans le même pic de rate limit.
-				backoff += time.Duration(rand.Int63n(int64(retryJitter)))
+				backoff += time.Duration(rand.Int63n(int64(retryJitter))) //nolint:gosec // G404 : jitter de backoff, pas un usage crypto
 				if c.log != nil {
 					c.log.Warn("claudeapi retrying", "status", status, "type", env.Error.Type, "attempt", attempt+1)
 				}

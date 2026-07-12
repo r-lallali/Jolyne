@@ -2,7 +2,7 @@ package profile
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // G505 : SHA-1 imposé par la signature upload Cloudinary
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -58,7 +58,7 @@ func (c CloudinaryConfig) Sign() UploadParams {
 		b.WriteString(params[k])
 	}
 	b.WriteString(c.APISecret)
-	sum := sha1.Sum([]byte(b.String()))
+	sum := sha1.Sum([]byte(b.String())) //nolint:gosec // G401 : SHA-1 requis par la signature Cloudinary
 	return UploadParams{
 		Timestamp: ts,
 		APIKey:    c.APIKey,
@@ -83,7 +83,7 @@ func (c CloudinaryConfig) Destroy(ctx context.Context, publicID string) error {
 	// Parameters must be sorted alphabetically for signature:
 	// public_id=xxx&timestamp=123
 	payloadStr := fmt.Sprintf("public_id=%s&timestamp=%d%s", publicID, ts, c.APISecret)
-	sum := sha1.Sum([]byte(payloadStr))
+	sum := sha1.Sum([]byte(payloadStr)) //nolint:gosec // G401 : SHA-1 requis par la signature Cloudinary
 	signature := hex.EncodeToString(sum[:])
 
 	endpoint := fmt.Sprintf("https://api.cloudinary.com/v1_1/%s/image/destroy", c.CloudName)

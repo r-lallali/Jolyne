@@ -384,7 +384,7 @@ func (h *Handlers) HandleRequestHeart(w http.ResponseWriter, r *http.Request) {
 	}
 	// Notifie l'ami (best-effort, hors requête).
 	if h.Push != nil {
-		go h.Push.SendToUser(context.Background(), body.FriendUserID, push.Payload{
+		go h.Push.SendToUser(context.Background(), body.FriendUserID, push.Payload{ //nolint:gosec // G118 : notification fire-and-forget, survit à la requête (voulu)
 			Title: "Jolyne",
 			Body:  "Un ami te demande un cœur ❤️",
 			URL:   "/learn",
@@ -436,7 +436,7 @@ func (h *Handlers) HandleGrantHeart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if granted && h.Push != nil {
-		go h.Push.SendToUser(context.Background(), requesterID, push.Payload{
+		go h.Push.SendToUser(context.Background(), requesterID, push.Payload{ //nolint:gosec // G118 : notification fire-and-forget, survit à la requête (voulu)
 			Title: "Jolyne",
 			Body:  "Un ami t'a offert un cœur ❤️",
 			URL:   "/learn",

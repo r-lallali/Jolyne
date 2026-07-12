@@ -36,13 +36,6 @@ type beaconBody struct {
 	Props    map[string]any `json:"props"`
 }
 
-func (b *Beacon) log() *slog.Logger {
-	if b.Log != nil {
-		return b.Log
-	}
-	return slog.Default()
-}
-
 // Handler renvoie le http.HandlerFunc à monter sur POST /api/events.
 //
 // Répond toujours 204 (même en cas de rejet) : un beacon ne doit jamais

@@ -153,7 +153,7 @@ func (b *AnalysisBatcher) Drain(ctx context.Context) {
 		}
 		sem <- struct{}{}
 		wg.Add(1)
-		go func(j analysisJob) {
+		go func(j analysisJob) { //nolint:gosec // G118 : drain post-shutdown, contexte requête déjà mort
 			defer wg.Done()
 			defer func() { <-sem }()
 			callCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
@@ -214,7 +214,7 @@ func (b *AnalysisBatcher) flush(ctx context.Context) {
 	if b.Log != nil {
 		b.Log.Info("analysis batch submitted", "id", batchID, "jobs", len(jobs))
 	}
-	go b.follow(ctx, batchID, byID)
+	go b.follow(ctx, batchID, byID) //nolint:gosec // G118 : polling du lot asynchrone voulu
 }
 
 // follow polle le lot jusqu'à complétion puis applique les résultats.

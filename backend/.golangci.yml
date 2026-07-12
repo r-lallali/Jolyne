@@ -1,29 +1,42 @@
+# Config golangci-lint v2 (migrée depuis la v1 — action CI @v8, binaire v2.x).
+# errcheck / govet / ineffassign / staticcheck / unused sont dans le set par
+# défaut de la v2, inutile de les lister. Absents volontairement :
+#   - misspell     : les commentaires sont en français par convention.
+#   - contextcheck : signale les goroutines fire-and-forget à contexte frais,
+#                    un pattern assumé ici (analyses, purges async, hooks).
+version: "2"
 run:
-  timeout: 3m
   go: "1.25"
-
 linters:
   enable:
-    - errcheck
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-    - gofmt
-    - goimports
-    - misspell
-    - gosec
-    - revive
     - bodyclose
-    - contextcheck
     - errorlint
+    - gosec
     - noctx
+    - revive
     - rowserrcheck
     - sqlclosecheck
-
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Dans les tests : erreurs ignorées, httptest.NewRequest sans ctx et
+      # params de callbacks inutilisés sont du bruit, pas des bugs.
+      - linters:
+          - errcheck
+          - gosec
+          - noctx
+          - revive
+        path: _test\.go
+# Pas de plafond d'affichage : un finding masqué est un finding oublié.
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+    - goimports

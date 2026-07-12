@@ -674,7 +674,7 @@ func (m *BotManager) callClaude(ctx context.Context, room roomTransport, system 
 	}
 
 	// Jitter humain pour ne pas répondre "trop vite" et casser l'illusion.
-	delay := time.Duration(800+rand.Intn(700)) * time.Millisecond
+	delay := time.Duration(800+rand.Intn(700)) * time.Millisecond //nolint:gosec // G404 : délai de frappe simulé, pas un usage crypto
 	select {
 	case <-ctx.Done():
 		return "", ctx.Err()

@@ -96,10 +96,10 @@ func (s *Store) ConsumeReviewItems(ctx context.Context, userID int64, ids []int6
 
 // sanitizeReviewText : trim, tronque (par runes) puis échappe le HTML.
 // Miroir de vocab.sanitize.
-func sanitizeReviewText(s string, max int) string {
+func sanitizeReviewText(s string, limit int) string {
 	s = strings.TrimSpace(s)
-	if r := []rune(s); len(r) > max {
-		s = string(r[:max])
+	if r := []rune(s); len(r) > limit {
+		s = string(r[:limit])
 	}
 	return html.EscapeString(s)
 }
