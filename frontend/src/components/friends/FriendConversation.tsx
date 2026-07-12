@@ -71,6 +71,28 @@ function parseSystemPayload(raw?: string): { days?: number } {
   return {};
 }
 
+// Fenêtre de restauration d'un streak perdu (miroir de RestoreWindow côté
+// backend, qui reste la source de vérité). Au-delà, aucun des deux amis ne
+// peut restaurer — on cache le bouton. Le serveur masque déjà lost_streak
+// hors fenêtre ; ce garde-fou couvre une conversation restée ouverte
+// pendant que la fenêtre expire.
+const RESTORE_WINDOW_DAYS = 3;
+
+// canRestoreLostStreak : true si lost_at (date "YYYY-MM-DD" UTC) est à
+// RESTORE_WINDOW_DAYS jours ou moins du jour UTC courant.
+function canRestoreLostStreak(lostAt?: string): boolean {
+  if (!lostAt) return true; // pas d'info → le serveur tranchera
+  const lost = Date.parse(`${lostAt}T00:00:00Z`);
+  if (Number.isNaN(lost)) return true;
+  const now = new Date();
+  const todayUTC = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+  );
+  return (todayUTC - lost) / 86_400_000 <= RESTORE_WINDOW_DAYS;
+}
+
 // FriendConversation : UI complète d'un chat persisté entre amis.
 // Réutilisable : embarquée inline dans FriendsMode (toggle home) ou dans
 // la page dédiée /chats/[id]. Le callback `onBack` permet à l'embeddeur
@@ -576,7 +598,8 @@ export function FriendConversation({
           />
           {profile &&
             (profile.lost_streak ?? 0) >= 2 &&
-            (profile.streak ?? 0) === 0 && (
+            (profile.streak ?? 0) === 0 &&
+            canRestoreLostStreak(profile.lost_at) && (
               <StreakLostBanner
                 restoresRemaining={profile.restores_remaining_this_month}
                 onRestore={() => setRestoreOpen(true)}

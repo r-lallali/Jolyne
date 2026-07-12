@@ -53,11 +53,12 @@ type Friend struct {
 	// dernier jour validé bilatéral remonte à > 1j). AtRisk = on a un
 	// jour pour ne pas le perdre, mais au moins un des deux n'a pas
 	// encore écrit aujourd'hui. LostStreak / LostAt : valeur du streak
-	// récemment perdu, disponible pour restauration (≤ 7 jours).
-	Streak     int
+	// récemment perdu, disponible pour restauration (≤ RestoreWindow
+	// jours) ; 0 / nil une fois la fenêtre expirée.
+	Streak       int
 	StreakAtRisk bool
-	LostStreak int
-	LostAt     *time.Time
+	LostStreak   int
+	LostAt       *time.Time
 }
 
 // EditWindow : durée pendant laquelle l'auteur d'un message peut le
@@ -170,8 +171,9 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 	// "Ce message a été supprimé").
 	// Le streak "vivant" : current_streak si last_streak_day >= today-1 (UTC),
 	// sinon 0. AtRisk : last_streak_day = today-1 ET au moins un côté n'a
-	// pas écrit aujourd'hui. lost_streak / lost_at : exposés tels quels
-	// pour permettre la restauration côté front.
+	// pas écrit aujourd'hui. lost_streak / lost_at : exposés seulement
+	// pendant la fenêtre de restauration ($2 = RestoreWindow jours) — le
+	// front masque le bouton dès qu'ils retombent à 0 / NULL.
 	const q = `
 		WITH today AS (SELECT (now() AT TIME ZONE 'UTC')::date AS d)
 		SELECT f.id, f.user_a_id, f.user_b_id, f.created_at, f.last_message_at,
@@ -201,8 +203,13 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		              OR fs.last_b_msg_day IS DISTINCT FROM (SELECT d FROM today)),
 		         false
 		       ) AS streak_at_risk,
-		       COALESCE(fs.lost_streak, 0) AS lost_streak,
-		       fs.lost_at
+		       CASE
+		         WHEN fs.lost_at >= (SELECT d FROM today) - $2::int THEN COALESCE(fs.lost_streak, 0)
+		         ELSE 0
+		       END AS lost_streak,
+		       CASE
+		         WHEN fs.lost_at >= (SELECT d FROM today) - $2::int THEN fs.lost_at
+		       END AS lost_at
 		FROM friends f
 		LEFT JOIN LATERAL (
 		    SELECT CASE WHEN deleted_at IS NULL THEN body ELSE '' END AS body,
@@ -217,7 +224,7 @@ func (s *Store) ListFor(ctx context.Context, userID int64) ([]Friend, error) {
 		WHERE (f.user_a_id = $1 OR f.user_b_id = $1)
 		  AND (CASE WHEN f.user_a_id = $1 THEN f.removed_by_a_at ELSE f.removed_by_b_at END) IS NULL
 		ORDER BY f.last_message_at DESC`
-	rows, err := s.pool.Query(ctx, q, userID)
+	rows, err := s.pool.Query(ctx, q, userID, RestoreWindow)
 	if err != nil {
 		return nil, fmt.Errorf("friends: list for: %w", err)
 	}

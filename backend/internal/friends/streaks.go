@@ -12,12 +12,12 @@ import (
 // Streak : état dérivé renvoyé après update / lecture. Tous les champs
 // calculés en tenant compte du jour UTC courant.
 type Streak struct {
-	Current      int        // 0 si expiré ou < seuil d'affichage
-	AtRisk       bool       // last_streak_day = yesterday ET pas les deux aujourd'hui
-	LastMilestone int       // déjà notifié
-	LostStreak   int        // 0 si rien à restaurer
-	LostAt       *time.Time // nil si pas perdu
-	NewMilestone int        // > 0 si on vient de franchir un palier dans cette tx
+	Current       int        // 0 si expiré ou < seuil d'affichage
+	AtRisk        bool       // last_streak_day = yesterday ET pas les deux aujourd'hui
+	LastMilestone int        // déjà notifié
+	LostStreak    int        // 0 si rien à restaurer
+	LostAt        *time.Time // nil si pas perdu
+	NewMilestone  int        // > 0 si on vient de franchir un palier dans cette tx
 }
 
 // Liste des paliers déclencheurs de notif. Ordonnée croissant — on prend
@@ -72,13 +72,13 @@ func UpdateStreakOnMessage(ctx context.Context, tx pgx.Tx, friendID, senderID in
 	//    - both wrote today ET (last_streak_day < today-1 ou NULL) → 1
 	//    - sinon → no-op (état attentiste, on n'écrase pas current_streak)
 	var (
-		currentStreak  int
-		lastStreakDay  *time.Time
-		lastA          *time.Time
-		lastB          *time.Time
-		lastMilestone  int
-		lostStreak     *int
-		lostAt         *time.Time
+		currentStreak int
+		lastStreakDay *time.Time
+		lastA         *time.Time
+		lastB         *time.Time
+		lastMilestone int
+		lostStreak    *int
+		lostAt        *time.Time
 	)
 	if err := tx.QueryRow(ctx,
 		`SELECT current_streak, last_streak_day, last_a_msg_day, last_b_msg_day,
@@ -171,8 +171,10 @@ func UpdateStreakOnMessage(ctx context.Context, tx pgx.Tx, friendID, senderID in
 }
 
 // RestoreWindow : nombre de jours pendant lesquels un streak perdu peut
-// être restauré après sa perte. Compteurs mensuels mis à part.
-const RestoreWindow = 7
+// être restauré après sa perte. Au-delà, aucun des deux amis ne peut
+// restaurer — les lectures (ListFor / ReadStreak) masquent alors le
+// streak perdu pour que le front n'affiche plus le bouton.
+const RestoreWindow = 3
 
 // RestoreMonthlyQuota : jetons par user et par mois calendaire UTC.
 // Chaque user peut restaurer jusqu'à 3 fois par mois — la restauration est
@@ -203,10 +205,11 @@ func monthKeyUTC(now time.Time) string { return now.UTC().Format("2006-01") }
 // "streak restauré" est posée par le handler HTTP après coup.
 //
 // Codes ErrCode possibles :
-//   "no_loss"          : rien à restaurer (streak vivant ou jamais perdu)
-//   "window_expired"   : lost_at > 7 jours
-//   "quota_exhausted"  : caller a utilisé ses 3 restaurations ce mois
-//   "not_member"       : caller pas membre de l'amitié
+//
+//	"no_loss"          : rien à restaurer (streak vivant ou jamais perdu)
+//	"window_expired"   : lost_at > RestoreWindow jours
+//	"quota_exhausted"  : caller a utilisé ses 3 restaurations ce mois
+//	"not_member"       : caller pas membre de l'amitié
 func RestoreStreak(ctx context.Context, tx pgx.Tx, friendID, userID int64, now time.Time) (RestoreResult, error) {
 	today := now.UTC()
 	todayDate := today.Format("2006-01-02")
@@ -330,7 +333,9 @@ type streakQueryRow interface {
 
 // ReadStreak : lecture lazy d'un streak (même règles d'expiration et de
 // at-risk que dans ListFor). Utilisé par l'endpoint profile pour
-// décorer le header de conversation.
+// décorer le header de conversation. lost_streak / lost_at sont masqués
+// (0 / NULL) une fois la fenêtre de restauration expirée — le front ne
+// propose alors plus le bouton de restauration.
 func ReadStreak(ctx context.Context, q streakQueryRow, friendID int64) (current int, atRisk bool, lostStreak int, lostAt *time.Time, err error) {
 	const sql = `
 		WITH today AS (SELECT (now() AT TIME ZONE 'UTC')::date AS d)
@@ -347,11 +352,16 @@ func ReadStreak(ctx context.Context, q streakQueryRow, friendID int64) (current 
 		         OR fs.last_b_msg_day IS DISTINCT FROM (SELECT d FROM today)),
 		    false
 		  ) AS at_risk,
-		  COALESCE(fs.lost_streak, 0),
-		  fs.lost_at
+		  CASE
+		    WHEN fs.lost_at >= (SELECT d FROM today) - $2::int THEN COALESCE(fs.lost_streak, 0)
+		    ELSE 0
+		  END AS lost_streak,
+		  CASE
+		    WHEN fs.lost_at >= (SELECT d FROM today) - $2::int THEN fs.lost_at
+		  END AS lost_at
 		FROM friend_streaks fs
 		WHERE fs.friend_id = $1`
-	err = q.QueryRow(ctx, sql, friendID).Scan(&current, &atRisk, &lostStreak, &lostAt)
+	err = q.QueryRow(ctx, sql, friendID, RestoreWindow).Scan(&current, &atRisk, &lostStreak, &lostAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, 0, nil, nil
 	}

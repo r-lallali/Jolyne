@@ -65,7 +65,8 @@ export function StreakRestoreModal({
       if (result.err_code === "window_expired") {
         setState({
           kind: "error",
-          message: "Trop tard — le streak n'est plus restaurable.",
+          message:
+            "Trop tard — un streak ne peut être restauré que dans les 3 jours suivant sa perte.",
         });
         return;
       }
