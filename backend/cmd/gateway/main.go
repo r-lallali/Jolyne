@@ -92,7 +92,7 @@ func run() error {
 	}
 	defer rdb.Close()
 
-	svc := services{rdb: rdb, publicCORS: cfg.PublicCORSOrigin}
+	svc := services{rdb: rdb, publicCORS: cfg.PublicCORSOrigin, hsts: cfg.IsProd()}
 
 	// Vars partagées entre blocs conditionnels et le câblage final (analytics,
 	// métriques, données live du back-office).

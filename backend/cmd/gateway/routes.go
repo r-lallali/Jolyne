@@ -50,6 +50,7 @@ type services struct {
 	beacon          *analytics.Beacon // nil si Postgres absent — events analytics front
 	metrics         *metrics.Metrics  // nil si désactivé — endpoint Prometheus /metrics
 	metricsAllow    []*net.IPNet      // IP allowlist protégeant /metrics (= allowlist admin)
+	hsts            bool              // true en prod — HSTS exige d'être servi en HTTPS
 }
 
 func routes(s services) http.Handler {
@@ -310,10 +311,34 @@ func routes(s services) http.Handler {
 
 	// Le middleware Prometheus enveloppe tout le mux (volume + latence par
 	// route). Transparent vis-à-vis du WS grâce au statusWriter hijackable.
+	var h http.Handler = mux
 	if s.metrics != nil {
-		return s.metrics.Middleware(mux)
+		h = s.metrics.Middleware(mux)
 	}
-	return mux
+	// Headers de sécurité en couche externe : depuis le passage à Dokploy
+	// (Traefik configuré via l'UI, hors repo), le gateway est la seule source
+	// versionnée pour le domaine API — next.config.ts couvre le front.
+	return secHeaders(s.hsts)(h)
+}
+
+// secHeaders pose les en-têtes de sécurité sur toutes les réponses HTTP du
+// domaine API. La CSP 'none' neutralise tout rendu direct d'une réponse dans
+// un navigateur (les fetch/XHR ne sont pas concernés). Sans effet sur le
+// handshake WS : gorilla écrit lui-même sa réponse 101 après hijack.
+func secHeaders(hsts bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := w.Header()
+			h.Set("X-Content-Type-Options", "nosniff")
+			h.Set("X-Frame-Options", "DENY")
+			h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			h.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+			if hsts {
+				h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // metricsGuard restreint /metrics à l'IP allowlist admin. Hors allowlist →
