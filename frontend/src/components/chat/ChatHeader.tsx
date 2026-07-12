@@ -228,6 +228,8 @@ function NextButton({
       type="button"
       onClick={click}
       disabled={!canNext}
+      aria-label={armed ? confirmLabel : nextLabel}
+      title={nextLabel}
       className={cn(
         "group relative inline-flex h-9 items-center gap-1.5 overflow-hidden rounded-full px-3 text-xs font-medium leading-none transition-colors sm:px-3.5",
         armed
@@ -256,7 +258,9 @@ function NextButton({
             />
           );
         })()}
-      <span className="relative tracking-tight">
+      {/* Sur mobile le bouton est icône seule ; le texte ne s'affiche que
+          pour "Confirmer ?" (feedback indispensable du tap-to-confirm). */}
+      <span className={cn("relative tracking-tight", !armed && "hidden sm:inline")}>
         {armed ? confirmLabel : nextLabel}
       </span>
       <svg
