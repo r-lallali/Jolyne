@@ -12,7 +12,7 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont appariés par
 | IA | Anthropic Messages API — `claude-haiku-4-5` : tuteur, traduction/grammaire de repli, modération nuancée, icebreakers, analyse post-conversation (Batch API) |
 | Services | LibreTranslate, LanguageTool, toxicity-scorer (Detoxify / XLM-RoBERTa), face-matcher (Flask + `face_recognition`), Cloudinary |
 | Paiement | Stripe (checkout, portal, webhooks) |
-| Infra | Docker Compose sur VPS via Dokploy (Traefik, TLS auto), GitHub Actions, tests de charge k6 |
+| Infra | Docker Compose sur VPS via Dokploy (Traefik, TLS auto), GitHub Actions, Sentry (erreurs), tests de charge k6 |
 
 ## Fonctionnalités
 
@@ -41,6 +41,7 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont appariés par
 - **Modération des pseudos**, **signalements**, **bans**, **blocage** utilisateur ↔ utilisateur, age gate.
 - **Back-office admin** — login dédié + IP allowlist. Gestion des signalements et bans, dashboards analytics (overview, funnel, rétention, séries temporelles, engagement, revenu, serveur, audit), gestion des utilisateurs (premium, ban, export/suppression RGPD).
 - **Analytics** — beacon d'événements front (page_view, signup, recherche de match…) et endpoint Prometheus `/metrics` (protégé par l'allowlist admin).
+- **Erreurs** — Sentry côté front (client + serveur Next, breadcrumbs scrubbés) et côté gateway (logs `Error` forwardés) : seule la taxonomie des logs sort, jamais de contenu de message ni de PII.
 - **Durcissement** — TLS auto (Traefik/Dokploy), headers de sécurité versionnés dans le code (CSP stricte + HSTS : `next.config.ts` côté front, middleware Go côté API), CORS contrôlé, fingerprint device, scrubbing PII.
 
 **i18n** — interface disponible en 10 langues (fr, en, es, de, it, pt, ar, ja, ko, zh).
