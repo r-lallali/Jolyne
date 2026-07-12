@@ -9,45 +9,27 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
-
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 
 	"github.com/ralys/jolyne/backend/internal/admin"
 	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/bans"
-	"github.com/ralys/jolyne/backend/internal/billing"
 	"github.com/ralys/jolyne/backend/internal/blocking"
-	"github.com/ralys/jolyne/backend/internal/claudeapi"
 	"github.com/ralys/jolyne/backend/internal/config"
 	"github.com/ralys/jolyne/backend/internal/crypto"
 	"github.com/ralys/jolyne/backend/internal/db"
 	"github.com/ralys/jolyne/backend/internal/friends"
-	"github.com/ralys/jolyne/backend/internal/grammar"
-	"github.com/ralys/jolyne/backend/internal/learn"
-	"github.com/ralys/jolyne/backend/internal/mailer"
 	"github.com/ralys/jolyne/backend/internal/matcher"
 	"github.com/ralys/jolyne/backend/internal/metrics"
 	"github.com/ralys/jolyne/backend/internal/moderation"
-	"github.com/ralys/jolyne/backend/internal/netx"
 	"github.com/ralys/jolyne/backend/internal/obs"
-	"github.com/ralys/jolyne/backend/internal/profile"
-	"github.com/ralys/jolyne/backend/internal/push"
 	"github.com/ralys/jolyne/backend/internal/quota"
 	"github.com/ralys/jolyne/backend/internal/redisx"
 	"github.com/ralys/jolyne/backend/internal/reports"
-	"github.com/ralys/jolyne/backend/internal/session"
-	"github.com/ralys/jolyne/backend/internal/translate"
 	"github.com/ralys/jolyne/backend/internal/users"
-	"github.com/ralys/jolyne/backend/internal/vocab"
 	"github.com/ralys/jolyne/backend/internal/ws"
 )
 
@@ -110,69 +92,9 @@ func run() error {
 	met := metrics.New()
 	aiUsage := met.RegisterAIUsage()
 
-	if cfg.LibreTranslateURL != "" {
-		svc.translate = &translate.Handler{
-			Client: translate.NewClient(cfg.LibreTranslateURL, cfg.LibreTranslateAPIKey),
-			// Cache partagé des traductions (clé hashée, valeur sans identité
-			// user) : un hit ne consomme ni upstream ni quota.
-			RDB: rdb,
-		}
-		// Traducteur IA pour les phrases (repli LibreTranslate sur erreur).
-		// Client dédié : plafond de tokens relevé vs le prof IA (traduction
-		// + romanisation d'un texte de 500 runes > 256 tokens).
-		if cfg.AnthropicAPIKey != "" {
-			aiClient := claudeapi.New(cfg.AnthropicAPIKey,
-				claudeapi.WithModel(cfg.AnthropicModel),
-				claudeapi.WithLogger(log),
-				claudeapi.WithMaxTokens(1024),
-				claudeapi.WithFeature("translate"),
-				claudeapi.WithUsageFunc(aiUsage),
-			)
-			svc.translate.AI = &translate.AITranslator{
-				Reply: func(ctx context.Context, system, userMsg string) (string, error) {
-					return aiClient.Reply(ctx, system, nil, userMsg)
-				},
-			}
-		}
-		log.Info("translate endpoint ready",
-			"url", cfg.LibreTranslateURL,
-			"ai_phrases", cfg.AnthropicAPIKey != "",
-		)
-	} else {
-		log.Info("translate désactivé — LIBRETRANSLATE_URL non renseigné")
-	}
-
-	if cfg.LanguageToolURL != "" {
-		svc.grammar = &grammar.Handler{
-			Client: grammar.NewClient(cfg.LanguageToolURL),
-			// Cache partagé des vérifications (clé hashée, valeur sans
-			// identité user) : un hit ne touche pas LanguageTool.
-			RDB: rdb,
-		}
-		// Correcteur IA pour les langues hors LanguageTool (coréen). Client
-		// dédié : la liste JSON de corrections dépasse les 256 tokens du
-		// prof IA.
-		if cfg.AnthropicAPIKey != "" {
-			aiClient := claudeapi.New(cfg.AnthropicAPIKey,
-				claudeapi.WithModel(cfg.AnthropicModel),
-				claudeapi.WithLogger(log),
-				claudeapi.WithMaxTokens(1024),
-				claudeapi.WithFeature("grammar"),
-				claudeapi.WithUsageFunc(aiUsage),
-			)
-			svc.grammar.AI = &grammar.AIChecker{
-				Reply: func(ctx context.Context, system, userMsg string) (string, error) {
-					return aiClient.Reply(ctx, system, nil, userMsg)
-				},
-			}
-		}
-		log.Info("grammar endpoint ready",
-			"url", cfg.LanguageToolURL,
-			"ai_langs", cfg.AnthropicAPIKey != "",
-		)
-	} else {
-		log.Info("grammar désactivé — LANGUAGETOOL_URL non renseigné")
-	}
+	// Handlers traduction/grammaire (LibreTranslate/LanguageTool + repli IA).
+	svc.translate = wireTranslate(cfg, log, rdb, aiUsage)
+	svc.grammar = wireGrammar(cfg, log, rdb, aiUsage)
 
 	// Postgres : optionnel pour l'instant. Si POSTGRES_DSN n'est pas set,
 	// le gateway boot sans — les features Phase 2 dépendantes (signalements,
@@ -290,440 +212,29 @@ func run() error {
 	}
 	svc.wsHandler = ws.NewHandler(wsDeps)
 
-	// Back-office admin. Désactivé si POSTGRES_DSN/ADMIN_USERS/ADMIN_SESSION_SECRET
-	// ne sont pas tous renseignés.
-	if svc.pg != nil && cfg.AdminUsersRaw != "" && cfg.AdminSessionKey != "" {
-		adminUsers, err := admin.ParseUsers(cfg.AdminUsersRaw)
-		if err != nil {
-			return fmt.Errorf("admin users: %w", err)
-		}
-		// Set des emails admin (déjà en minuscules) — sert à empêcher qu'une
-		// même adresse soit à la fois admin et compte user.
-		adminEmails = make(map[string]struct{}, len(adminUsers))
-		for _, e := range admin.LoadedEmails(adminUsers) {
-			adminEmails[e] = struct{}{}
-		}
-		adminAllowlist, err = admin.ParseIPAllowlist(cfg.AdminIPAllowlist)
-		if err != nil {
-			return fmt.Errorf("admin allowlist: %w", err)
-		}
-		secret, err := base64.StdEncoding.DecodeString(cfg.AdminSessionKey)
-		if err != nil || len(secret) < 32 {
-			return fmt.Errorf("admin session secret: must be base64 ≥32 bytes")
-		}
-		// Reports.box est nil-safe — l'admin ne déchiffre que si la clé est
-		// présente. On réutilise la même box que reports.
-		var box *crypto.Box
-		if cfg.ReportEncryptionKey != "" {
-			box, _ = crypto.NewBox(cfg.ReportEncryptionKey)
-		}
-		svc.admin = &admin.Handlers{
-			Cfg: admin.Config{
-				Users:               adminUsers,
-				IPAllowlist:         adminAllowlist,
-				SessionSecret:       secret,
-				CookieDomain:        cfg.AdminCookieDomain,
-				CookieSecure:        cfg.IsProd(),
-				CORSOrigin:          cfg.AdminCORSOrigin,
-				PremiumMonthlyCents: parseEnvCents("PREMIUM_MONTHLY_CENTS"),
-			},
-			Store:     admin.NewStore(svc.pg, box),
-			Bans:      banSvc,
-			Log:       log,
-			StartedAt: startedAt,
-		}
-		// Pas d'email en clair dans les logs (règle d'or #6). On garde
-		// uniquement les empreintes (8 octets hex) pour pouvoir corréler
-		// un user admin précis en cas de besoin sans révéler l'adresse.
-		log.Info("admin back-office ready",
-			"users", len(adminUsers),
-			"email_hashes", hashEmails(admin.LoadedEmails(adminUsers)),
-			"ip_allowlist", len(adminAllowlist),
-			"cookie_domain", cfg.AdminCookieDomain)
-	} else {
-		log.Info("admin back-office disabled — Postgres / ADMIN_USERS / ADMIN_SESSION_SECRET manquants")
+	// Back-office admin — désactivé (nil) sans Postgres/ADMIN_USERS/secret.
+	svc.admin, adminAllowlist, adminEmails, err = wireAdmin(cfg, svc.pg, banSvc, log, startedAt)
+	if err != nil {
+		return err
 	}
 
-	// Auth utilisateur (email + mot de passe). Désactivée si Postgres absent
-	// OU USER_SESSION_SECRET vide (secret décodé plus haut). Mailjet est
-	// OPTIONNEL en dev : si non configuré, le lien est juste loggé.
+	// Auth utilisateur et tout ce qui en dépend (profil, amis, billing,
+	// carnet, mode Cours, push, bot prof IA, analyse post-chat). Désactivée
+	// si Postgres absent OU USER_SESSION_SECRET vide (secret décodé plus
+	// haut). Voir wire_users.go.
 	if userSessionSecret != nil {
-		ml := mailer.New(mailer.Config{
-			Host:     cfg.MailjetSMTPHost,
-			Port:     cfg.MailjetSMTPPort,
-			Username: cfg.MailjetAPIKey,
-			Password: cfg.MailjetSecret,
-			From:     cfg.MailjetFrom,
-		})
-		// Profile store créé avant users.Handlers pour pouvoir l'injecter
-		// (signup → store display_name immédiatement).
-		cld := profile.CloudinaryConfig{
-			CloudName: cfg.CloudinaryCloudName,
-			APIKey:    cfg.CloudinaryAPIKey,
-			APISecret: cfg.CloudinaryAPISecret,
-			Folder:    cfg.CloudinaryFolder,
-		}
-		profileStore := profile.NewStore(svc.pg)
-		usersStore := users.NewStore(svc.pg)
-
-		// Révocation de session côté WS : le cookie porte une version signée,
-		// confrontée à la version courante en base (bumpée au reset de mot de
-		// passe). Fail-open sur erreur DB (la signature reste vérifiée) pour ne
-		// pas déconnecter tout le monde sur un hoquet Postgres.
-		if wsDeps.UserAuth != nil {
-			wsDeps.UserAuth.ValidateVersion = func(ctx context.Context, userID, version int64) bool {
-				cur, err := usersStore.SessionVersion(ctx, userID)
-				if err != nil {
-					return true
-				}
-				return version == cur
-			}
-		}
-		svc.users = &users.Handlers{
-			Store:         usersStore,
-			Profile:       profileStore,
-			Mailer:        ml,
-			SessionSecret: userSessionSecret,
-			CookieDomain:  cfg.UserCookieDomain,
-			CookieSecure:  cfg.IsProd(),
-			PublicURL:     cfg.PublicAppURL,
-			Log:           log,
-			Tracker:       tracker,
-			IsAdminEmail: func(email string) bool {
-				if adminEmails == nil {
-					return false
-				}
-				_, ok := adminEmails[strings.ToLower(strings.TrimSpace(email))]
-				return ok
-			},
-			// Rate-limit anti-abus (brute-force login, spam signup, email-bombing
-			// forgot) partageant le moteur quota Redis, clé par IP réelle.
-			RateLimiter: wsDeps.Quota,
-			ClientIP:    func(r *http.Request) string { return netx.ClientIP(r, cfg.TrustedProxies) },
-			OnUserAuthenticated: func(ctx context.Context, userID int64, fingerprint string) {
-				friends.ResolvePendingFriendships(ctx, rdb, wsDeps.Friends, userID, fingerprint, log)
-			},
-		}
-		log.Info("user auth ready",
-			"mailer", ml != nil,
-			"cookie_domain", cfg.UserCookieDomain,
-			"public_url", cfg.PublicAppURL)
-
-		// Résolveur de plan : Premium si abonnement Stripe actif. Partagé par
-		// le WS (swipe quota) et le handler translate.
-		isPremium := func(ctx context.Context, userID int64) bool {
-			ok, err := usersStore.IsPremium(ctx, userID)
-			if err != nil {
-				log.Warn("is premium check", "err", err)
-				return false
-			}
-			return ok
-		}
-		wsDeps.ResolvePlan = func(ctx context.Context, userID int64) session.Plan {
-			if isPremium(ctx, userID) {
-				return session.PlanPremium
-			}
-			return session.PlanFree
-		}
-		// Niveau CECRL estimé : préférence de matching + badge peer_profile +
-		// calibrage du prof IA. 0 (inconnu) sur erreur — fail-soft.
-		wsDeps.ResolveCEFR = func(ctx context.Context, userID int64) float64 {
-			score, err := usersStore.CEFRScore(ctx, userID)
-			if err != nil {
-				log.Warn("cefr score resolve", "err", err)
-				return 0
-			}
-			return score
-		}
-		// Résout le user via le cookie de session, pour appliquer le quota par
-		// compte (ou le bypass Premium). Partagé par les handlers translate et
-		// quota (état des compteurs).
-		resolveUserID = func(r *http.Request) int64 {
-			c, err := r.Cookie(users.SessionCookieName)
-			if err != nil {
-				return 0
-			}
-			s, err := users.VerifySession(c.Value, userSessionSecret)
-			if err != nil {
-				return 0
-			}
-			return s.UserID
-		}
-		if svc.translate != nil {
-			svc.translate.IsPremium = isPremium
-			svc.translate.ResolveUserID = resolveUserID
-		}
-		if svc.quota != nil {
-			svc.quota.IsPremium = isPremium
-			svc.quota.ResolveUserID = resolveUserID
-		}
-
-		// Billing Premium (Stripe). Actif seulement si la clé secrète + le
-		// price sont configurés. Success/Cancel/Return dérivés de PublicAppURL.
-		if cfg.StripeSecretKey != "" && cfg.StripePriceID != "" {
-			successURL := cfg.StripeSuccessURL
-			if successURL == "" {
-				successURL = cfg.PublicAppURL + "/premium/success"
-			}
-			cancelURL := cfg.StripeCancelURL
-			if cancelURL == "" {
-				cancelURL = cfg.PublicAppURL + "/premium/cancel"
-			}
-			svc.billing = &billing.Handlers{
-				Stripe: billing.New(billing.Config{
-					SecretKey:     cfg.StripeSecretKey,
-					WebhookSecret: cfg.StripeWebhookSecret,
-					PriceID:       cfg.StripePriceID,
-					SuccessURL:    successURL,
-					CancelURL:     cancelURL,
-				}),
-				Users:                 usersStore,
-				Events:                billing.NewEventStore(svc.pg),
-				ReturnURL:             cfg.PublicAppURL + "/account",
-				Log:                   log,
-				Tracker:               tracker,
-				ResolveUserByCustomer: usersStore.UserIDByCustomerID,
-			}
-			log.Info("billing endpoints ready", "price", cfg.StripePriceID)
-		} else {
-			log.Info("billing désactivé — STRIPE_SECRET_KEY / STRIPE_PRICE_ID manquant")
-		}
-
-		profileVerifier := profile.NewVerifier(profileStore, cld, log)
-		svc.profile = &profile.Handlers{
-			Store:      profileStore,
-			Cloudinary: cld,
-			Verifier:   profileVerifier,
-			Log:        log,
-		}
-		// On branche le store profil au handler WS pour pouvoir pousser
-		// peer_profile au match quand le peer est authentifié.
-		wsDeps.Profiles = profileStore
-
-		// Stores carnet + learn créés tôt : partagés par leurs endpoints
-		// respectifs ET l'analyse IA de fin de conversation (câblée dans le
-		// bloc bot ci-dessous : vocabulaire → carnet, fautes → items de
-		// révision de la leçon du jour).
-		vocabStore := vocab.NewStore(svc.pg)
-		learnStore := learn.NewStore(svc.pg)
-
-		// Bot prof IA : si ANTHROPIC_API_KEY est posée, on instancie un
-		// BotManager qui spawnera des bots après TriggerDelaySec si aucun
-		// peer humain ne se connecte. Sinon comportement chat = avant.
-		if cfg.AnthropicAPIKey != "" {
-			// Client partagé (même pool de connexions) mais ventilé par poste
-			// de dépense via ForFeature — les métriques distinguent bot,
-			// modération, icebreakers et analyse.
-			claudeClient := claudeapi.New(cfg.AnthropicAPIKey,
-				claudeapi.WithModel(cfg.AnthropicModel),
-				claudeapi.WithLogger(log),
-				claudeapi.WithUsageFunc(aiUsage),
-			)
-			wsDeps.Bot = ws.NewBotManager(ws.BotManagerConfig{
-				Matcher:       wsDeps.Matcher,
-				Hub:           wsDeps.Hub,
-				Claude:        claudeClient.ForFeature("bot"),
-				Quota:         wsDeps.Quota,
-				Log:           log,
-				TriggerDelay:  time.Duration(cfg.BotTriggerDelaySec) * time.Second,
-				MaxConcurrent: cfg.BotMaxConcurrent,
-				Tracker:       tracker,
-				// Réactivation SRS : mots dus injectés dans le prompt du prof.
-				DueWords: func(ctx context.Context, userID int64, lang string) []string {
-					words, err := vocabStore.DueTerms(ctx, userID, lang, 5)
-					if err != nil {
-						log.Warn("bot due words", "err", err)
-						return nil
-					}
-					return words
-				},
-			})
-			// Modération IA du chat anonyme (hors chemin critique) : réutilise le
-			// même client Claude. Avertit puis suspend les récidivistes.
-			toxClassifier := moderation.NewClassifier(claudeClient.ForFeature("moderation"), log)
-			// Étage supervisé local (sidecar Detoxify) : les messages
-			// manifestement sains ne remontent pas à Claude. Le compteur
-			// d'étages rend le taux d'économie lisible dans Grafana.
-			toxClassifier.Observe = met.RegisterLabeledCounter(
-				"jolyne_moderation_stage_total",
-				"Messages de chat par étage décideur de la cascade de modération.",
-				"stage",
-			)
-			if cfg.ToxicityScorerURL != "" {
-				toxClassifier.Scorer = moderation.NewLocalScorer(cfg.ToxicityScorerURL)
-				log.Info("toxicity local scorer ready", "url", cfg.ToxicityScorerURL)
-			}
-			wsDeps.Toxicity = &ws.ToxicityGuard{
-				Classifier: toxClassifier,
-				RDB:        rdb,
-				Bans:       banSvc,
-				Tracker:    tracker,
-				Log:        log,
-			}
-			// Amorces de conversation générées par Claude, cachées dans Redis
-			// par langue pratiquée (TTL 6 h) — servies au match humain-humain.
-			wsDeps.Icebreakers = &ws.IcebreakerService{
-				Claude: claudeClient.ForFeature("icebreaker"),
-				RDB:    rdb,
-				Log:    log,
-			}
-			// Analyse IA de fin de conversation : vocabulaire → carnet,
-			// fautes corrigées → items de révision (leçon du jour), niveau
-			// CECRL → profil user (EWMA). Réutilise le même client Claude.
-			wsDeps.Analyzer = &ws.SessionAnalyzer{
-				Claude: claudeClient.ForFeature("analyzer"),
-				SaveWord: func(ctx context.Context, userID int64, term, translation, sourceLang, targetLang string) error {
-					_, err := vocabStore.Add(ctx, userID, vocab.Entry{
-						Term:        term,
-						Translation: translation,
-						SourceLang:  sourceLang,
-						TargetLang:  targetLang,
-					})
-					return err
-				},
-				SaveMistake: learnStore.AddReviewItem,
-				SaveCEFR:    usersStore.UpdateCEFR,
-				DueTerms: func(ctx context.Context, userID int64, lang string) []string {
-					words, err := vocabStore.DueTerms(ctx, userID, lang, 20)
-					if err != nil {
-						log.Warn("analyzer due terms", "err", err)
-						return nil
-					}
-					return words
-				},
-				ReviewInContext: func(ctx context.Context, userID int64, lang string, terms []string) error {
-					return vocabStore.ReviewTermsInContext(ctx, userID, lang, terms, time.Now())
-				},
-				Log: log,
-			}
-			// Batch API pour l'analyse (−50 % sur les tokens) : le matériau
-			// pédagogique arrive quelques minutes plus tard — invisible, il
-			// n'est pas affiché à chaud. File en mémoire uniquement (la
-			// transcription n'est jamais persistée — règle d'or #1).
-			if cfg.AnalyzerBatch {
-				analysisBatcher = &ws.AnalysisBatcher{
-					Claude: claudeClient.ForFeature("analyzer"),
-					Log:    log,
-				}
-				analysisBatcher.Start(ctx)
-				wsDeps.Analyzer.Batcher = analysisBatcher
-				log.Info("analyzer batch mode ready")
-			}
-			log.Info("bot peer ready",
-				"model", cfg.AnthropicModel,
-				"trigger_delay_sec", cfg.BotTriggerDelaySec,
-				"max_concurrent", cfg.BotMaxConcurrent,
-			)
-		} else {
-			log.Info("bot peer disabled — ANTHROPIC_API_KEY missing")
-		}
-
-		svc.wsHandler = ws.NewHandler(wsDeps)
-		log.Info("profile endpoints ready", "cloudinary", cld.IsConfigured())
-
-		// Friends : amitiés mutuelles + chats persistés. On réutilise le
-		// même Friends.Store que wsDeps pour cohérence (deux instances
-		// fonctionneraient mais autant éviter).
-		svc.friends = &friends.Handlers{
-			Store:                wsDeps.Friends,
-			Profile:              profileStore,
-			Reports:              reportSvc,
-			RDB:                  rdb,
-			SystemMsgPublisher:   ws.PublishFriendSystemMessage(rdb),
-			StreakFramePublisher: ws.PublishFriendStreak(rdb),
-			Log:                  log,
-		}
-		log.Info("friends endpoints ready")
-
-		// Carnet de vocabulaire : mots sauvegardés depuis le popover de
-		// traduction (et le résumé IA de fin de conversation). Store partagé.
-		svc.vocab = &vocab.Handlers{
-			Store:   vocabStore,
-			Tracker: tracker,
-			Log:     log,
-		}
-		log.Info("vocab endpoints ready")
-
-		// Mode Cours : contenu (cours/leçons) + progression/streak/cœurs/succès.
-		// Dépend de Postgres + auth user. On (ré)applique au boot les 10 cours
-		// dérivés de la matrice de curriculum (idempotent, réconcilié par slug —
-		// la progression jouée est préservée). Le générateur Claude
-		// (cmd/coursegen) peut enrichir/remplacer ensuite hors ligne.
-		if err := learn.SeedCourses(ctx, learnStore, log); err != nil {
-			log.Warn("learn seed", "err", err)
-		}
-		svc.learn = &learn.Handlers{
-			Store:     learnStore,
-			IsPremium: isPremium,      // cœurs illimités pour les abonnés
-			Friends:   wsDeps.Friends, // validation amitié pour les demandes de cœur
-			Tracker:   tracker,
-			Log:       log,
-		}
-		log.Info("learn endpoints ready")
-
-		// Web Push : Postgres-backed subscriptions + VAPID sender. Si une
-		// des trois VAPID env n'est pas posée, le sender est laissé nil
-		// (no-op) et les routes /api/notifications/* renvoient 503.
-		var pushSender *push.Sender
-		if cfg.VAPIDPublicKey != "" && cfg.VAPIDPrivateKey != "" && cfg.VAPIDSubject != "" {
-			pushStore := push.NewStore(svc.pg)
-			pushSender = &push.Sender{
-				Store:     pushStore,
-				VAPIDPub:  cfg.VAPIDPublicKey,
-				VAPIDPriv: cfg.VAPIDPrivateKey,
-				VAPIDSubj: cfg.VAPIDSubject,
-				Log:       log,
-			}
-			svc.push = &push.Handlers{
-				Store:    pushStore,
-				VAPIDPub: cfg.VAPIDPublicKey,
-				Log:      log,
-			}
-			log.Info("web push handler ready")
-		} else {
-			log.Info("web push disabled — VAPID env keys missing")
-		}
-
-		// Le mode Cours réutilise le sender push pour notifier les demandes /
-		// dons de cœur entre amis (best-effort, nil-safe).
-		if svc.learn != nil {
-			svc.learn.Push = pushSender
-		}
-
-		// WS friend chat : /ws/friend/{id} — persisté, push temps-réel.
-		if wsDeps.Friends != nil && wsDeps.UserAuth != nil {
-			svc.wsFriendHandler = ws.NewFriendHandler(ws.FriendDeps{
-				RDB:      rdb,
-				Friends:  wsDeps.Friends,
-				UserAuth: wsDeps.UserAuth,
-				Push:     pushSender,
-				Profile:  profileStore,
-				Log:      log,
-			})
-			svc.wsInboxHandler = ws.NewInboxHandler(ws.InboxDeps{
-				RDB:      rdb,
-				Friends:  wsDeps.Friends,
-				UserAuth: wsDeps.UserAuth,
-				Log:      log,
-			})
-			log.Info("friend ws handler ready")
-		}
-
-		// Cron de fin de streak : matérialise la perte d'un streak via une
-		// ligne système permanente dans le chat ami. Tourne en goroutine,
-		// indépendant du fait qu'un des deux amis soit connecté ou non.
-		friends.StartStreakLossCron(
-			ctx, svc.pg, log, 15*time.Minute,
-			ws.PublishFriendSystemMessage(rdb),
-		)
-		log.Info("friend streak loss cron ready")
-
-		// Cron de rappel de révision SRS : « X mots t'attendent dans ton
-		// carnet ». Uniquement si le push est configuré (sinon no-op assuré).
-		if pushSender != nil {
-			vocab.StartReviewReminderCron(ctx, svc.pg, pushSender, log, 30*time.Minute)
-			log.Info("vocab review reminder cron ready")
-		}
+		resolveUserID, analysisBatcher = wireUserStack(ctx, userStackDeps{
+			cfg:         cfg,
+			log:         log,
+			rdb:         rdb,
+			met:         met,
+			aiUsage:     aiUsage,
+			tracker:     tracker,
+			reports:     reportSvc,
+			bans:        banSvc,
+			secret:      userSessionSecret,
+			adminEmails: adminEmails,
+		}, &svc, &wsDeps)
 	} else {
 		log.Info("user auth disabled — Postgres / USER_SESSION_SECRET manquants")
 	}
@@ -796,89 +307,4 @@ func run() error {
 	}
 	log.Info("gateway stopped")
 	return nil
-}
-
-// parseEnvCents lit une variable d'env en int64 (centimes). 0 si absente ou
-// invalide — sert au calcul du MRR dans le dashboard revenus.
-func parseEnvCents(key string) int64 {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		return 0
-	}
-	n, err := strconv.ParseInt(v, 10, 64)
-	if err != nil {
-		return 0
-	}
-	return n
-}
-
-// queueDepths balaie les files de matchmaking Redis (clés `queue:*`) et renvoie
-// la profondeur de chacune. Best-effort, borné à 1 s.
-func queueDepths(ctx context.Context, rdb *redis.Client) []admin.QueueDepth {
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-	out := []admin.QueueDepth{}
-	var cursor uint64
-	for {
-		keys, next, err := rdb.Scan(ctx, cursor, "queue:*", 100).Result()
-		if err != nil {
-			break
-		}
-		for _, k := range keys {
-			n, err := rdb.ZCard(ctx, k).Result()
-			if err != nil || n == 0 {
-				continue
-			}
-			out = append(out, admin.QueueDepth{Pair: strings.TrimPrefix(k, "queue:"), Count: n})
-		}
-		if next == 0 {
-			break
-		}
-		cursor = next
-	}
-	return out
-}
-
-// poolStats expose les compteurs du pool Postgres pour la page /admin/server.
-func poolStats(pool *pgxpool.Pool) map[string]int64 {
-	if pool == nil {
-		return map[string]int64{}
-	}
-	s := pool.Stat()
-	return map[string]int64{
-		"acquired": int64(s.AcquiredConns()),
-		"idle":     int64(s.IdleConns()),
-		"total":    int64(s.TotalConns()),
-		"max":      int64(s.MaxConns()),
-	}
-}
-
-// healthSnapshot pingue Redis et Postgres (si présent) pour la bannière santé.
-func healthSnapshot(ctx context.Context, rdb *redis.Client, pool *pgxpool.Pool) map[string]string {
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-	out := map[string]string{"redis": "ok", "postgres": "n/a"}
-	if err := rdb.Ping(ctx).Err(); err != nil {
-		out["redis"] = "down"
-	}
-	if pool != nil {
-		if err := pool.Ping(ctx); err != nil {
-			out["postgres"] = "down"
-		} else {
-			out["postgres"] = "ok"
-		}
-	}
-	return out
-}
-
-// hashEmails : SHA-256 tronqué à 8 octets (16 chars hex) par email,
-// pour identifier un admin dans les logs sans exposer l'adresse.
-// Conformité CLAUDE.md règle d'or #6 (pas de PII en clair).
-func hashEmails(emails []string) []string {
-	out := make([]string, 0, len(emails))
-	for _, e := range emails {
-		h := sha256.Sum256([]byte(e))
-		out = append(out, hex.EncodeToString(h[:8]))
-	}
-	return out
 }
