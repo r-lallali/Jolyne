@@ -56,8 +56,10 @@ export function ChatHeader({
   const initial = peerNick ? peerNick.slice(0, 1).toUpperCase() : "";
   const level = cefrLabel(peerCefr);
   return (
-    <header className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-      <div className="flex min-w-0 items-center gap-2.5">
+    <header className="flex items-center justify-between gap-2 px-3 py-3 sm:px-6 sm:py-4">
+      {/* overflow-hidden : les badges (shrink-0) ne doivent jamais déborder
+          sous les boutons d'action quand l'espace manque — on clippe. */}
+      <div className="flex min-w-0 items-center gap-2.5 overflow-hidden">
         {hasAvatar ? (
           <span className="inline-block size-7 shrink-0 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
             <img
@@ -108,7 +110,7 @@ export function ChatHeader({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-1 pr-12 sm:pr-0">
+      <div className="flex shrink-0 items-center gap-1">
         <AutoTranslateToggle />
         <button
           type="button"
@@ -227,7 +229,7 @@ function NextButton({
       onClick={click}
       disabled={!canNext}
       className={cn(
-        "group relative inline-flex h-9 items-center gap-1.5 overflow-hidden rounded-full px-3.5 text-xs font-medium leading-none transition-colors",
+        "group relative inline-flex h-9 items-center gap-1.5 overflow-hidden rounded-full px-3 text-xs font-medium leading-none transition-colors sm:px-3.5",
         armed
           ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-400"
           : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900",
@@ -319,7 +321,7 @@ function QuitButton({
       type="button"
       onClick={click}
       className={cn(
-        "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+        "rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors sm:px-3",
         armed
           ? "bg-red-500/10 text-red-600 hover:bg-red-500/15 dark:bg-red-500/15 dark:text-red-400"
           : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100",
