@@ -67,7 +67,7 @@ func makeUser(t *testing.T, pool *pgxpool.Pool, suffix string) int64 {
 // makeFriend : crée une amitié entre uA et uB, renvoie le friend_id.
 func makeFriend(t *testing.T, store *friends.Store, uA, uB int64) int64 {
 	t.Helper()
-	f, err := store.Add(context.Background(), uA, uB)
+	f, err := store.Add(context.Background(), uA, uB, "fr", "en")
 	if err != nil {
 		t.Fatalf("add friend: %v", err)
 	}
@@ -250,7 +250,7 @@ func TestStreak_RestoreWindowExpired(t *testing.T) {
 
 	_, _, _ = store.AppendMessageWithStreak(context.Background(), fid, uA, "x")
 	_, _, _ = store.AppendMessageWithStreak(context.Background(), fid, uB, "y")
-	// Streak perdu il y a 10 jours (> RestoreWindow = 7).
+	// Streak perdu il y a 10 jours (> RestoreWindow).
 	if _, err := pool.Exec(context.Background(),
 		`UPDATE friend_streaks
 		 SET current_streak = 0, lost_streak = 5,
