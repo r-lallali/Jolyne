@@ -98,9 +98,10 @@ func run() error {
 	// métriques, données live du back-office).
 	startedAt := time.Now()
 	var (
-		resolveUserID  func(r *http.Request) int64 // nil si auth user désactivée
-		adminAllowlist []*net.IPNet                // allowlist admin, réutilisée pour /metrics
-		adminEmails    map[string]struct{}         // emails admin (séparation stricte admin/user)
+		resolveUserID   func(r *http.Request) int64 // nil si auth user désactivée
+		adminAllowlist  []*net.IPNet                // allowlist admin, réutilisée pour /metrics
+		adminEmails     map[string]struct{}         // emails admin (séparation stricte admin/user)
+		analysisBatcher *ws.AnalysisBatcher         // nil hors mode batch — drainé au shutdown
 	)
 
 	// Métriques Prometheus créées AVANT le câblage des clients IA : chaque
@@ -600,12 +601,12 @@ func run() error {
 			// n'est pas affiché à chaud. File en mémoire uniquement (la
 			// transcription n'est jamais persistée — règle d'or #1).
 			if cfg.AnalyzerBatch {
-				batcher := &ws.AnalysisBatcher{
+				analysisBatcher = &ws.AnalysisBatcher{
 					Claude: claudeClient.ForFeature("analyzer"),
 					Log:    log,
 				}
-				batcher.Start(ctx)
-				wsDeps.Analyzer.Batcher = batcher
+				analysisBatcher.Start(ctx)
+				wsDeps.Analyzer.Batcher = analysisBatcher
 				log.Info("analyzer batch mode ready")
 			}
 			log.Info("bot peer ready",
@@ -784,8 +785,14 @@ func run() error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownGrace)
 	defer cancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("shutdown: %w", err)
+	shutdownErr := srv.Shutdown(shutdownCtx)
+	// Drain des analyses encore en file, sur le budget de grâce restant :
+	// jamais persistées (règle d'or #1), c'est maintenant ou perdu.
+	if analysisBatcher != nil {
+		analysisBatcher.Drain(shutdownCtx)
+	}
+	if shutdownErr != nil {
+		return fmt.Errorf("shutdown: %w", shutdownErr)
 	}
 	log.Info("gateway stopped")
 	return nil

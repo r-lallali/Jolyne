@@ -158,7 +158,9 @@ func Load() (Config, error) {
 		StripePriceID:        os.Getenv("STRIPE_PRICE_ID"),
 		StripeSuccessURL:     os.Getenv("STRIPE_SUCCESS_URL"),
 		StripeCancelURL:      os.Getenv("STRIPE_CANCEL_URL"),
-		ShutdownGrace:        getEnvDuration("SHUTDOWN_GRACE", 10*time.Second),
+		// 30 s : le shutdown draine le batcher d'analyses (appels IA directs)
+		// après l'arrêt HTTP — 10 s ne suffisaient qu'à l'arrêt HTTP seul.
+		ShutdownGrace: getEnvDuration("SHUTDOWN_GRACE", 30*time.Second),
 	}
 	if err := cfg.validate(); err != nil {
 		return Config{}, err

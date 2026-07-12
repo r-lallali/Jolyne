@@ -18,9 +18,10 @@ import (
 // plus tard.
 //
 // Confidentialité (règle d'or #1) : les transcriptions en attente ne vivent
-// QU'EN MÉMOIRE du process — jamais dans Redis ni ailleurs. Un restart du
-// gateway perd les analyses en attente, exactement comme il perdait les
-// goroutines d'analyse directes : assumé.
+// QU'EN MÉMOIRE du process — jamais dans Redis ni ailleurs. Au shutdown
+// gracieux, la file locale est drainée en appels directs (Drain, budget
+// borné) ; un kill brutal ou un lot déjà soumis dont les résultats ne sont
+// pas encore arrivés restent perdus : assumé.
 type AnalysisBatcher struct {
 	Claude *claudeapi.Client
 	Log    *slog.Logger
@@ -98,8 +99,9 @@ func (b *AnalysisBatcher) Enqueue(system, convo string, apply func(ctx context.C
 	}
 }
 
-// Start lance la boucle de regroupement. À l'arrêt (ctx annulé), les analyses
-// encore en attente sont abandonnées (compte loggé, jamais le contenu).
+// Start lance la boucle de regroupement. À l'arrêt (ctx annulé), la boucle
+// s'éteint mais la file est CONSERVÉE : c'est Drain (appelé après le
+// shutdown HTTP) qui la vide en appels directs.
 func (b *AnalysisBatcher) Start(ctx context.Context) {
 	b.mu.Lock()
 	if b.kick == nil {
@@ -114,11 +116,10 @@ func (b *AnalysisBatcher) Start(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				b.mu.Lock()
-				dropped := len(b.pending)
-				b.pending = nil
+				remaining := len(b.pending)
 				b.mu.Unlock()
-				if dropped > 0 && b.Log != nil {
-					b.Log.Info("analysis batcher stopped", "dropped", dropped)
+				if remaining > 0 && b.Log != nil {
+					b.Log.Info("analysis batcher stopped", "pending", remaining)
 				}
 				return
 			case <-ticker.C:
@@ -127,6 +128,53 @@ func (b *AnalysisBatcher) Start(ctx context.Context) {
 			b.flush(ctx)
 		}
 	}()
+}
+
+// Drain exécute en appels directs les analyses encore en file, dans la
+// limite du budget ctx (grâce de shutdown). À appeler APRÈS
+// http.Server.Shutdown : plus rien n'alimente la file. Les lots déjà soumis
+// à la Batch API sont perdus — leurs résultats ne peuvent être appliqués que
+// par un process vivant. Parallélisme borné pour ne pas rafaler l'API.
+func (b *AnalysisBatcher) Drain(ctx context.Context) {
+	b.mu.Lock()
+	jobs := b.pending
+	b.pending = nil
+	b.mu.Unlock()
+	if len(jobs) == 0 {
+		return
+	}
+
+	sem := make(chan struct{}, 4)
+	var wg sync.WaitGroup
+	var done atomic.Int64
+	for _, j := range jobs {
+		if ctx.Err() != nil {
+			break // budget épuisé — le reste est compté comme perdu
+		}
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(j analysisJob) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			callCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+			raw, err := b.Claude.Reply(callCtx, j.system, nil, j.convo)
+			cancel()
+			if err != nil {
+				return
+			}
+			// L'apply écrit en base : contexte frais, indépendant du budget
+			// restant (l'appel IA a déjà été payé, autant persister).
+			applyCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			j.apply(applyCtx, raw)
+			cancel()
+			done.Add(1)
+		}(j)
+	}
+	wg.Wait()
+	if b.Log != nil {
+		b.Log.Info("analysis batcher drained",
+			"done", done.Load(), "dropped", int64(len(jobs))-done.Load())
+	}
 }
 
 // flush soumet les analyses en attente en un lot, puis suit ce lot dans une

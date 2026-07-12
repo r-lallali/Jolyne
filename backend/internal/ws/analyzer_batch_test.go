@@ -104,6 +104,42 @@ func TestAnalysisBatcher_FallsBackDirectOnSubmitError(t *testing.T) {
 	}
 }
 
+// Au shutdown, Drain vide la file en appels directs (le résultat d'un lot ne
+// pourrait jamais être appliqué par un process mort). La file n'est plus
+// jetée par l'arrêt de la boucle Start.
+func TestAnalysisBatcher_DrainRunsPendingDirect(t *testing.T) {
+	rt := &analyzerBatchRT{}
+	b := newBatcher(rt)
+
+	got := make(chan string, 2)
+	apply := func(_ context.Context, raw string) { got <- raw }
+	b.Enqueue("sys", "convo 1", apply)
+	b.Enqueue("sys", "convo 2", apply)
+
+	drainCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	b.Drain(drainCtx)
+
+	for i := 0; i < 2; i++ {
+		select {
+		case raw := <-got:
+			if !strings.Contains(raw, `"cefr":"A2"`) {
+				t.Fatalf("raw: %s", raw)
+			}
+		default:
+			t.Fatalf("analyse %d non appliquée par le drain", i+1)
+		}
+	}
+	// Une fois drainée, la file est vide — un second Drain est un no-op.
+	b.Drain(drainCtx)
+
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	if rt.directCalls != 2 {
+		t.Fatalf("appels directs: %d", rt.directCalls)
+	}
+}
+
 // Avec un Batcher branché, Analyze n'appelle pas l'API : la requête rejoint
 // la file en mémoire du batcher.
 func TestAnalyze_EnqueuesWhenBatcherSet(t *testing.T) {
