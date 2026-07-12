@@ -23,9 +23,9 @@ import (
 // users.CurrentUser(ctx).
 type Handlers struct {
 	Store   *Store
-	Profile *profile.Store    // pour exposer le profil d'un ami
-	Reports *reports.Service  // nil si Postgres / clé de chiffrement absents
-	RDB     *redis.Client     // nil = pas de pub/sub inbox (dev sans Redis)
+	Profile *profile.Store   // pour exposer le profil d'un ami
+	Reports *reports.Service // nil si Postgres / clé de chiffrement absents
+	RDB     *redis.Client    // nil = pas de pub/sub inbox (dev sans Redis)
 	// SystemMsgPublisher pousse une ligne système (kind=system_*) vers les
 	// peers connectés via le channel friend. Injecté au wire
 	// (ws.PublishFriendSystemMessage). nil = no-op : la persistance suffit,
@@ -51,15 +51,15 @@ func (h *Handlers) log() *slog.Logger {
 }
 
 type friendDTO struct {
-	ID                  int64  `json:"id"`
-	PeerID              int64  `json:"peer_id"`
-	PeerName            string `json:"peer_name"`
-	PeerPhotoID         string `json:"peer_photo_id,omitempty"`
-	PeerVerified        bool   `json:"peer_verified"`
-	PeerRemovedMe       bool   `json:"peer_removed_me"`
+	ID            int64  `json:"id"`
+	PeerID        int64  `json:"peer_id"`
+	PeerName      string `json:"peer_name"`
+	PeerPhotoID   string `json:"peer_photo_id,omitempty"`
+	PeerVerified  bool   `json:"peer_verified"`
+	PeerRemovedMe bool   `json:"peer_removed_me"`
 	// Langue native du peer figée à la création de l'amitié (vide si
 	// inconnue). Indice de langue source pour le tap-to-translate.
-	PeerLang string `json:"peer_lang,omitempty"`
+	PeerLang            string `json:"peer_lang,omitempty"`
 	UnreadCount         int    `json:"unread_count"`
 	LastMessageBody     string `json:"last_message_body"`
 	LastMessageSenderID int64  `json:"last_message_sender_id"`

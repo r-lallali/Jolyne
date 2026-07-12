@@ -65,7 +65,7 @@ func (h *Handlers) HandleSubscribe(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.Upsert(ctx, user.ID, Subscription{
 		Endpoint:  body.Endpoint,
 		P256dh:    body.P256dh,
-		Auth:     body.Auth,
+		Auth:      body.Auth,
 		UserAgent: body.UserAgent,
 	}); err != nil {
 		h.log().Error("push subscribe", "err", err)

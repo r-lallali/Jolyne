@@ -12,11 +12,11 @@ import (
 // Best-effort — les erreurs 410/404 sont traitées comme un signal de
 // désabonnement automatique (l'endpoint est purgé de la DB).
 type Sender struct {
-	Store      *Store
-	VAPIDPub   string
-	VAPIDPriv  string
-	VAPIDSubj  string // mailto: ... ou URL d'identification (RFC 8292)
-	Log        *slog.Logger
+	Store     *Store
+	VAPIDPub  string
+	VAPIDPriv string
+	VAPIDSubj string // mailto: ... ou URL d'identification (RFC 8292)
+	Log       *slog.Logger
 }
 
 // Payload : ce qui arrive au Service Worker côté client. Aucun contenu

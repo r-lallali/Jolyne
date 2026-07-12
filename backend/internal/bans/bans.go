@@ -38,7 +38,7 @@ type Issue struct {
 	Fingerprint     string
 	UserID          string
 	Reason          string
-	BannedBy        string // email admin
+	BannedBy        string        // email admin
 	Duration        time.Duration // 0 = permanent
 	RelatedReportID *int64
 }

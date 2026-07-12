@@ -71,9 +71,9 @@ func RunStreakLossOnce(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger
 		return 0, fmt.Errorf("streak loss: list pending: %w", err)
 	}
 	type pending struct {
-		friendID    int64
-		lostStreak  int
-		userAID     int64
+		friendID   int64
+		lostStreak int
+		userAID    int64
 	}
 	var todo []pending
 	for rows.Next() {
