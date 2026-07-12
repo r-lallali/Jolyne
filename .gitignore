@@ -44,3 +44,7 @@ infra/data/
 # Sorties brutes k6 (volumineuses, régénérées à chaque run)
 infra/k6/*-timeseries.json
 __pycache__/
+
+# Artefacts Playwright (rapports et captures de test E2E)
+frontend/test-results/
+frontend/playwright-report/

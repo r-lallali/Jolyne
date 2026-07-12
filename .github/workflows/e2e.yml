@@ -1,0 +1,81 @@
+name: e2e
+
+# Smoke Playwright contre la vraie stack (gateway Go + Redis + Postgres +
+# Next). Déclenché par les deux moitiés : ce sont des tests d'intégration.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/e2e.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/e2e.yml"
+
+jobs:
+  e2e:
+    name: playwright smoke
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jolyne
+          POSTGRES_PASSWORD: jolyne
+          POSTGRES_DB: jolyne
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jolyne"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: backend/go.sum
+
+      - name: install
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: install chromium
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: playwright test
+        working-directory: frontend
+        run: pnpm test:e2e
+
+      - name: upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/test-results/
+          retention-days: 7
