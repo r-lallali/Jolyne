@@ -26,9 +26,13 @@ const scriptSrc = isDev
 const cloudinaryConnect = "https://api.cloudinary.com";
 const cloudinaryImg = "https://res.cloudinary.com";
 
+// Ingestion Sentry (erreurs front, prod uniquement — le SDK est désactivé en
+// dev). Doit rester aligné avec le DSN de src/lib/sentry.ts.
+const sentryIngest = "https://o4511721029435392.ingest.de.sentry.io";
+
 const connectSrc = isDev
   ? `'self' ws: wss: http://localhost:* ${httpURL} ${wsURL} ${cloudinaryConnect}`
-  : `'self' ${httpURL} ${wsURL} ${cloudinaryConnect}`;
+  : `'self' ${httpURL} ${wsURL} ${cloudinaryConnect} ${sentryIngest}`;
 
 const csp = [
   "default-src 'self'",
