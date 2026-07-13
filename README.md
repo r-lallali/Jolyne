@@ -6,7 +6,7 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont appariés par
 
 | Couche | Techno |
 |--------|--------|
-| Backend | Go 1.25 — gateway HTTP + WebSocket (`gorilla/websocket`), `pgx` (Postgres), `go-redis`, JWT, `golang-migrate` |
+| Backend | Go 1.26 — gateway HTTP + WebSocket (`gorilla/websocket`), `pgx` (Postgres), `go-redis`, JWT, `golang-migrate` |
 | Frontend | Next.js 15 (App Router, Turbopack), React 19, TypeScript, Tailwind, Zustand, Framer Motion |
 | Données | PostgreSQL (persistance), Redis (matching, sessions, quotas, caches) |
 | IA | Anthropic Messages API — `claude-haiku-4-5` : tuteur, traduction/grammaire de repli, modération nuancée, icebreakers, analyse post-conversation (Batch API) |
