@@ -85,3 +85,47 @@ func TestRoutesPatternMatching(t *testing.T) {
 		}
 	}
 }
+
+// Domaines non configurés : 503 explicite (jamais un 404 muet qui se déguise
+// en erreur CORS côté front). Admin et /metrics restent volontairement en 404
+// — on ne révèle pas leur existence.
+func TestRoutesDisabledDomainsReturn503(t *testing.T) {
+	h := routes(services{wsHandler: &ws.Handler{}})
+
+	disabled := []string{
+		"/api/auth/login",
+		"/api/account",
+		"/api/account/verify",
+		"/api/friends",
+		"/api/friends/42/messages",
+		"/api/vocab",
+		"/api/vocab/review",
+		"/api/learn/state",
+		"/api/billing/checkout",
+		"/api/notifications/subscribe",
+		"/api/translate",
+		"/api/grammar",
+		"/api/quota",
+		"/api/events",
+		"/ws/inbox",
+		"/ws/friend/42",
+	}
+	for _, p := range disabled {
+		req := httptest.NewRequest(http.MethodPost, p, nil)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Errorf("POST %s : code %d, attendu 503", p, rec.Code)
+		}
+	}
+
+	hidden := []string{"/api/admin/login", "/metrics"}
+	for _, p := range hidden {
+		req := httptest.NewRequest(http.MethodGet, p, nil)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("GET %s : code %d, attendu 404 (existence masquée)", p, rec.Code)
+		}
+	}
+}

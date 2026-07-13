@@ -58,19 +58,27 @@ func routes(s services) http.Handler {
 	mux.Handle("GET /ws/match", s.wsHandler)
 	if s.wsFriendHandler != nil {
 		mux.Handle("GET /ws/friend/", s.wsFriendHandler)
+	} else {
+		mux.Handle("/ws/friend/", unavailable("friends"))
 	}
 	if s.wsInboxHandler != nil {
 		mux.Handle("GET /ws/inbox", s.wsInboxHandler)
+	} else {
+		mux.Handle("/ws/inbox", unavailable("friends"))
 	}
 	mux.Handle("/api/queue-size", publicCORS(s.publicCORS)(http.HandlerFunc(queueSize(s.rdb))))
 	if s.quota != nil {
 		mux.Handle("/api/quota", publicCORS(s.publicCORS)(methodOnly("GET", s.quota)))
+	} else {
+		mux.Handle("/api/quota", publicCORS(s.publicCORS)(unavailable("quota")))
 	}
 
 	// Beacon analytics public (page_view, signup_started, match_search_started).
 	// Monté seulement si Postgres est présent (sinon le Tracker est nil).
 	if s.beacon != nil {
 		mux.Handle("/api/events", publicCORS(s.publicCORS)(methodOnly("POST", s.beacon.Handler())))
+	} else {
+		mux.Handle("/api/events", publicCORS(s.publicCORS)(unavailable("analytics")))
 	}
 
 	// Endpoint Prometheus, protégé par l'IP allowlist admin (404 sinon, comme
@@ -82,9 +90,13 @@ func routes(s services) http.Handler {
 
 	if s.translate != nil {
 		mux.Handle("/api/translate", publicCORS(s.publicCORS)(s.translate))
+	} else {
+		mux.Handle("/api/translate", publicCORS(s.publicCORS)(unavailable("translate")))
 	}
 	if s.grammar != nil {
 		mux.Handle("/api/grammar", publicCORS(s.publicCORS)(s.grammar))
+	} else {
+		mux.Handle("/api/grammar", publicCORS(s.publicCORS)(unavailable("grammar")))
 	}
 
 	// Billing Premium (Stripe). Routes montées dès qu'on a l'auth user : si
@@ -118,6 +130,13 @@ func routes(s services) http.Handler {
 		mux.Handle("/api/auth/reset", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleReset))))
 		mux.Handle("/api/auth/logout", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleLogout))))
 		mux.Handle("/api/auth/me", publicCORS(s.publicCORS)(methodOnly("GET", http.HandlerFunc(s.users.HandleMe))))
+	} else {
+		// Auth non configurée : les sous-arbres billing et notifications vivent
+		// derrière la même condition s.users, on les couvre ici d'un bloc.
+		cors := publicCORS(s.publicCORS)
+		mux.Handle("/api/auth/", cors(unavailable("auth")))
+		mux.Handle("/api/billing/", cors(unavailable("billing")))
+		mux.Handle("/api/notifications/", cors(unavailable("push")))
 	}
 
 	if s.profile != nil && s.users != nil {
@@ -151,6 +170,10 @@ func routes(s services) http.Handler {
 		// Les routes littérales sign/reorder (ci-dessus) priment sur {position}.
 		mux.Handle("/api/account/photos/{position}",
 			cors(auth(methodOnly("DELETE", http.HandlerFunc(s.profile.HandleDeletePhoto)))))
+	} else {
+		cors := publicCORS(s.publicCORS)
+		mux.Handle("/api/account", cors(unavailable("account")))
+		mux.Handle("/api/account/", cors(unavailable("account")))
 	}
 
 	// Routes amis : patterns ServeMux à wildcard (Go 1.22+). On ne met PAS la
@@ -174,6 +197,10 @@ func routes(s services) http.Handler {
 		mux.Handle("/api/friends/{id}/profile", cors(auth(methodOnly("GET", http.HandlerFunc(s.friends.HandleGetProfile)))))
 		mux.Handle("/api/friends/{id}/report", cors(auth(methodOnly("POST", http.HandlerFunc(s.friends.HandleReport)))))
 		mux.Handle("/api/friends/{id}/streak/restore", cors(auth(methodOnly("POST", http.HandlerFunc(s.friends.HandleRestoreStreak)))))
+	} else {
+		cors := publicCORS(s.publicCORS)
+		mux.Handle("/api/friends", cors(unavailable("friends")))
+		mux.Handle("/api/friends/", cors(unavailable("friends")))
 	}
 
 	// Carnet de vocabulaire. Toutes les routes requièrent l'auth user.
@@ -197,6 +224,10 @@ func routes(s services) http.Handler {
 		mux.Handle("/api/vocab/review", cors(auth(methodOnly("GET", http.HandlerFunc(s.vocab.HandleReviewList)))))
 		mux.Handle("/api/vocab/{id}", cors(auth(methodOnly("DELETE", http.HandlerFunc(s.vocab.HandleDelete)))))
 		mux.Handle("/api/vocab/{id}/review", cors(auth(methodOnly("POST", http.HandlerFunc(s.vocab.HandleReviewGrade)))))
+	} else {
+		cors := publicCORS(s.publicCORS)
+		mux.Handle("/api/vocab", cors(unavailable("vocab")))
+		mux.Handle("/api/vocab/", cors(unavailable("vocab")))
 	}
 
 	// Mode Cours. Toutes les routes requièrent l'auth user (progression +
@@ -227,6 +258,8 @@ func routes(s services) http.Handler {
 		mux.Handle("/api/learn/hearts/requests/{id}/grant", cors(auth(methodOnly("POST", http.HandlerFunc(s.learn.HandleGrantHeart)))))
 		mux.Handle("/api/learn/lessons/{id}", cors(auth(methodOnly("GET", http.HandlerFunc(s.learn.HandleLessonPlay)))))
 		mux.Handle("/api/learn/lessons/{id}/complete", cors(auth(methodOnly("POST", http.HandlerFunc(s.learn.HandleComplete)))))
+	} else {
+		mux.Handle("/api/learn/", publicCORS(s.publicCORS)(unavailable("learn")))
 	}
 
 	// Routes notifications enregistrées dès qu'on a l'auth user. Si VAPID
@@ -409,6 +442,18 @@ func methodOnly(method string, h http.Handler) http.Handler {
 			return
 		}
 		h.ServeHTTP(w, r)
+	})
+}
+
+// unavailable renvoie 503 pour un domaine désactivé faute de config. Monté en
+// repli des routes réelles : sans lui, un domaine non configuré tombait en 404
+// SANS headers CORS, que le front voyait comme une erreur CORS trompeuse au
+// lieu d'un état « service désactivé » exploitable (même contrat que les
+// guards billing/push). Exceptions volontaires : /api/admin/* et /metrics
+// restent en 404 pour ne pas révéler leur existence.
+func unavailable(domain string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, domain+" disabled", http.StatusServiceUnavailable)
 	})
 }
 
