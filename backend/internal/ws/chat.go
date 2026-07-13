@@ -459,6 +459,17 @@ func (h *Handler) runChat(ctx context.Context, conn *Conn, sess session.Session,
 				if peerGone {
 					return chatPeerLeft, WakeupEvent{}
 				}
+				peerType := "human"
+				if peer.IsBot {
+					peerType = "bot"
+				}
+				h.d.Tracker.Emit(analytics.Event{
+					Name:      analytics.EventNextSkipped,
+					UserID:    sess.UserID,
+					SessionID: sess.ID,
+					IPHash:    sess.IPHash,
+					Props:     map[string]any{"peer": peerType},
+				})
 				return chatNext, WakeupEvent{}
 			case ClientFriendAccept:
 				// Le client accepte le prompt. Refusé si pas éligible OU

@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/friends"
 )
 
@@ -22,6 +23,14 @@ func tryMakeFriendsOrPending(ctx context.Context, h *Handler, conn *Conn, myUID,
 			h.d.Log.Error("friends add failed", "err", err)
 			return false
 		}
+		// Un event par participant (chaque côté déroule son propre runChat),
+		// même convention que match_found.
+		h.d.Tracker.Emit(analytics.Event{
+			Name:   analytics.EventFriendAdded,
+			UserID: myUID,
+			AnonID: analytics.HashID(myFP),
+			Props:  map[string]any{"pending": false},
+		})
 		conn.Send(ServerFrame{Type: ServerFriendMade, FriendID: f.ID})
 		return true
 	}
@@ -33,6 +42,12 @@ func tryMakeFriendsOrPending(ctx context.Context, h *Handler, conn *Conn, myUID,
 		return false
 	}
 
+	h.d.Tracker.Emit(analytics.Event{
+		Name:   analytics.EventFriendAdded,
+		UserID: myUID,
+		AnonID: analytics.HashID(myFP),
+		Props:  map[string]any{"pending": true},
+	})
 	// Signale qu'une relation a été validée mais est en attente (-1)
 	conn.Send(ServerFrame{Type: ServerFriendMade, FriendID: -1})
 	return true

@@ -125,10 +125,9 @@ func run() error {
 	svc.translate = wireTranslate(cfg, log, rdb, aiUsage)
 	svc.grammar = wireGrammar(cfg, log, rdb, aiUsage)
 
-	// Postgres : optionnel pour l'instant. Si POSTGRES_DSN n'est pas set,
-	// le gateway boot sans — les features Phase 2 dépendantes (signalements,
-	// bans persistants) ne seront simplement pas servies. Le DSN deviendra
-	// obligatoire quand on activera les endpoints qui en dépendent.
+	// Postgres : optionnel. Si POSTGRES_DSN n'est pas set, le gateway boot
+	// sans — les features qui en dépendent (comptes, signalements, bans
+	// persistants, analytics) ne sont simplement pas servies.
 	var reportSvc *reports.Service
 	var banSvc *bans.Service
 	if cfg.PostgresDSN != "" {
@@ -183,6 +182,10 @@ func run() error {
 	// asynchrone. Nil-safe si Postgres absent. Flush au shutdown.
 	tracker := analytics.NewTracker(svc.pg, log)
 	defer tracker.Close()
+	// Câblé après coup : le handler translate est construit avant Postgres.
+	if svc.translate != nil {
+		svc.translate.Tracker = tracker
+	}
 
 	// IP cliente réelle : source unique (netx) tenant compte des proxies
 	// frontaux. Configuré ici pour l'admin (package var), puis passé au WS et

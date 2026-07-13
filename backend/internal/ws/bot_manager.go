@@ -190,7 +190,20 @@ func (m *BotManager) attemptSpawn(parent context.Context, userSess session.Sessi
 		return
 	}
 
-	m.startBot(ctx, userSess)
+	// startBot est bloquant (toute la conversation) : on horodate l'event au
+	// lancement, pas au retour. Émis uniquement si le bot a vraiment démarré —
+	// c'est LE compteur de repli file-vide (vs SpawnNow, mode Prof IA choisi).
+	startedAt := time.Now()
+	if m.startBot(ctx, userSess) {
+		m.tracker.Emit(analytics.Event{
+			Name:      analytics.EventBotFallback,
+			UserID:    userSess.UserID,
+			SessionID: userSess.ID,
+			LangFrom:  userSess.Speaks,
+			LangTo:    userSess.Wants,
+			TS:        startedAt,
+		})
+	}
 }
 
 // SpawnNow : lance un bot prof IA immédiatement pour ce user, sans timer ni

@@ -13,6 +13,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/ralys/jolyne/backend/internal/analytics"
 	"github.com/ralys/jolyne/backend/internal/quota"
 )
 
@@ -73,6 +74,8 @@ type Handler struct {
 	// nil → comportement anonyme / non-premium.
 	ResolveUserID func(r *http.Request) int64
 	IsPremium     func(ctx context.Context, userID int64) bool
+	// Tracker : event translate_used (funnel). Optionnel, nil-safe.
+	Tracker *analytics.Tracker
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +125,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	key := cacheKey(body.Text, body.Source, body.Target)
 	if cached, ok := h.cacheGet(r.Context(), key); ok {
 		h.respond(w, r, cached, premium, quotaID, false)
+		h.track(r, userID, body.Source, body.Target)
 		return
 	}
 
@@ -155,6 +159,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	h.cacheSet(r.Context(), key, result)
 	h.respond(w, r, result, premium, quotaID, true)
+	h.track(r, userID, body.Source, body.Target)
+}
+
+// track émet l'event translate_used — métadonnées seulement (langues,
+// identité hashée), jamais le texte (règle d'or #1).
+func (h *Handler) track(r *http.Request, userID int64, source, target string) {
+	h.Tracker.Emit(analytics.Event{
+		Name:     analytics.EventTranslateUsed,
+		UserID:   userID,
+		AnonID:   analytics.HashID(strings.TrimSpace(r.Header.Get("X-Device-FP"))),
+		LangFrom: source,
+		LangTo:   target,
+	})
 }
 
 // translateLT appelle LibreTranslate avec un garde-fou : si la sortie est
