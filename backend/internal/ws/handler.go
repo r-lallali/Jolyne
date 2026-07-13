@@ -28,7 +28,7 @@ import (
 
 // Constantes communes aux boucles `runSession` / `runChat`. Regroupées
 // ici parce qu'elles définissent la *politique* du gateway WS (timings,
-// limites de payload, fenêtres anti-abus). Voir CLAUDE.md §WebSocket.
+// limites de payload, fenêtres anti-abus).
 const (
 	queueTimeout    = 30 * time.Second
 	nextMinInterval = time.Second

@@ -4,7 +4,7 @@ import "github.com/google/uuid"
 
 // Session représente un utilisateur connecté pour la durée d'une connexion WS.
 // Anonyme par défaut : pas d'email, pas de compte. L'identifiant durable est
-// le fingerprint device (côté client : FingerprintJS) — voir CLAUDE.md.
+// le fingerprint device (côté client : FingerprintJS).
 type Session struct {
 	ID          string // UUID éphémère par connexion WS
 	Pseudo      string // 3-20 chars, déjà validé par le package moderation

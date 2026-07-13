@@ -44,7 +44,8 @@ type roomEnvelope struct {
 
 // Room enveloppe la souscription Redis pub/sub d'une conversation 1-vs-1.
 // Chaque Conn matchée en ouvre une et la ferme via Close() au moment du
-// "next" ou de la déconnexion (CLAUDE.md §Redis "désabonnement explicite").
+// "next" ou de la déconnexion — désabonnement explicite, jamais d'abonnement
+// orphelin (CLAUDE.md règle d'or #4).
 type Room struct {
 	rdb     *redis.Client
 	channel string

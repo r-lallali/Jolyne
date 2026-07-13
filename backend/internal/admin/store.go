@@ -171,7 +171,7 @@ func (s *Store) GetReport(ctx context.Context, id int64) (ReportDetail, error) {
 }
 
 // ErrReportNotOpen / ErrReportNotClosed : signalent une transition d'état
-// invalide. Les handlers renvoient 404 (cohérent avec CLAUDE.md, on ne
+// invalide. Les handlers renvoient 404 (contrat back-office : on ne
 // révèle pas l'état exact).
 var (
 	ErrReportNotOpen   = fmt.Errorf("admin: report n'est pas open")

@@ -43,7 +43,8 @@ func (h *Handlers) log() *slog.Logger {
 // HandleLogin (POST /api/admin/login)
 //
 //	Body : {"email": "...", "password": "..."}
-//	Resp : 204 No Content + Set-Cookie ; 404 sinon (jamais 401, voir CLAUDE.md)
+//	Resp : 204 No Content + Set-Cookie ; 404 sinon (jamais 401 — on ne
+//	révèle pas l'existence du back-office)
 func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if !IPAllowed(r, h.Cfg.IPAllowlist) {

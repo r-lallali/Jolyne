@@ -31,7 +31,7 @@ type Config struct {
 //   - cookie de session valide
 //
 // Échec → 404 (et NON 401) pour ne pas révéler l'existence du back-office
-// à un attaquant sans le bon IP/session. Voir CLAUDE.md §"Back-office".
+// à un attaquant sans le bon IP/session.
 func AuthMiddleware(cfg Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

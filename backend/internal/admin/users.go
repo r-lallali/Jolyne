@@ -1,6 +1,6 @@
 // Package admin gère l'authentification et les endpoints du back-office.
 // Auth séparée de l'auth user (jamais d'OAuth), credentials gérés via env
-// vars hashées en bcrypt. Voir CLAUDE.md §"Back-office /admin".
+// vars hashées en bcrypt.
 package admin
 
 import (

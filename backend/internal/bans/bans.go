@@ -1,5 +1,5 @@
 // Package bans gère l'émission, le check et la levée des bannissements
-// multi-axes (IP hashée, fingerprint, futur userId). Voir CLAUDE.md §Sécurité.
+// multi-axes (IP hashée, fingerprint, futur userId).
 package bans
 
 import (

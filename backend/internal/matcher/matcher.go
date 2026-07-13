@@ -41,8 +41,8 @@ type Outcome struct {
 }
 
 // Matcher tente de mettre en relation deux clients selon leurs préférences
-// linguistiques. Stateless : tout l'état vit dans Redis. Voir CLAUDE.md
-// §Backend Go > Redis pour les invariants.
+// linguistiques. Stateless : tout l'état vit dans Redis — chaque clé a un
+// TTL ou une libération garantie (CLAUDE.md règle d'or #4).
 type Matcher struct {
 	rdb *redis.Client
 	// LevelAware : active la préférence de niveau CECRL au matching

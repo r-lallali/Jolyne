@@ -5,8 +5,8 @@ import type { NextConfig } from "next";
 // uniquement 'unsafe-inline' (nécessaire à l'hydratation Next 15), JAMAIS
 // 'unsafe-eval'.
 //
-// Voir CLAUDE.md §Sécurité — défense en profondeur, le serveur ne réécrit
-// pas les messages, DOMPurify côté client strip les tags HTML, et CSP
+// Défense en profondeur (CLAUDE.md règle d'or #2) : le serveur ne réécrit
+// pas les messages, DOMPurify côté client strip les tags HTML, et la CSP
 // refuse les exécutions hors-origine.
 
 const isDev = process.env.NODE_ENV !== "production";

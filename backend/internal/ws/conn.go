@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Timings du heartbeat (CLAUDE.md §Backend > WebSocket).
+// Timings du heartbeat (CLAUDE.md règle d'or #5 : ping 15 s, kill à 30 s).
 const (
 	writeWait      = 10 * time.Second
 	pingPeriod     = 15 * time.Second
@@ -99,8 +99,8 @@ func (c *Conn) WriteAndClose(f any) {
 }
 
 // Send pousse une frame vers le client. Non bloquant : si l'outbound est
-// plein, la connexion est tuée (cf. CLAUDE.md "kill la connexion, ne jamais
-// bloquer"). Renvoie false si non envoyée.
+// plein, la connexion est tuée — kill plutôt que bloquer, un writer lent ne
+// doit jamais figer la boucle de session. Renvoie false si non envoyée.
 func (c *Conn) Send(f any) bool {
 	select {
 	case c.Outbound <- f:

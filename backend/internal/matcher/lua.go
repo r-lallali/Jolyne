@@ -4,8 +4,7 @@ import "github.com/redis/go-redis/v9"
 
 // matchScript implémente le matching atomique en une seule opération Redis.
 // Sans ça, ZPOPMIN + ZADD en deux commandes garantirait une race condition où
-// deux clients pourraient être matchés au même peer ou se rater (CLAUDE.md
-// §"Anti-patterns à proscrire").
+// deux clients pourraient être matchés au même peer ou se rater.
 //
 // Les files sont des SORTED SETS scorés (et non plus des listes FIFO) : on
 // extrait le peer au score le plus BAS (ZPOPMIN) plutôt que le plus ancien.

@@ -2,8 +2,9 @@
 // la table `events`. Chemin d'écriture uniquement — les agrégations de lecture
 // pour les dashboards vivent dans internal/admin (stats_store.go).
 //
-// Privacy by default (cf. CLAUDE.md) : aucun contenu de message, email ou token
-// ne transite par ici. Les noms d'événements sont validés contre une allowlist
+// Privacy by default (CLAUDE.md règles d'or #1 et #6) : aucun contenu de
+// message, email ou token ne transite par ici — identités hashées uniquement.
+// Les noms d'événements sont validés contre une allowlist
 // pour qu'un appel erroné (ou un beacon public malveillant) ne pollue pas la
 // table.
 package analytics

@@ -1,6 +1,7 @@
 // Package crypto regroupe les primitives cryptographiques applicatives.
 // Pour l'instant : AES-256-GCM authentifié pour le chiffrement des messages
-// capturés lors d'un signalement (CLAUDE.md §RGPD & DSA).
+// capturés lors d'un signalement (exigence RGPD/DSA : chiffrés au repos,
+// lisibles uniquement par le back-office).
 //
 // Génération d'une clé en local :
 //

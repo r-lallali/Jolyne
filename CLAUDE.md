@@ -8,7 +8,7 @@ Jolyne = chat d'échange linguistique temps réel. Appariement par paire de lang
 
 ## Structure
 
-- `backend/` — Go 1.25, un seul binaire gateway (HTTP + WebSocket).
+- `backend/` — Go 1.26, un seul binaire gateway (HTTP + WebSocket).
   - `cmd/gateway/` — entrypoint + `routes.go` (toutes les routes HTTP/WS, lecture rapide pour la carte des endpoints).
   - `internal/<domaine>/` — un package par domaine : `matcher` (Lua/Redis), `ws` (chat, bot IA, amis, inbox), `users`, `profile`, `friends`, `billing`, `quota`, `moderation`, `admin`, `claudeapi`, `translate`, `grammar`, `push`, `db` (migrations SQL numérotées).
 - `frontend/` — Next.js 15 App Router, React 19, TS, Tailwind, Zustand. `src/app/` (pages), `src/components/`, `src/lib/` (clients API, i18n 10 langues), `src/stores/` (Zustand).
@@ -36,9 +36,25 @@ Pas de Makefile. Front = **pnpm** (pas npm).
 - **Code** : commentaires en français (cf. existant), mais commits en anglais.
 - Ne commit/push que si l'utilisateur le demande.
 
+## Règles d'or (référencées par numéro dans les commentaires du code)
+
+1. **Jamais logger ni persister le contenu d'un message de chat** (RGPD) — métadonnées uniquement. Seule dérogation : le chat entre amis mutuels (persisté, jamais loggé).
+2. **Sanitization XSS des deux côtés** (serveur ET client) ; `dangerouslySetInnerHTML` interdit.
+3. Toute validation front est **re-jouée côté serveur**.
+4. **Cleanup Redis garanti** : tout état de session a un TTL ou une libération explicite (sinon slots fantômes qui bloquent le matching).
+5. **Heartbeat WS strict** : ping/pong 15 s, kill à 30 s ; kill plutôt que bloquer.
+6. **Pas de PII dans logs/télémétrie** : emails et IP hashés, jamais de pseudo.
+7. Seule la **modération humaine bannit définitivement** ; l'auto throttle/suspend seulement.
+8. **1-vs-1 strict** — pas de salles ni de groupes (non négociable produit).
+9. **Age gate 16+ vérifié côté serveur** (claim explicite exigé, pas déduit de l'UI).
+10. **Webhooks Stripe idempotents** (signature vérifiée + unicité `event.id`).
+11. **~400 lignes max par fichier** — au-delà, découper.
+12. Un fichier = un concept, un package = une responsabilité.
+13. Aucune mention d'IA/outils dans commits, PRs, code (cf. Conventions).
+
 ## Gotchas
 
-- Routes montées conditionnellement : un domaine sans config (Stripe, VAPID, auth user…) renvoie 503 *avec CORS*, pas 404 — voir `routes.go`.
+- Routes montées conditionnellement : un domaine sans config (Stripe, VAPID, auth user…) renvoie 503 *avec CORS*, pas 404 — voir `unavailable()` dans `routes.go`. Exceptions voulues : `/api/admin/*` et `/metrics` restent 404 (ne pas révéler leur existence).
 - IA tuteur : **aucun contenu de message n'est loggé**. Modèle `claude-haiku-4-5`.
 - Analyse IA post-conversation (`ws/analyzer.go`) : seul le **matériau pédagogique dérivé** est persisté (vocab, fautes corrigées, score CECRL) — jamais la transcription.
 - Matchmaking 100 % stateless : tout l'état vit dans Redis (scripts Lua atomiques).
