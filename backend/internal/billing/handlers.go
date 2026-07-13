@@ -102,7 +102,7 @@ func (h *Handlers) HandlePortal(w http.ResponseWriter, r *http.Request) {
 // Ordre choisi : on applique l'effet AVANT de marquer l'event traité. Ainsi un
 // échec transitoire laisse l'event non marqué → Stripe rejoue → on réapplique
 // (SetSubscription est idempotent). On évite le piège « event marqué mais effet
-// non appliqué » = abonné qui paye sans accès (PLAN.md §7).
+// non appliqué » = abonné qui paye sans accès.
 func (h *Handlers) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 64*1024))
 	if err != nil {

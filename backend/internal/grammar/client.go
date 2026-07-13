@@ -1,5 +1,5 @@
-// Package grammar wrap l'API LanguageTool self-hostée.
-// Voir PLAN.md §4 Phase 2 (Correction grammaticale).
+// Package grammar wrap l'API LanguageTool self-hostée, complétée par Claude
+// pour les langues non couvertes (ai.go).
 package grammar
 
 import (

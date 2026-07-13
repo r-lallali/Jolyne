@@ -1,7 +1,7 @@
 // Package friends : amitiés bidirectionnelles + chat persisté entre amis.
-// Voir CLAUDE.md règle d'or #1 (dérogation Phase 3 — uniquement entre
-// utilisateurs qui se sont mutuellement ajoutés à la fin d'une session
-// anonyme de ≥ 10 min).
+// Voir CLAUDE.md règle d'or #1 — la persistance ici est la seule dérogation,
+// uniquement entre utilisateurs qui se sont mutuellement ajoutés à la fin
+// d'une session anonyme de ≥ 10 min.
 package friends
 
 import (

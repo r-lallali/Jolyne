@@ -5,11 +5,11 @@ import (
 	"unicode"
 )
 
-// Blocklist regroupe les patterns interdits dans pseudos et messages.
-// Implémentation Phase 1 = liste minimale en dur, multilingue (FR/EN/ES/DE),
-// substring + fuzzy match basique (leetspeak, espaces insérés).
-//
-// À remplacer Phase 2 par une lib dédiée + listes maintenues — voir PLAN.md §8.
+// Blocklist regroupe les patterns interdits dans pseudos et messages :
+// liste minimale en dur, multilingue (FR/EN/ES/DE), substring + fuzzy match
+// basique (leetspeak, espaces insérés). Volontairement courte : c'est le
+// premier étage (instantané, gratuit) de la cascade de modération — la zone
+// grise part au scorer local puis au classifieur Claude (ws/toxicity.go).
 type Blocklist struct {
 	terms []string // déjà normalisés (minuscules, sans accents, sans espaces)
 }

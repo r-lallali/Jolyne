@@ -25,9 +25,9 @@ func (h *Handler) runSession(ctx context.Context, conn *Conn, sess session.Sessi
 	// Identité de quota : userID si connecté, sinon fingerprint device.
 	quotaID := quota.Identity(sess.UserID, sess.Fingerprint)
 
-	// Throttle anti-farming sur Next : 1 par seconde max et par session
-	// (PLAN.md §4 Phase 1, §6 Contraintes). Variable de scope runSession
-	// pour persister à travers les itérations du loop (entre deux chats).
+	// Throttle anti-farming sur Next : 1 par seconde max et par session.
+	// Variable de scope runSession pour persister à travers les itérations
+	// du loop (entre deux chats).
 	var lastNextAt time.Time
 	canNext := func() bool {
 		now := time.Now()

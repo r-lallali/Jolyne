@@ -1,6 +1,5 @@
 // Package users : modèle utilisateur + opérations DB (compte créé via
-// email + mot de passe, email vérifié une seule fois). Voir PLAN.md §4
-// Phase 3.
+// email + mot de passe, email vérifié une seule fois).
 package users
 
 import (

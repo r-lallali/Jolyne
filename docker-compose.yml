@@ -27,7 +27,7 @@ services:
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DB: 0
-      # Postgres (Phase 2+). Renseigne dans Dokploy → Environment Variables.
+      # Postgres. Renseigne dans Dokploy → Environment Variables.
       # Le DSN doit pointer vers le service Postgres interne (dokploy-network).
       POSTGRES_DSN: ${POSTGRES_DSN:-}
       POSTGRES_AUTO_MIGRATE: ${POSTGRES_AUTO_MIGRATE:-true}
@@ -39,7 +39,7 @@ services:
       # Clé AES-256 base64 (32 octets) pour chiffrer les messages capturés
       # lors d'un signalement. Génération : openssl rand -base64 32.
       REPORT_ENCRYPTION_KEY: ${REPORT_ENCRYPTION_KEY:-}
-      # Back-office admin (Phase 2). Renseigne dans Dokploy → Env Variables.
+      # Back-office admin. Renseigne dans Dokploy → Env Variables.
       ADMIN_USERS: ${ADMIN_USERS:-}
       ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-}
@@ -52,7 +52,7 @@ services:
       # Self-host LibreTranslate + LanguageTool sur le même réseau.
       LIBRETRANSLATE_URL: http://libretranslate:5000
       LANGUAGETOOL_URL: http://languagetool:8010
-      # Auth utilisateur magic link. Base64 ≥32 octets via openssl rand -base64 32.
+      # Auth utilisateur (email + mot de passe). Base64 ≥32 octets via openssl rand -base64 32.
       USER_SESSION_SECRET: ${USER_SESSION_SECRET:-}
       USER_COOKIE_DOMAIN: ${USER_COOKIE_DOMAIN:-${ADMIN_COOKIE_DOMAIN:-}}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://${JOLYNE_DOMAIN}}
@@ -148,7 +148,7 @@ services:
     networks:
       - dokploy-network
 
-  # LibreTranslate self-host (PLAN.md §8 — décision actée).
+  # LibreTranslate self-host.
   # LT_LOAD_ONLY doit couvrir TOUTES les langues proposées par l'app (cf.
   # frontend ALL_LANGS / handler translate allowedLangs) : sinon toute paire
   # touchant une langue absente échoue (« ar is not supported »). Argos pivote

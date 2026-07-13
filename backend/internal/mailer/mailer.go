@@ -1,4 +1,5 @@
-// Package mailer envoie les emails transactionnels (magic link auth).
+// Package mailer envoie les emails transactionnels de l'auth (vérification
+// d'adresse, reset de mot de passe).
 // Implémentation : SMTP standard (Mailjet), pas de SDK pour éviter une
 // dépendance lourde. Échec d'envoi = erreur remontée au handler.
 package mailer

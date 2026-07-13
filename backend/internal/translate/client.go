@@ -1,6 +1,5 @@
-// Package translate wrap l'API LibreTranslate self-hostée.
-// Voir PLAN.md §4 Phase 2 (Tooltip de traduction) + §8 décisions
-// (LibreTranslate self-host, gratuit, qualité moindre).
+// Package translate wrap l'API LibreTranslate self-hostée (gratuite, qualité
+// moindre — les phrases passent en priorité par Claude, cf. handler.go).
 package translate
 
 import (

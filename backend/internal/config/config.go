@@ -28,7 +28,8 @@ type Config struct {
 	// d'un signalement. Génération : `openssl rand -base64 32`.
 	ReportEncryptionKey string
 
-	// Back-office admin (Phase 2). Voir CLAUDE.md §"Back-office /admin".
+	// Back-office admin. Non configuré → /api/admin/* reste en 404 délibéré
+	// (on ne révèle pas l'existence du back-office, jamais de 401).
 	AdminUsersRaw     string
 	AdminIPAllowlist  string
 	AdminSessionKey   string // base64, ≥ 32 octets
@@ -39,16 +40,16 @@ type Config struct {
 	// et /api/grammar. Vide en dev → tout passe.
 	PublicCORSOrigin string
 
-	// LibreTranslate self-hosted (cf. PLAN.md §4 Phase 2). Vide → endpoint
-	// /api/translate désactivé.
+	// LibreTranslate self-hosted. Vide → endpoint /api/translate désactivé.
 	LibreTranslateURL    string
 	LibreTranslateAPIKey string
 
 	// LanguageTool self-hosted. Vide → endpoint /api/grammar désactivé.
 	LanguageToolURL string
 
-	// Auth utilisateur (magic link via Mailjet). Tout en une fois — si l'un
-	// manque l'auth est désactivée (les endpoints /api/auth/* renvoient 404).
+	// Auth utilisateur (email + mot de passe ; vérification d'adresse et
+	// reset par e-mail via Mailjet). Tout en une fois — si l'un manque,
+	// l'auth est désactivée (les endpoints /api/auth/* renvoient 503).
 	UserSessionKey   string // base64, ≥ 32 octets
 	UserCookieDomain string // ex: "ralys.ovh" pour partager entre subdomains
 	PublicAppURL     string // ex: https://jolyne.ralys.ovh — racine front

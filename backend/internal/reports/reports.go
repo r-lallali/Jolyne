@@ -1,6 +1,6 @@
 // Package reports persiste les signalements en Postgres avec les messages
-// capturés chiffrés (AES-256-GCM). Voir CLAUDE.md §RGPD & DSA et la
-// migration `internal/db/migrations/0001_init.up.sql`.
+// capturés chiffrés (AES-256-GCM, exigence RGPD/DSA). Voir la migration
+// `internal/db/migrations/0001_init.up.sql`.
 package reports
 
 import (
@@ -37,8 +37,7 @@ type Report struct {
 }
 
 // Service expose l'enregistrement d'un signalement. Pas de méthode de
-// lecture pour l'instant — la file d'attente sera consommée par le
-// back-office admin (Phase 2, à venir).
+// lecture ici — la consultation vit côté back-office admin (internal/admin).
 type Service struct {
 	pool *pgxpool.Pool
 	box  *crypto.Box
