@@ -11,6 +11,12 @@
 // VUs pairs → speaks=fr,wants=en. Impairs → speaks=en,wants=fr.
 // Chaque VU se connecte, attend le match, échange 3 messages, ferme.
 // Mesure : taux de handshake 101, durée pour atteindre "matched", erreurs.
+//
+// Cibles (seuils posés plus bas, k6 exit non-zero si dépassés) :
+//   matched_count > 50 · time_to_match p95 < 3 s · queue_timeouts ~0.
+// Test plus lourd : monter `target` à 500-1000 dans les stages.
+// Les sorties (--summary-export, rapports) sont gitignorées — ne pas les
+// committer.
 
 import ws from "k6/ws";
 import { check } from "k6";

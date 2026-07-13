@@ -48,3 +48,7 @@ __pycache__/
 # Artefacts Playwright (rapports et captures de test E2E)
 frontend/test-results/
 frontend/playwright-report/
+
+# Sorties k6 (résumés/rapports de runs de charge — jamais versionnés)
+infra/k6/*.json
+infra/k6/*.txt
