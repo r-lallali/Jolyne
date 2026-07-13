@@ -19,12 +19,15 @@ services:
       LIBRETRANSLATE_URL: http://libretranslate:5000
       LANGUAGETOOL_URL: http://languagetool:8010
       FACE_MATCHER_URL: http://face-matcher:5001
+      # Scorer de toxicité local (Detoxify) — même cascade qu'en prod. Sans
+      # lui, la zone grise part directement à Claude (coût + étage intestable).
+      TOXICITY_SCORER_URL: http://toxicity-scorer:5002
       # Auth utilisateur (dev). Secret de dev figé, ne pas réutiliser en prod.
       USER_SESSION_SECRET: "ZGV2X3VzZXJfc2Vzc2lvbl9zZWNyZXRfMzJfYnl0ZXNfbWluX2RldnQK"
       USER_COOKIE_DOMAIN: ""
       PUBLIC_APP_URL: "http://localhost:3000"
-      # Mailjet : vide en dev → le backend log le magic link sur stdout
-      # à la place d'envoyer un email.
+      # Mailjet : vide en dev → le backend log les liens de vérification /
+      # reset sur stdout à la place d'envoyer un email.
       MAILJET_API_KEY: ""
       MAILJET_SECRET_KEY: ""
       MAILJET_FROM: ""
@@ -42,6 +45,10 @@ services:
       languagetool:
         condition: service_started
       face-matcher:
+        condition: service_started
+      # Chargement du modèle Detoxify ~30 s — on n'attend pas (la cascade
+      # dégrade sur Claude entre-temps), comme en prod.
+      toxicity-scorer:
         condition: service_started
 
   redis:
@@ -73,18 +80,21 @@ services:
       timeout: 3s
       retries: 5
 
-  # LibreTranslate : self-host (PLAN.md §8 décisions). Premier boot lent
-  # (plusieurs minutes) car téléchargement des modèles des 10 langues.
+  # LibreTranslate : self-host. Premier boot lent (plusieurs minutes) car
+  # téléchargement des modèles des 10 langues — persistés ensuite dans un
+  # volume nommé monté sur ~/.local ENTIER (même schéma que la prod : ce
+  # chemin existe dans l'image avec le bon owner UID 1032, un montage plus
+  # profond serait créé root-owned → PermissionError).
   # LT_LOAD_ONLY couvre toutes les langues de l'app (sinon ar/pt/it/zh/ja/ko
   # échouent) ; Argos pivote par l'anglais → garder `en`.
-  # Pas de volume persistant : volume nommé = root-owned, LT tourne en UID
-  # 1032 → PermissionError. Modèles re-téléchargés à chaque container create.
   libretranslate:
     image: libretranslate/libretranslate:latest
     restart: unless-stopped
     environment:
       LT_LOAD_ONLY: "en,fr,es,de,pt,it,zh,ja,ko,ar"
       LT_DISABLE_WEB_UI: "true"
+    volumes:
+      - libretranslate_dev_models:/home/libretranslate/.local
     healthcheck:
       test:
         - CMD-SHELL
@@ -109,6 +119,16 @@ services:
     environment:
       PORT: 5001
 
+  # Scorer de toxicité (Detoxify multilingue, CPU) — même image qu'en prod,
+  # les poids (~1 Go) sont dans l'image, pas de téléchargement au boot.
+  toxicity-scorer:
+    build:
+      context: ../infra/toxicity-scorer
+    restart: unless-stopped
+    environment:
+      PORT: 5002
+
 volumes:
   redis_dev_data:
   postgres_dev_data:
+  libretranslate_dev_models:
