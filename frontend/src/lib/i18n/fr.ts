@@ -368,6 +368,10 @@ export const fr: Messages = {
   auth: {
     loginCta: "Se connecter",
     signupCta: "Créer un compte",
+    continueWithGoogle: "Continuer avec Google",
+    continueWithApple: "Continuer avec Apple",
+    orSeparator: "ou",
+    oauthError: "La connexion a échoué. Réessaie.",
     tabLogin: "Connexion",
     tabSignup: "Inscription",
     tabForgot: "Mot de passe oublié",

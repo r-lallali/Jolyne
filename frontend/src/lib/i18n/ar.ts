@@ -359,6 +359,10 @@ export const ar: Messages = {
   auth: {
     loginCta: "تسجيل الدخول",
     signupCta: "إنشاء حساب",
+    continueWithGoogle: "المتابعة عبر Google",
+    continueWithApple: "المتابعة عبر Apple",
+    orSeparator: "أو",
+    oauthError: "فشل تسجيل الدخول. حاول مجددًا.",
     tabLogin: "دخول",
     tabSignup: "تسجيل",
     tabForgot: "نسيت كلمة المرور",

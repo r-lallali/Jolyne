@@ -364,6 +364,10 @@ export const es: Messages = {
   auth: {
     loginCta: "Iniciar sesión",
     signupCta: "Crear cuenta",
+    continueWithGoogle: "Continuar con Google",
+    continueWithApple: "Continuar con Apple",
+    orSeparator: "o",
+    oauthError: "No se pudo iniciar sesión. Inténtalo de nuevo.",
     tabLogin: "Iniciar sesión",
     tabSignup: "Registrarse",
     tabForgot: "Contraseña olvidada",

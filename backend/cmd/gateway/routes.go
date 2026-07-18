@@ -123,6 +123,13 @@ func routes(s services) http.Handler {
 	}
 
 	if s.users != nil {
+		// OAuth social login. providers est toujours montée (liste vide si non
+		// configuré). Le callback est une navigation top-level venant du
+		// provider (GET Google, POST form Apple) : pas de CORS ni de contrainte
+		// de méthode — le handler redirige vers le front dans tous les cas.
+		mux.Handle("/api/auth/oauth/providers", publicCORS(s.publicCORS)(methodOnly("GET", http.HandlerFunc(s.users.HandleOAuthProviders))))
+		mux.Handle("/api/auth/oauth/{provider}/start", publicCORS(s.publicCORS)(methodOnly("GET", http.HandlerFunc(s.users.HandleOAuthStart))))
+		mux.Handle("/api/auth/oauth/{provider}/callback", http.HandlerFunc(s.users.HandleOAuthCallback))
 		mux.Handle("/api/auth/signup", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleSignup))))
 		mux.Handle("/api/auth/login", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleLogin))))
 		mux.Handle("/api/auth/verify-email", publicCORS(s.publicCORS)(methodOnly("POST", http.HandlerFunc(s.users.HandleVerifyEmail))))

@@ -359,6 +359,10 @@ export const ja: Messages = {
   auth: {
     loginCta: "ログイン",
     signupCta: "アカウント作成",
+    continueWithGoogle: "Googleで続ける",
+    continueWithApple: "Appleで続ける",
+    orSeparator: "または",
+    oauthError: "ログインに失敗しました。もう一度お試しください。",
     tabLogin: "ログイン",
     tabSignup: "登録",
     tabForgot: "パスワードを忘れた",

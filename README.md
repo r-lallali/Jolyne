@@ -30,7 +30,7 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont appariés par
 - **Traduction & grammaire** — traduction de phrases par Claude Haiku (+ romanisation zh/ja/ko/ar), repli LibreTranslate ; correction grammaticale LanguageTool complétée par Claude pour les langues non couvertes. Exposées en `/api/translate` et `/api/grammar`.
 
 **Comptes & social**
-- **Comptes** — signup / login / vérification e-mail / reset password / logout, sessions JWT avec invalidation par version.
+- **Comptes** — signup / login / vérification e-mail / reset password / logout, sessions JWT avec invalidation par version. **Social login Google / Apple** (OAuth authorization code 100 % serveur, state anti-CSRF en Redis, liaison par email vérifié, comptes sans mot de passe supportés).
 - **Profils** — photos Cloudinary (upload signé, réordonnancement), **vérification de visage** (selfie vs photos) via service Python (`face_recognition`, seuil dlib 0.6), prompts de profil style Hinge.
 - **Amis & streaks** — demandes d'amis, inbox temps réel (`/ws/inbox`), chats persistants (`/ws/friend/`), édition/suppression de messages, streaks avec restauration et cron de perte, signalements.
 - **Premium** — abonnement Stripe (checkout / portal / webhook), système de quotas, cœurs illimités.
@@ -72,5 +72,6 @@ Prod = un VPS OVH orchestré par **Dokploy** (Traefik en frontal, TLS auto). Le 
 - **Domaines** (Dokploy UI → Domains) : `jolyne.ralys.ovh` → frontend port 3000, `api.jolyne.ralys.ovh` → backend port 8080. Pas de labels Traefik dans le compose : Dokploy les pose lui-même.
 - **Postgres** tourne comme service Dokploy séparé sur `dokploy-network` (hors compose) ; `POSTGRES_DSN` pointe dessus.
 - **Headers de sécurité** : Traefik ne pose que le TLS. La CSP/HSTS du front vit dans `next.config.ts`, celle de l'API dans le middleware `secHeaders` du gateway Go — versionnées, donc reconstructibles.
+- **OAuth Google/Apple** : poser `PUBLIC_API_URL` (ex. `https://api.jolyne.ralys.ovh`) + `GOOGLE_OAUTH_CLIENT_ID/SECRET` et/ou `APPLE_OAUTH_CLIENT_ID/TEAM_ID/KEY_ID/PRIVATE_KEY` (contenu PEM du `.p8`). Déclarer `{PUBLIC_API_URL}/api/auth/oauth/{provider}/callback` comme redirect URI dans la console Google Cloud / Apple Developer. Sans config, les boutons n'apparaissent pas.
 - **Traçabilité** : poser `BUILD_COMMIT` / `BUILD_VERSION` en args de build côté Dokploy, sinon le binaire log `dev`.
 - **Dev local** : `docker compose -f infra/docker-compose.dev.yml up` (backend + Redis + Postgres + services) et `cd frontend && pnpm dev` à côté. Le compose racine ne monte pas en local (réseau `dokploy-network` externe).

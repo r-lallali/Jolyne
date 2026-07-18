@@ -365,6 +365,10 @@ export const en: Messages = {
   auth: {
     loginCta: "Sign in",
     signupCta: "Create account",
+    continueWithGoogle: "Continue with Google",
+    continueWithApple: "Continue with Apple",
+    orSeparator: "or",
+    oauthError: "Sign-in failed. Please try again.",
     tabLogin: "Sign in",
     tabSignup: "Sign up",
     tabForgot: "Forgot password",

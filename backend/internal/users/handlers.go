@@ -41,6 +41,9 @@ type Handlers struct {
 	// des endpoints publics (brute-force login, spam signup, email-bombing via
 	// forgot). Implémenté par quota.Engine.Allow.
 	RateLimiter RateLimiter
+	// OAuth (optionnel) : social login Google / Apple. nil = pas de provider
+	// configuré — les endpoints /api/auth/oauth/* répondent liste vide / 503.
+	OAuth *OAuth
 	// ClientIP (optionnel) : résout l'IP cliente réelle (netx, proxy-aware) —
 	// clé du rate-limit. nil → on retombe sur RemoteAddr via un défaut interne.
 	ClientIP func(r *http.Request) string

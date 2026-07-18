@@ -358,6 +358,10 @@ export const ko: Messages = {
   auth: {
     loginCta: "로그인",
     signupCta: "계정 만들기",
+    continueWithGoogle: "Google로 계속하기",
+    continueWithApple: "Apple로 계속하기",
+    orSeparator: "또는",
+    oauthError: "로그인에 실패했습니다. 다시 시도해 주세요.",
     tabLogin: "로그인",
     tabSignup: "회원가입",
     tabForgot: "비밀번호 찾기",

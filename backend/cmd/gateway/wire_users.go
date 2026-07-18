@@ -109,10 +109,23 @@ func wireUserStack(ctx context.Context, d userStackDeps, svc *services, wsDeps *
 			friends.ResolvePendingFriendships(ctx, rdb, wsDeps.Friends, userID, fingerprint, log)
 		},
 	}
+	// Social login Google / Apple : chaque provider est actif si sa config
+	// complète est posée (+ PUBLIC_API_URL pour les redirect URIs). nil →
+	// /api/auth/oauth/providers renvoie une liste vide, aucun bouton au front.
+	svc.users.OAuth = users.NewOAuth(rdb, users.OAuthConfig{
+		APIBaseURL:         cfg.PublicAPIURL,
+		GoogleClientID:     cfg.GoogleOAuthClientID,
+		GoogleClientSecret: cfg.GoogleOAuthClientSecret,
+		AppleClientID:      cfg.AppleOAuthClientID,
+		AppleTeamID:        cfg.AppleOAuthTeamID,
+		AppleKeyID:         cfg.AppleOAuthKeyID,
+		ApplePrivateKey:    cfg.AppleOAuthPrivateKey,
+	}, log)
 	log.Info("user auth ready",
 		"mailer", ml != nil,
 		"cookie_domain", cfg.UserCookieDomain,
-		"public_url", cfg.PublicAppURL)
+		"public_url", cfg.PublicAppURL,
+		"oauth", svc.users.OAuth != nil)
 
 	// Résolveur de plan : Premium si abonnement Stripe actif. Partagé par
 	// le WS (swipe quota) et le handler translate.

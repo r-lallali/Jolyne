@@ -54,6 +54,21 @@ type Config struct {
 	UserCookieDomain string // ex: "ralys.ovh" pour partager entre subdomains
 	PublicAppURL     string // ex: https://jolyne.ralys.ovh — racine front
 
+	// OAuth social login (Google / Apple), flow authorization code 100 %
+	// serveur. Un provider est actif si toute sa config est posée ET que
+	// PublicAPIURL l'est (les redirect URIs en dérivent :
+	// {PublicAPIURL}/api/auth/oauth/{provider}/callback — à déclarer à
+	// l'identique dans les consoles Google/Apple). Aucun provider configuré →
+	// /api/auth/oauth/providers renvoie une liste vide, le front n'affiche
+	// aucun bouton.
+	PublicAPIURL            string // ex: https://api.jolyne.ralys.ovh
+	GoogleOAuthClientID     string
+	GoogleOAuthClientSecret string
+	AppleOAuthClientID      string // Services ID (identifiant "Sign in with Apple" web)
+	AppleOAuthTeamID        string
+	AppleOAuthKeyID         string
+	AppleOAuthPrivateKey    string // contenu PEM de la clé .p8 (pas un chemin)
+
 	// Mailjet SMTP (in-v3.mailjet.com:587 par défaut).
 	MailjetSMTPHost string
 	MailjetSMTPPort int
@@ -119,52 +134,59 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
-		Env:                  getEnv("JOLYNE_ENV", "dev"),
-		Port:                 getEnvInt("JOLYNE_PORT", 8080),
-		TrustedProxies:       getEnvInt("TRUSTED_PROXY_COUNT", 1),
-		RedisAddr:            getEnv("REDIS_ADDR", "127.0.0.1:6379"),
-		RedisPassword:        os.Getenv("REDIS_PASSWORD"),
-		RedisDB:              getEnvInt("REDIS_DB", 0),
-		PostgresDSN:          os.Getenv("POSTGRES_DSN"),
-		PostgresMigrate:      getEnvBool("POSTGRES_AUTO_MIGRATE", false),
-		ReportEncryptionKey:  os.Getenv("REPORT_ENCRYPTION_KEY"),
-		AdminUsersRaw:        os.Getenv("ADMIN_USERS"),
-		AdminIPAllowlist:     os.Getenv("ADMIN_IP_ALLOWLIST"),
-		AdminSessionKey:      os.Getenv("ADMIN_SESSION_SECRET"),
-		AdminCookieDomain:    os.Getenv("ADMIN_COOKIE_DOMAIN"),
-		AdminCORSOrigin:      os.Getenv("ADMIN_CORS_ORIGIN"),
-		PublicCORSOrigin:     os.Getenv("PUBLIC_CORS_ORIGIN"),
-		LibreTranslateURL:    os.Getenv("LIBRETRANSLATE_URL"),
-		LibreTranslateAPIKey: os.Getenv("LIBRETRANSLATE_API_KEY"),
-		LanguageToolURL:      os.Getenv("LANGUAGETOOL_URL"),
-		UserSessionKey:       os.Getenv("USER_SESSION_SECRET"),
-		UserCookieDomain:     os.Getenv("USER_COOKIE_DOMAIN"),
-		PublicAppURL:         os.Getenv("PUBLIC_APP_URL"),
-		MailjetSMTPHost:      getEnv("MAILJET_SMTP_HOST", "in-v3.mailjet.com"),
-		MailjetSMTPPort:      getEnvInt("MAILJET_SMTP_PORT", 587),
-		MailjetAPIKey:        os.Getenv("MAILJET_API_KEY"),
-		MailjetSecret:        os.Getenv("MAILJET_SECRET_KEY"),
-		MailjetFrom:          os.Getenv("MAILJET_FROM"),
-		CloudinaryCloudName:  os.Getenv("CLOUDINARY_CLOUD_NAME"),
-		CloudinaryAPIKey:     os.Getenv("CLOUDINARY_API_KEY"),
-		CloudinaryAPISecret:  os.Getenv("CLOUDINARY_API_SECRET"),
-		CloudinaryFolder:     getEnv("CLOUDINARY_FOLDER", "jolyne/avatars"),
-		VAPIDPublicKey:       os.Getenv("VAPID_PUBLIC_KEY"),
-		VAPIDPrivateKey:      os.Getenv("VAPID_PRIVATE_KEY"),
-		VAPIDSubject:         os.Getenv("VAPID_SUBJECT"),
-		AnthropicAPIKey:      os.Getenv("ANTHROPIC_API_KEY"),
-		AnthropicModel:       getEnv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
-		BotMaxConcurrent:     getEnvInt("BOT_MAX_CONCURRENT", 20),
-		BotTriggerDelaySec:   getEnvInt("BOT_TRIGGER_DELAY_SEC", 10),
-		ToxicityScorerURL:    os.Getenv("TOXICITY_SCORER_URL"),
-		AnalyzerBatch:        getEnvBool("ANALYZER_BATCH", true),
-		MatchLevelAware:      getEnvBool("MATCH_LEVEL_AWARE", false),
-		StripeSecretKey:      os.Getenv("STRIPE_SECRET_KEY"),
-		StripeWebhookSecret:  os.Getenv("STRIPE_WEBHOOK_SECRET"),
-		StripePriceID:        os.Getenv("STRIPE_PRICE_ID"),
-		StripeSuccessURL:     os.Getenv("STRIPE_SUCCESS_URL"),
-		StripeCancelURL:      os.Getenv("STRIPE_CANCEL_URL"),
-		SentryDSN:            os.Getenv("SENTRY_DSN"),
+		Env:                     getEnv("JOLYNE_ENV", "dev"),
+		Port:                    getEnvInt("JOLYNE_PORT", 8080),
+		TrustedProxies:          getEnvInt("TRUSTED_PROXY_COUNT", 1),
+		RedisAddr:               getEnv("REDIS_ADDR", "127.0.0.1:6379"),
+		RedisPassword:           os.Getenv("REDIS_PASSWORD"),
+		RedisDB:                 getEnvInt("REDIS_DB", 0),
+		PostgresDSN:             os.Getenv("POSTGRES_DSN"),
+		PostgresMigrate:         getEnvBool("POSTGRES_AUTO_MIGRATE", false),
+		ReportEncryptionKey:     os.Getenv("REPORT_ENCRYPTION_KEY"),
+		AdminUsersRaw:           os.Getenv("ADMIN_USERS"),
+		AdminIPAllowlist:        os.Getenv("ADMIN_IP_ALLOWLIST"),
+		AdminSessionKey:         os.Getenv("ADMIN_SESSION_SECRET"),
+		AdminCookieDomain:       os.Getenv("ADMIN_COOKIE_DOMAIN"),
+		AdminCORSOrigin:         os.Getenv("ADMIN_CORS_ORIGIN"),
+		PublicCORSOrigin:        os.Getenv("PUBLIC_CORS_ORIGIN"),
+		LibreTranslateURL:       os.Getenv("LIBRETRANSLATE_URL"),
+		LibreTranslateAPIKey:    os.Getenv("LIBRETRANSLATE_API_KEY"),
+		LanguageToolURL:         os.Getenv("LANGUAGETOOL_URL"),
+		UserSessionKey:          os.Getenv("USER_SESSION_SECRET"),
+		UserCookieDomain:        os.Getenv("USER_COOKIE_DOMAIN"),
+		PublicAppURL:            os.Getenv("PUBLIC_APP_URL"),
+		PublicAPIURL:            os.Getenv("PUBLIC_API_URL"),
+		GoogleOAuthClientID:     os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+		GoogleOAuthClientSecret: os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+		AppleOAuthClientID:      os.Getenv("APPLE_OAUTH_CLIENT_ID"),
+		AppleOAuthTeamID:        os.Getenv("APPLE_OAUTH_TEAM_ID"),
+		AppleOAuthKeyID:         os.Getenv("APPLE_OAUTH_KEY_ID"),
+		AppleOAuthPrivateKey:    os.Getenv("APPLE_OAUTH_PRIVATE_KEY"),
+		MailjetSMTPHost:         getEnv("MAILJET_SMTP_HOST", "in-v3.mailjet.com"),
+		MailjetSMTPPort:         getEnvInt("MAILJET_SMTP_PORT", 587),
+		MailjetAPIKey:           os.Getenv("MAILJET_API_KEY"),
+		MailjetSecret:           os.Getenv("MAILJET_SECRET_KEY"),
+		MailjetFrom:             os.Getenv("MAILJET_FROM"),
+		CloudinaryCloudName:     os.Getenv("CLOUDINARY_CLOUD_NAME"),
+		CloudinaryAPIKey:        os.Getenv("CLOUDINARY_API_KEY"),
+		CloudinaryAPISecret:     os.Getenv("CLOUDINARY_API_SECRET"),
+		CloudinaryFolder:        getEnv("CLOUDINARY_FOLDER", "jolyne/avatars"),
+		VAPIDPublicKey:          os.Getenv("VAPID_PUBLIC_KEY"),
+		VAPIDPrivateKey:         os.Getenv("VAPID_PRIVATE_KEY"),
+		VAPIDSubject:            os.Getenv("VAPID_SUBJECT"),
+		AnthropicAPIKey:         os.Getenv("ANTHROPIC_API_KEY"),
+		AnthropicModel:          getEnv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
+		BotMaxConcurrent:        getEnvInt("BOT_MAX_CONCURRENT", 20),
+		BotTriggerDelaySec:      getEnvInt("BOT_TRIGGER_DELAY_SEC", 10),
+		ToxicityScorerURL:       os.Getenv("TOXICITY_SCORER_URL"),
+		AnalyzerBatch:           getEnvBool("ANALYZER_BATCH", true),
+		MatchLevelAware:         getEnvBool("MATCH_LEVEL_AWARE", false),
+		StripeSecretKey:         os.Getenv("STRIPE_SECRET_KEY"),
+		StripeWebhookSecret:     os.Getenv("STRIPE_WEBHOOK_SECRET"),
+		StripePriceID:           os.Getenv("STRIPE_PRICE_ID"),
+		StripeSuccessURL:        os.Getenv("STRIPE_SUCCESS_URL"),
+		StripeCancelURL:         os.Getenv("STRIPE_CANCEL_URL"),
+		SentryDSN:               os.Getenv("SENTRY_DSN"),
 		// 30 s : le shutdown draine le batcher d'analyses (appels IA directs)
 		// après l'arrêt HTTP — 10 s ne suffisaient qu'à l'arrêt HTTP seul.
 		ShutdownGrace: getEnvDuration("SHUTDOWN_GRACE", 30*time.Second),

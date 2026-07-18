@@ -354,6 +354,10 @@ export const zh: Messages = {
   auth: {
     loginCta: "登录",
     signupCta: "创建账号",
+    continueWithGoogle: "使用 Google 继续",
+    continueWithApple: "使用 Apple 继续",
+    orSeparator: "或",
+    oauthError: "登录失败,请重试。",
     tabLogin: "登录",
     tabSignup: "注册",
     tabForgot: "忘记密码",

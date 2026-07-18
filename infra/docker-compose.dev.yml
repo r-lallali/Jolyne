@@ -26,6 +26,13 @@ services:
       USER_SESSION_SECRET: "ZGV2X3VzZXJfc2Vzc2lvbl9zZWNyZXRfMzJfYnl0ZXNfbWluX2RldnQK"
       USER_COOKIE_DOMAIN: ""
       PUBLIC_APP_URL: "http://localhost:3000"
+      # OAuth social login : credentials vides en dev → boutons masqués au
+      # front. Pour tester Google en local, créer un client OAuth "Web" et
+      # déclarer http://localhost:8080/api/auth/oauth/google/callback en
+      # redirect URI (Apple exige du https, intestable en local).
+      PUBLIC_API_URL: "http://localhost:8080"
+      GOOGLE_OAUTH_CLIENT_ID: ""
+      GOOGLE_OAUTH_CLIENT_SECRET: ""
       # Mailjet : vide en dev → le backend log les liens de vérification /
       # reset sur stdout à la place d'envoyer un email.
       MAILJET_API_KEY: ""

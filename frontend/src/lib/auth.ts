@@ -94,6 +94,30 @@ export async function resetPassword(
   return data.user;
 }
 
+// Social login (Google / Apple), flow authorization code côté serveur :
+// on redirige simplement le navigateur vers le backend, qui renvoie vers
+// l'écran de consentement du provider puis pose le cookie de session au
+// callback et revient sur le front (`/?oauth=ok|error`).
+export type OAuthProvider = "google" | "apple";
+
+export async function fetchOAuthProviders(): Promise<OAuthProvider[]> {
+  try {
+    const res = await fetch(`${BASE}/api/auth/oauth/providers`);
+    if (!res.ok) return [];
+    const data = (await res.json()) as { providers: OAuthProvider[] };
+    return data.providers ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function startOAuth(provider: OAuthProvider): Promise<void> {
+  const fp = await getFingerprint().catch(() => "");
+  const url = new URL(`${BASE}/api/auth/oauth/${provider}/start`, window.location.href);
+  if (fp) url.searchParams.set("fp", fp);
+  window.location.href = url.toString();
+}
+
 export async function fetchMe(): Promise<AuthUser | null> {
   const res = await fetch(`${BASE}/api/auth/me`, {
     method: "GET",

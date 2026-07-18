@@ -5,9 +5,12 @@ import { useEffect, useState } from "react";
 import { SheetHandle } from "@/components/ui/SheetHandle";
 import {
   AuthError,
+  fetchOAuthProviders,
   forgotPassword,
   login as apiLogin,
   signup as apiSignup,
+  startOAuth,
+  type OAuthProvider,
 } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { track } from "@/lib/track";
@@ -22,6 +25,11 @@ type Tab = "login" | "signup" | "forgot";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MIN = 8;
+
+// Providers OAuth configurés côté backend (liste vide = aucun bouton).
+// Cache module-level : la config ne change pas durant la session JS, un
+// seul fetch même si la sheet s'ouvre plusieurs fois.
+let oauthProvidersCache: OAuthProvider[] | null = null;
 
 // Bottom-sheet (mobile) / modal centrée (desktop) à onglets : Connexion /
 // Inscription / Mot de passe oublié. Email + password en clair côté UI,
@@ -38,6 +46,21 @@ export function LoginSheet({ open, onClose }: Props) {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [oauthProviders, setOauthProviders] = useState<OAuthProvider[]>(
+    oauthProvidersCache ?? [],
+  );
+
+  useEffect(() => {
+    if (!open || oauthProvidersCache !== null) return;
+    let alive = true;
+    void fetchOAuthProviders().then((providers) => {
+      oauthProvidersCache = providers;
+      if (alive) setOauthProviders(providers);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -207,6 +230,37 @@ export function LoginSheet({ open, onClose }: Props) {
               </TabBtn>
             </div>
 
+            {tab !== "forgot" && oauthProviders.length > 0 && (
+              <>
+                <div className="mt-5 space-y-2.5">
+                  {oauthProviders.map((provider) => (
+                    <button
+                      key={provider}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        // La navigation quitte la page — busy neutralise juste
+                        // le double-clic le temps de la redirection.
+                        setBusy(true);
+                        void startOAuth(provider);
+                      }}
+                      className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                    >
+                      {provider === "google" ? <GoogleIcon /> : <AppleIcon />}
+                      {provider === "google"
+                        ? t.auth.continueWithGoogle
+                        : t.auth.continueWithApple}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center gap-3 text-xs text-neutral-400 dark:text-neutral-500">
+                  <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
+                  {t.auth.orSeparator}
+                  <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
+                </div>
+              </>
+            )}
+
             <div className="mt-5 space-y-2.5">
               <input
                 type="email"
@@ -274,6 +328,39 @@ export function LoginSheet({ open, onClose }: Props) {
         )}
       </motion.form>
     </div>
+  );
+}
+
+// Logos officiels Google / Apple en SVG inline (CSP stricte : aucune image
+// externe). Le G garde ses couleurs de marque, la pomme suit currentColor.
+function GoogleIcon() {
+  return (
+    <svg className="size-4 shrink-0" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="#4285F4"
+        d="M23.52 12.27c0-.85-.08-1.66-.22-2.45H12v4.64h6.46a5.52 5.52 0 0 1-2.4 3.62v3.01h3.88c2.27-2.09 3.58-5.17 3.58-8.82z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.88-3.01c-1.07.72-2.45 1.15-4.06 1.15-3.13 0-5.78-2.11-6.72-4.95H1.27v3.11A12 12 0 0 0 12 24z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.28A7.21 7.21 0 0 1 4.9 12c0-.79.14-1.56.38-2.28V6.61H1.27a12 12 0 0 0 0 10.78l4.01-3.11z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.77c1.76 0 3.34.61 4.58 1.8l3.44-3.44A11.53 11.53 0 0 0 12 0 12 12 0 0 0 1.27 6.61l4.01 3.11C6.22 6.88 8.87 4.77 12 4.77z"
+      />
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M16.37 1.43c0 1.14-.47 2.2-1.23 3.02-.8.87-2.1 1.54-3.18 1.46-.13-1.1.44-2.27 1.18-3.08.82-.9 2.22-1.54 3.23-1.4zM20.8 17.02c-.57 1.3-.84 1.88-1.57 3.03-1.02 1.6-2.46 3.6-4.25 3.61-1.58.02-1.99-1.04-4.14-1.02-2.15.01-2.6 1.05-4.19 1.03-1.79-.02-3.15-1.82-4.17-3.42-2.83-4.55-3.13-9.82-1.24-12.62 1.34-1.99 3.46-3.16 5.45-3.16 2.03 0 3.3 1.05 4.98 1.05 1.63 0 2.62-1.05 4.97-1.05 1.77 0 3.65.97 4.99 2.63-4.38 2.4-3.67 8.65-.83 9.92z" />
+    </svg>
   );
 }
 

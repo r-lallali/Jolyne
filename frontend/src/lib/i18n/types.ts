@@ -390,6 +390,10 @@ export interface Messages {
   auth: {
     loginCta: string;
     signupCta: string;
+    continueWithGoogle: string;
+    continueWithApple: string;
+    orSeparator: string;
+    oauthError: string;
     tabLogin: string;
     tabSignup: string;
     tabForgot: string;
