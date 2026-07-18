@@ -1,6 +1,7 @@
 # --- build stage ---
-# Go 1.25+ requis depuis l'ajout de golang-migrate v4 (cf. go.mod).
-FROM golang:1.25-alpine AS build
+# Aligné sur go.mod (go 1.26) et la CI — GOTOOLCHAIN=local dans l'image
+# officielle : un écart de version casse le build au `go mod download`.
+FROM golang:1.26-alpine AS build
 
 WORKDIR /src
 
