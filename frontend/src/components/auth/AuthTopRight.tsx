@@ -5,7 +5,6 @@ import { BookMarked, LogOut, type LucideIcon, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { LoginSheet } from "@/components/auth/LoginSheet";
 import { useT } from "@/lib/i18n";
 import { useUserStore } from "@/stores/userStore";
 
@@ -19,7 +18,6 @@ export function AuthTopRight() {
   const user = useUserStore((s) => s.user);
   const hydrated = useUserStore((s) => s.hydrated);
   const userLogout = useUserStore((s) => s.logout);
-  const [loginOpen, setLoginOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Le back-office a sa propre navigation (sidebar + déconnexion admin) : on
@@ -31,17 +29,15 @@ export function AuthTopRight() {
   if (!hydrated) return null;
 
   if (!user) {
+    // Sur /auth le bouton pointerait vers la page courante — inutile.
+    if (pathname === "/auth") return null;
     return (
-      <>
-        <button
-          type="button"
-          onClick={() => setLoginOpen(true)}
-          className="rounded-full bg-neutral-900/5 px-3 py-1.5 text-xs font-medium text-neutral-700 backdrop-blur-sm transition-colors hover:bg-neutral-900/10 dark:bg-neutral-50/5 dark:text-neutral-300 dark:hover:bg-neutral-50/10"
-        >
-          {t.auth.loginCta}
-        </button>
-        <LoginSheet open={loginOpen} onClose={() => setLoginOpen(false)} />
-      </>
+      <Link
+        href="/auth"
+        className="rounded-full bg-neutral-900/5 px-3 py-1.5 text-xs font-medium text-neutral-700 backdrop-blur-sm transition-colors hover:bg-neutral-900/10 dark:bg-neutral-50/5 dark:text-neutral-300 dark:hover:bg-neutral-50/10"
+      >
+        {t.auth.loginCta}
+      </Link>
     );
   }
 

@@ -64,14 +64,3 @@ Chat d'échange linguistique en temps réel. Les utilisateurs sont appariés par
   └────────┘ └────────┘ └──────────┘ └───────────┘ │ toxicity-scorer│
                                                     └───────────────┘
 ```
-
-## Déploiement
-
-Prod = un VPS OVH orchestré par **Dokploy** (Traefik en frontal, TLS auto). Le `docker-compose.yml` à la racine est le compose de prod : Dokploy le build et injecte les variables d'environnement (UI → Environment Variables — aucune n'est versionnée).
-
-- **Domaines** (Dokploy UI → Domains) : `jolyne.ralys.ovh` → frontend port 3000, `api.jolyne.ralys.ovh` → backend port 8080. Pas de labels Traefik dans le compose : Dokploy les pose lui-même.
-- **Postgres** tourne comme service Dokploy séparé sur `dokploy-network` (hors compose) ; `POSTGRES_DSN` pointe dessus.
-- **Headers de sécurité** : Traefik ne pose que le TLS. La CSP/HSTS du front vit dans `next.config.ts`, celle de l'API dans le middleware `secHeaders` du gateway Go — versionnées, donc reconstructibles.
-- **OAuth Google** : poser `PUBLIC_API_URL` (ex. `https://api.jolyne.ralys.ovh`) + `GOOGLE_OAUTH_CLIENT_ID/SECRET`. Déclarer `{PUBLIC_API_URL}/api/auth/oauth/google/callback` comme redirect URI dans la console Google Cloud. Sans config, les boutons n'apparaissent pas. **Apple (plus tard)** : décommenter les champs `Apple*` dans `wire_users.go`, poser `APPLE_OAUTH_CLIENT_ID/TEAM_ID/KEY_ID/PRIVATE_KEY` (contenu PEM du `.p8`) et déclarer la redirect URI équivalente côté Apple Developer.
-- **Traçabilité** : poser `BUILD_COMMIT` / `BUILD_VERSION` en args de build côté Dokploy, sinon le binaire log `dev`.
-- **Dev local** : `docker compose -f infra/docker-compose.dev.yml up` (backend + Redis + Postgres + services) et `cd frontend && pnpm dev` à côté. Le compose racine ne monte pas en local (réseau `dokploy-network` externe).

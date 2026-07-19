@@ -111,6 +111,14 @@ export async function fetchOAuthProviders(): Promise<OAuthProvider[]> {
   }
 }
 
+// Variante cachée : la liste des providers ne change pas durant la session
+// JS — un seul fetch partagé entre la LoginSheet et la page /auth.
+let oauthProvidersPromise: Promise<OAuthProvider[]> | null = null;
+export function getOAuthProviders(): Promise<OAuthProvider[]> {
+  oauthProvidersPromise ??= fetchOAuthProviders();
+  return oauthProvidersPromise;
+}
+
 export async function startOAuth(provider: OAuthProvider): Promise<void> {
   const fp = await getFingerprint().catch(() => "");
   const url = new URL(`${BASE}/api/auth/oauth/${provider}/start`, window.location.href);

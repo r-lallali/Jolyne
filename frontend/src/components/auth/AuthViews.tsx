@@ -82,7 +82,9 @@ export function Landing({
   );
 }
 
-// Vue e-mail : login ou signup, bascule par lien sous le CTA.
+// Vue e-mail : login ou signup, bascule par lien sous le CTA. showHeader
+// (défaut true) : la page /auth pose son propre en-tête au-dessus du bouton
+// Google, la sheet garde celui-ci.
 export function EmailForm({
   t,
   mode,
@@ -92,6 +94,7 @@ export function EmailForm({
   set,
   onSwitchMode,
   onForgot,
+  showHeader = true,
 }: {
   t: Messages;
   mode: EmailMode;
@@ -113,18 +116,21 @@ export function EmailForm({
   };
   onSwitchMode: (m: EmailMode) => void;
   onForgot: () => void;
+  showHeader?: boolean;
 }) {
   const login = mode === "login";
   return (
-    <div className="pt-3">
-      <div className="mb-5 text-center">
-        <h2 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-          {login ? t.auth.loginTitle : t.auth.signupTitle}
-        </h2>
-        <p className="mx-auto mt-1.5 max-w-[19rem] text-sm text-neutral-500 dark:text-neutral-400">
-          {login ? t.auth.loginHint : t.auth.signupHint}
-        </p>
-      </div>
+    <div className={showHeader ? "pt-3" : ""}>
+      {showHeader && (
+        <div className="mb-5 text-center">
+          <h2 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
+            {login ? t.auth.loginTitle : t.auth.signupTitle}
+          </h2>
+          <p className="mx-auto mt-1.5 max-w-[19rem] text-sm text-neutral-500 dark:text-neutral-400">
+            {login ? t.auth.loginHint : t.auth.signupHint}
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2.5">
         <TextInput

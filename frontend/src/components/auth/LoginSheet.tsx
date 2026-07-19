@@ -1,27 +1,17 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   EmailForm,
   Forgot,
   Landing,
-  type EmailMode,
 } from "@/components/auth/AuthViews";
 import { BackIcon, CloseIcon } from "@/components/auth/icons";
 import { SheetHandle } from "@/components/ui/SheetHandle";
-import {
-  AuthError,
-  fetchOAuthProviders,
-  forgotPassword,
-  login as apiLogin,
-  signup as apiSignup,
-  startOAuth,
-  type OAuthProvider,
-} from "@/lib/auth";
+import { useAuthForm } from "@/hooks/useAuthForm";
+import { getOAuthProviders, type OAuthProvider } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
-import { track } from "@/lib/track";
-import { useUserStore } from "@/stores/userStore";
 
 interface Props {
   open: boolean;
@@ -33,56 +23,35 @@ interface Props {
 type View = "landing" | "email" | "forgot";
 
 const DEPTH: Record<View, number> = { landing: 0, email: 1, forgot: 2 };
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PASSWORD_MIN = 8;
 
-// Providers OAuth configurés côté backend. Cache module-level : la config ne
-// change pas durant la session JS, un seul fetch même si la sheet se rouvre.
-let oauthProvidersCache: OAuthProvider[] | null = null;
-
-// Feuille d'authentification : bottom-sheet (mobile) / carte centrée
-// (desktop). Social-first — Google / Apple en tête, l'e-mail en chemin
-// secondaire avec bascule connexion / inscription et mot de passe oublié.
+// Feuille d'authentification pour les flows contextuels (paywall, ajout
+// d'ami) : bottom-sheet (mobile) / carte centrée (desktop), social-first.
+// La destination canonique du bouton « Se connecter » est la page /auth.
 // z-[80] : au-dessus du PaywallModal (z-[70]) qui peut l'ouvrir.
 export function LoginSheet({ open, onClose }: Props) {
   const t = useT();
-  const setUser = useUserStore((s) => s.setUser);
+  const form = useAuthForm("login", onClose);
   const [view, setView] = useState<View>("landing");
   const [dir, setDir] = useState(1);
-  const [emailMode, setEmailMode] = useState<EmailMode>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [providers, setProviders] = useState<OAuthProvider[] | null>(
-    oauthProvidersCache,
-  );
+  const [providers, setProviders] = useState<OAuthProvider[] | null>(null);
 
+  // Référence stable pour reset (le hook renvoie un objet neuf par render).
+  const resetRef = useRef(form.reset);
+  resetRef.current = form.reset;
+
+  // État propre à chaque (ré)ouverture.
   useEffect(() => {
-    if (!open) {
+    if (open) {
       setView("landing");
       setDir(1);
-      setEmailMode("login");
-      setEmail("");
-      setPassword("");
-      setPasswordConfirm("");
-      setDisplayName("");
-      setShowPwd(false);
-      setSent(false);
-      setBusy(false);
-      setErr(null);
+      resetRef.current();
     }
   }, [open]);
 
   useEffect(() => {
-    if (!open || oauthProvidersCache !== null) return;
+    if (!open) return;
     let alive = true;
-    void fetchOAuthProviders().then((list) => {
-      oauthProvidersCache = list;
+    void getOAuthProviders().then((list) => {
       if (alive) setProviders(list);
     });
     return () => {
@@ -112,64 +81,7 @@ export function LoginSheet({ open, onClose }: Props) {
   const goTo = (next: View) => {
     setDir(DEPTH[next] > DEPTH[view] ? 1 : -1);
     setView(next);
-    setErr(null);
-    setSent(false);
-  };
-
-  const switchEmailMode = (next: EmailMode) => {
-    if (next === "signup" && emailMode !== "signup") void track("signup_started");
-    setEmailMode(next);
-    setErr(null);
-    setPassword("");
-    setPasswordConfirm("");
-    setShowPwd(false);
-  };
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErr(null);
-    const trimmed = email.trim();
-    if (!EMAIL_RE.test(trimmed)) {
-      setErr(t.auth.invalidEmail);
-      return;
-    }
-    if (view === "email" && password.length < PASSWORD_MIN) {
-      setErr(t.auth.passwordTooShort);
-      return;
-    }
-    if (view === "email" && emailMode === "signup" && password !== passwordConfirm) {
-      setErr(t.auth.passwordMismatch);
-      return;
-    }
-    setBusy(true);
-    try {
-      if (view === "forgot") {
-        await forgotPassword(trimmed);
-        setSent(true);
-      } else if (emailMode === "login") {
-        setUser(await apiLogin(trimmed, password));
-        onClose();
-      } else {
-        setUser(await apiSignup(trimmed, password, displayName.trim()));
-        onClose();
-      }
-    } catch (e) {
-      if (e instanceof AuthError && emailMode === "login" && e.status === 401) {
-        setErr(t.auth.invalidCredentials);
-      } else if (e instanceof AuthError && e.status === 409) {
-        setErr(t.auth.emailAlreadyUsed);
-      } else {
-        setErr(t.auth.oauthError);
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const oauth = (provider: OAuthProvider) => {
-    // La navigation quitte la page — busy neutralise juste le double-clic.
-    setBusy(true);
-    void startOAuth(provider);
+    form.setSent(false);
   };
 
   return (
@@ -186,7 +98,10 @@ export function LoginSheet({ open, onClose }: Props) {
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 320, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
-        onSubmit={submit}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void (view === "forgot" ? form.submitForgot() : form.submitCredentials());
+        }}
         className="relative w-full max-w-sm overflow-hidden rounded-t-3xl bg-white px-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-5 shadow-2xl dark:bg-neutral-950 sm:rounded-3xl sm:px-7 sm:pb-6"
       >
         <SheetHandle />
@@ -211,7 +126,7 @@ export function LoginSheet({ open, onClose }: Props) {
 
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={view + (view === "email" ? emailMode : "")}
+            key={view + (view === "email" ? form.mode : "")}
             initial={{ x: dir * 24, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: dir * -24, opacity: 0 }}
@@ -221,31 +136,31 @@ export function LoginSheet({ open, onClose }: Props) {
               <Landing
                 t={t}
                 providers={providers ?? []}
-                busy={busy}
-                onOAuth={oauth}
+                busy={form.busy}
+                onOAuth={form.startOAuthFlow}
                 onEmail={() => goTo("email")}
               />
             )}
             {view === "email" && (
               <EmailForm
                 t={t}
-                mode={emailMode}
-                busy={busy}
-                err={err}
-                fields={{ email, displayName, password, passwordConfirm, showPwd }}
-                set={{ setEmail, setDisplayName, setPassword, setPasswordConfirm, setShowPwd }}
-                onSwitchMode={switchEmailMode}
+                mode={form.mode}
+                busy={form.busy}
+                err={form.err}
+                fields={form.fields}
+                set={form.set}
+                onSwitchMode={form.switchMode}
                 onForgot={() => goTo("forgot")}
               />
             )}
             {view === "forgot" && (
               <Forgot
                 t={t}
-                sent={sent}
-                busy={busy}
-                err={err}
-                email={email}
-                setEmail={setEmail}
+                sent={form.sent}
+                busy={form.busy}
+                err={form.err}
+                email={form.fields.email}
+                setEmail={form.set.setEmail}
                 onDone={onClose}
               />
             )}
