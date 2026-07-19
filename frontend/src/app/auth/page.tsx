@@ -5,14 +5,15 @@ import { useEffect, useState } from "react";
 import { EmailForm, Forgot } from "@/components/auth/AuthViews";
 import { BackIcon, GoogleIcon } from "@/components/auth/icons";
 import TrackPageView from "@/components/TrackPageView";
+import { BackButton } from "@/components/ui/BackButton";
 import { useAuthForm } from "@/hooks/useAuthForm";
 import { getOAuthProviders, type OAuthProvider } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { useUserStore } from "@/stores/userStore";
 
 // Page d'authentification dédiée (/auth). Sobre : tout est visible d'un
-// seul regard — Google en tête, formulaire e-mail dessous, inscription par
-// défaut (bascule connexion par lien). La LoginSheet reste pour les flows
+// seul regard — Google en tête, formulaire e-mail dessous, connexion par
+// défaut (bascule inscription par lien). La LoginSheet reste pour les flows
 // contextuels (paywall, ajout d'ami) ; ici c'est la destination canonique
 // du bouton « Se connecter ».
 export default function AuthPage() {
@@ -20,7 +21,7 @@ export default function AuthPage() {
   const router = useRouter();
   const user = useUserStore((s) => s.user);
   const hydrated = useUserStore((s) => s.hydrated);
-  const form = useAuthForm("signup", () => router.push("/"));
+  const form = useAuthForm("login", () => router.push("/"));
   const [view, setView] = useState<"form" | "forgot">("form");
   const [providers, setProviders] = useState<OAuthProvider[]>([]);
 
@@ -44,6 +45,9 @@ export default function AuthPage() {
   return (
     <main className="flex min-h-dvh items-center justify-center px-5 py-12">
       <TrackPageView />
+      <div className="fixed left-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 sm:left-4 sm:top-4">
+        <BackButton href="/" label={t.auth.backToApp} />
+      </div>
       <div className="w-full max-w-sm">
         <p className="text-center text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
           Jolyne
