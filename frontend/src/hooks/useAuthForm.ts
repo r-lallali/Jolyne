@@ -11,6 +11,7 @@ import {
   type OAuthProvider,
 } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { passwordValid } from "@/lib/password";
 import { track } from "@/lib/track";
 import { useUserStore } from "@/stores/userStore";
 
@@ -64,8 +65,14 @@ export function useAuthForm(initialMode: EmailMode, onSuccess: () => void) {
       setErr(t.auth.invalidEmail);
       return;
     }
-    if (password.length < PASSWORD_MIN) {
+    // Login : longueur seule (les comptes historiques n'ont pas forcément
+    // suivi les critères). Signup : la checklist complète doit être verte.
+    if (mode === "login" && password.length < PASSWORD_MIN) {
       setErr(t.auth.passwordTooShort);
+      return;
+    }
+    if (mode === "signup" && !passwordValid(password)) {
+      setErr(t.auth.passwordCriteria);
       return;
     }
     if (mode === "signup" && password !== passwordConfirm) {

@@ -414,6 +414,15 @@ export interface Messages {
     passwordConfirmPlaceholder: string;
     displayNamePlaceholder: string;
     passwordMismatch: string;
+    // Checklist de robustesse du mot de passe (signup / reset), affichée
+    // rouge → vert sous le champ. passwordCriteria = erreur à la soumission.
+    pwdCriteria: {
+      length: string;
+      upper: string;
+      lower: string;
+      digit: string;
+    };
+    passwordCriteria: string;
     showPassword: string;
     hidePassword: string;
     submitLogin: string;

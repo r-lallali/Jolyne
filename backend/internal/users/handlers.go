@@ -142,8 +142,8 @@ func (h *Handlers) HandleSignup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "email already used", http.StatusConflict)
 		return
 	}
-	if len(body.Password) < PasswordMinLen {
-		http.Error(w, fmt.Sprintf("password too short (min %d)", PasswordMinLen), http.StatusBadRequest)
+	if err := ValidatePassword(body.Password); err != nil {
+		http.Error(w, "password too weak", http.StatusBadRequest)
 		return
 	}
 
@@ -318,8 +318,8 @@ func (h *Handlers) HandleReset(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-	if len(body.Password) < PasswordMinLen {
-		http.Error(w, fmt.Sprintf("password too short (min %d)", PasswordMinLen), http.StatusBadRequest)
+	if err := ValidatePassword(body.Password); err != nil {
+		http.Error(w, "password too weak", http.StatusBadRequest)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -31,9 +32,39 @@ const bcryptCost = 10
 // timing). Calculé une fois au chargement du package.
 var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("timing-equalizer"), bcryptCost)
 
-// PasswordMinLen : 8 caractères minimum. Pas plus exigeant — la longueur
-// fait l'essentiel de la sécurité (cf. NIST 800-63b).
+// PasswordMinLen : 8 caractères minimum. La longueur fait l'essentiel de la
+// sécurité (cf. NIST 800-63b) ; les critères de composition de
+// ValidatePassword s'y ajoutent pour les nouveaux mots de passe.
 const PasswordMinLen = 8
+
+// ErrWeakPassword : le mot de passe ne respecte pas les critères de
+// ValidatePassword (signup / reset).
+var ErrWeakPassword = errors.New("users: mot de passe trop faible")
+
+// ValidatePassword : critères des NOUVEAUX mots de passe (signup + reset) —
+// ≥ 8 caractères (runes, pas octets — cohérent avec le .length UTF-16 du
+// front pour le BMP), une majuscule, une minuscule, un chiffre. Miroir
+// exact de la checklist front (lib/password.ts, règle d'or #3). Le login
+// ne l'applique pas : les comptes historiques restent valides.
+func ValidatePassword(pw string) error {
+	var upper, lower, digit bool
+	n := 0
+	for _, r := range pw {
+		n++
+		switch {
+		case unicode.IsUpper(r):
+			upper = true
+		case unicode.IsLower(r):
+			lower = true
+		case unicode.IsDigit(r):
+			digit = true
+		}
+	}
+	if n < PasswordMinLen || !upper || !lower || !digit {
+		return ErrWeakPassword
+	}
+	return nil
+}
 
 type User struct {
 	ID              int64

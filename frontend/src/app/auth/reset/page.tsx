@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { PasswordCriteria } from "@/components/auth/AuthFields";
 import { AuthError, resetPassword } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { passwordValid } from "@/lib/password";
 import { useUserStore } from "@/stores/userStore";
-
-const PASSWORD_MIN = 8;
 
 // Landing du lien email de reset password : lit ?t=..., demande un
 // nouveau mot de passe, POST /reset. La session est ouverte au passage.
@@ -38,8 +38,8 @@ export default function ResetPage() {
     e.preventDefault();
     setErr(null);
     if (!token) return;
-    if (password.length < PASSWORD_MIN) {
-      setErr(t.auth.passwordTooShort);
+    if (!passwordValid(password)) {
+      setErr(t.auth.passwordCriteria);
       return;
     }
     setBusy(true);
@@ -110,6 +110,9 @@ export default function ResetPage() {
           autoFocus
           className="mt-4 w-full rounded-xl bg-neutral-100 px-4 py-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:ring-neutral-700"
         />
+        <div className="mt-2">
+          <PasswordCriteria t={t} password={password} />
+        </div>
         {err && (
           <p className="mt-2 text-xs text-red-600 dark:text-red-400">{err}</p>
         )}

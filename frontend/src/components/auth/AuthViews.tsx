@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { PasswordField, TextInput } from "@/components/auth/AuthFields";
+import {
+  PasswordCriteria,
+  PasswordField,
+  TextInput,
+} from "@/components/auth/AuthFields";
 import { AppleIcon, GoogleIcon, MailIcon } from "@/components/auth/icons";
 import type { OAuthProvider } from "@/lib/auth";
 import type { Messages } from "@/lib/i18n";
@@ -160,6 +164,7 @@ export function EmailForm({
           showLabel={t.auth.showPassword}
           hideLabel={t.auth.hidePassword}
         />
+        {!login && <PasswordCriteria t={t} password={fields.password} />}
         {!login && (
           <PasswordField
             value={fields.passwordConfirm}
