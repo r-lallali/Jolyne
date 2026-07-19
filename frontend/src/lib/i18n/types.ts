@@ -392,8 +392,14 @@ export interface Messages {
     signupCta: string;
     continueWithGoogle: string;
     continueWithApple: string;
+    continueWithEmail: string;
     orSeparator: string;
     oauthError: string;
+    welcomeTitle: string;
+    welcomeHint: string;
+    noAccount: string;
+    haveAccount: string;
+    termsNotice: string;
     tabLogin: string;
     tabSignup: string;
     tabForgot: string;
