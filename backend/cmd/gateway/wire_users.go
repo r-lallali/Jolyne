@@ -109,17 +109,23 @@ func wireUserStack(ctx context.Context, d userStackDeps, svc *services, wsDeps *
 			friends.ResolvePendingFriendships(ctx, rdb, wsDeps.Friends, userID, fingerprint, log)
 		},
 	}
-	// Social login Google / Apple : chaque provider est actif si sa config
-	// complète est posée (+ PUBLIC_API_URL pour les redirect URIs). nil →
+	// Social login : chaque provider est actif si sa config complète est
+	// posée (+ PUBLIC_API_URL pour les redirect URIs). nil →
 	// /api/auth/oauth/providers renvoie une liste vide, aucun bouton au front.
+	//
+	// Apple est volontairement NON câblé pour l'instant (pas de compte Apple
+	// Developer) : l'implémentation complète vit dans le package users
+	// (oauth_provider.go / oauth_apple_secret.go). Pour l'activer :
+	// décommenter les 4 champs Apple* ci-dessous et poser les env vars
+	// APPLE_OAUTH_* (cf. README §Déploiement) — rien d'autre à toucher.
 	svc.users.OAuth = users.NewOAuth(rdb, users.OAuthConfig{
 		APIBaseURL:         cfg.PublicAPIURL,
 		GoogleClientID:     cfg.GoogleOAuthClientID,
 		GoogleClientSecret: cfg.GoogleOAuthClientSecret,
-		AppleClientID:      cfg.AppleOAuthClientID,
-		AppleTeamID:        cfg.AppleOAuthTeamID,
-		AppleKeyID:         cfg.AppleOAuthKeyID,
-		ApplePrivateKey:    cfg.AppleOAuthPrivateKey,
+		// AppleClientID:   cfg.AppleOAuthClientID,
+		// AppleTeamID:     cfg.AppleOAuthTeamID,
+		// AppleKeyID:      cfg.AppleOAuthKeyID,
+		// ApplePrivateKey: cfg.AppleOAuthPrivateKey,
 	}, log)
 	log.Info("user auth ready",
 		"mailer", ml != nil,
