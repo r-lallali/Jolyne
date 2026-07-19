@@ -20,9 +20,6 @@ export default function PremiumSuccessPage() {
 
   return (
     <main className="flex h-dvh w-full flex-col items-center justify-center gap-5 px-6 text-center">
-      <p className="text-4xl" aria-hidden>
-        ✨
-      </p>
       <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
         {t.premium.successTitle}
       </h1>

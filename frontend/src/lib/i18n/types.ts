@@ -552,6 +552,18 @@ export interface Messages {
     loginCta: string;
     later: string;
     redirecting: string;
+    // Prix & transparence (modale paywall). Les libellés costXxx nomment les
+    // segments de la barre de répartition (CostBreakdown).
+    priceAmount: string;
+    pricePeriod: string;
+    noCommitment: string;
+    securePayment: string;
+    transparencyTitle: string;
+    transparencyHint: string;
+    costAI: string;
+    costInfra: string;
+    costFees: string;
+    costDev: string;
     // Section /account
     accountTitle: string;
     priceMonthly: string;
@@ -560,15 +572,16 @@ export interface Messages {
     statusPremiumTitle: string;
     statusPremiumHint: FormatString<{ date: string }>;
     manageCta: string;
-    // Tableau comparatif des offres
-    compareDaily: string;
-    planFree: string;
+    // Avantages Free → Premium (PlanComparison)
     planPremium: string;
     featurePartners: string;
     featureTranslations: string;
+    featureScenarios: string;
+    featureHearts: string;
     featureBot: string;
     unlimited: string;
-    currentPlanBadge: string;
+    allScenarios: string;
+    perDay: FormatString<{ n: number }>;
     // Pages retour Stripe
     successTitle: string;
     successHint: string;

@@ -3,16 +3,18 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LoginSheet } from "@/components/auth/LoginSheet";
+import { CostBreakdown } from "@/components/premium/CostBreakdown";
 import { PlanComparison } from "@/components/premium/PlanComparison";
 import { startCheckout } from "@/lib/billing";
 import { useT } from "@/lib/i18n";
 import { usePaywallStore } from "@/stores/paywallStore";
 import { useUserStore } from "@/stores/userStore";
 
-// PaywallModal : feuille unique montée à la racine. Déclenchée par
-// usePaywallStore.show(source) depuis n'importe où (swipe, traduction, prof
-// IA). Anonyme → propose de se connecter d'abord (compte requis pour Premium) ;
-// connecté → bouton Checkout Stripe.
+// PaywallModal : feuille unique montée à la racine, déclenchée par
+// usePaywallStore.show(source) (swipe, traduction, prof IA, scénario).
+// Structure : raison contextuelle → prix → avantages Free → Premium →
+// répartition transparente des coûts → CTA. Anonyme → connexion d'abord
+// (compte requis pour Premium) ; connecté → checkout Stripe.
 export function PaywallModal() {
   const t = useT();
   const open = usePaywallStore((s) => s.open);
@@ -72,7 +74,7 @@ export function PaywallModal() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+            className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 backdrop-blur-[2px] sm:items-center sm:p-4"
             onClick={hide}
           >
             <motion.div
@@ -81,20 +83,44 @@ export function PaywallModal() {
               exit={{ y: 24, opacity: 0 }}
               transition={{ type: "spring", stiffness: 320, damping: 30 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm rounded-t-3xl bg-white p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl dark:bg-neutral-950 sm:rounded-3xl sm:pb-6"
+              className="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-white px-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-6 shadow-2xl dark:bg-neutral-950 sm:rounded-3xl sm:px-7 sm:pb-6"
             >
-              <p className="text-center text-3xl" aria-hidden>
-                ✨
+              {/* En-tête : marque, raison contextuelle, prix. */}
+              <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400 dark:text-neutral-500">
+                Jolyne {t.premium.planPremium}
               </p>
-              <h2 className="mt-2 text-center text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+              <h2 className="mt-2 text-center text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
                 {t.premium.sheetTitle}
               </h2>
-              <p className="mt-1 text-center text-sm text-neutral-500 dark:text-neutral-400">
+              <p className="mx-auto mt-1.5 max-w-[19rem] text-center text-sm text-neutral-500 dark:text-neutral-400">
                 {reason}
               </p>
 
+              <div className="mt-5 flex items-baseline justify-center gap-1.5">
+                <span className="text-4xl font-bold tracking-tight tabular-nums text-neutral-900 dark:text-neutral-50">
+                  {t.premium.priceAmount}
+                </span>
+                <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                  {t.premium.pricePeriod}
+                </span>
+              </div>
+              <p className="mt-1 text-center text-xs text-neutral-400 dark:text-neutral-500">
+                {t.premium.noCommitment}
+              </p>
+
               <div className="mt-5">
-                <PlanComparison currentPlan={user ? "free" : undefined} />
+                <PlanComparison />
+              </div>
+
+              {/* Transparence : à quoi sert concrètement l'abonnement. */}
+              <div className="mt-5 rounded-2xl bg-neutral-50 p-4 dark:bg-neutral-900/60">
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                  {t.premium.transparencyTitle}
+                </h3>
+                <p className="mb-3 mt-1 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
+                  {t.premium.transparencyHint}
+                </p>
+                <CostBreakdown />
               </div>
 
               {!user && (
@@ -109,7 +135,7 @@ export function PaywallModal() {
                     type="button"
                     onClick={upgrade}
                     disabled={loading}
-                    className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-900"
+                    className="h-12 w-full rounded-2xl bg-neutral-900 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-900"
                   >
                     {loading ? t.premium.redirecting : t.premium.upgradeCta}
                   </button>
@@ -117,7 +143,7 @@ export function PaywallModal() {
                   <button
                     type="button"
                     onClick={() => setLoginOpen(true)}
-                    className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
+                    className="h-12 w-full rounded-2xl bg-neutral-900 text-sm font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
                   >
                     {t.premium.loginCta}
                   </button>
@@ -125,7 +151,7 @@ export function PaywallModal() {
                 <button
                   type="button"
                   onClick={hide}
-                  className="w-full rounded-xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                  className="h-11 w-full rounded-2xl text-sm font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
                 >
                   {t.premium.later}
                 </button>
@@ -135,6 +161,10 @@ export function PaywallModal() {
                   </p>
                 )}
               </div>
+
+              <p className="mt-2 text-center text-[11px] text-neutral-400 dark:text-neutral-600">
+                {t.premium.securePayment}
+              </p>
             </motion.div>
           </motion.div>
         )}
