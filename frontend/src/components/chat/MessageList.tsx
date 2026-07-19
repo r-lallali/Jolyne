@@ -17,7 +17,6 @@ import { ICEBREAKERS } from "@/lib/icebreakers";
 import { track } from "@/lib/track";
 import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import { useUserStore } from "@/stores/userStore";
 
 // Flag localStorage : "le user a déjà vu le hint, ne pas réafficher".
 const HINT_STORAGE_KEY = "jolyne_translate_hinted";
@@ -51,12 +50,11 @@ export function MessageList({
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
 
-  // Mode immersion (Premium) : traduction auto des messages du peer,
-  // affichée sous chaque bulle. Borné aux 30 derniers pour ne pas traduire
-  // tout un historique d'un coup.
+  // Mode immersion : traduction auto des messages du peer, affichée sous
+  // chaque bulle. Ouvert à tous (le quota Free s'applique par appel).
+  // Borné aux 30 derniers pour ne pas traduire tout un historique d'un coup.
   const autoTranslate = useSessionStore((s) => s.autoTranslate);
-  const user = useUserStore((s) => s.user);
-  const immersionOn = autoTranslate && !!user?.is_premium;
+  const immersionOn = autoTranslate;
   const peerItems = useMemo(
     () =>
       messages

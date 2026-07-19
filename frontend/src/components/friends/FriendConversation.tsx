@@ -197,10 +197,11 @@ export function FriendConversation({
     });
   };
 
-  // Mode immersion (Premium) : traduction auto des messages de l'ami,
-  // bornée aux 30 derniers pour ne pas traduire tout l'historique.
+  // Mode immersion : traduction auto des messages de l'ami, ouverte à tous
+  // (quota Free par appel), bornée aux 30 derniers pour ne pas traduire
+  // tout l'historique.
   const autoTranslate = useSessionStore((s) => s.autoTranslate);
-  const immersionOn = autoTranslate && !!user?.is_premium;
+  const immersionOn = autoTranslate;
   const peerItems = useMemo(
     () =>
       msgs

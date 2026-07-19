@@ -2,41 +2,28 @@
 
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
-import { usePaywallStore } from "@/stores/paywallStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import { useUserStore } from "@/stores/userStore";
 
 // Toggle du mode immersion (traduction automatique des messages entrants).
-// Réservé Premium : un user Free qui clique voit le paywall — le réglage ne
-// s'active jamais pour lui. Affiché dans le header du chat anonyme ET du
-// chat ami (même mécanique, même préférence persistée).
+// Ouvert à tous — le plan Free consomme son quota quotidien de traductions
+// (paywall proposé à l'épuisement, cf. useAutoTranslations), Premium est
+// illimité. Affiché dans le header du chat anonyme ET du chat ami (même
+// mécanique, même préférence persistée).
 export function AutoTranslateToggle() {
   const t = useT();
   const autoTranslate = useSessionStore((s) => s.autoTranslate);
   const setAutoTranslate = useSessionStore((s) => s.setAutoTranslate);
-  const user = useUserStore((s) => s.user);
-  const showPaywall = usePaywallStore((s) => s.show);
-
-  const active = autoTranslate && !!user?.is_premium;
-
-  const toggle = () => {
-    if (!user?.is_premium) {
-      showPaywall("translate");
-      return;
-    }
-    setAutoTranslate(!autoTranslate);
-  };
 
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={() => setAutoTranslate(!autoTranslate)}
       aria-label={t.translate.auto}
-      aria-pressed={active}
+      aria-pressed={autoTranslate}
       title={t.translate.auto}
       className={cn(
         "inline-flex size-8 items-center justify-center rounded-full transition-colors",
-        active
+        autoTranslate
           ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:bg-emerald-500/15 dark:text-emerald-400"
           : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100",
       )}
