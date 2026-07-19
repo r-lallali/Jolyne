@@ -56,6 +56,15 @@ services:
       USER_SESSION_SECRET: ${USER_SESSION_SECRET:-}
       USER_COOKIE_DOMAIN: ${USER_COOKIE_DOMAIN:-${ADMIN_COOKIE_DOMAIN:-}}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://${JOLYNE_DOMAIN}}
+      # OAuth Google (social login). PUBLIC_API_URL = base publique de l'API,
+      # dont dérive la redirect URI ({base}/api/auth/oauth/google/callback —
+      # à déclarer telle quelle dans la console Google Cloud). Client ID +
+      # secret dans Dokploy → Env ; vides → pas de bouton Google au front.
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-https://api.${JOLYNE_DOMAIN}}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      # Apple : implémenté mais non câblé (cf. wire_users.go). À l'activation,
+      # ajouter ici APPLE_OAUTH_CLIENT_ID / TEAM_ID / KEY_ID / PRIVATE_KEY.
       # Mailjet SMTP (in-v3.mailjet.com:587). API_KEY + SECRET_KEY = SMTP user/pass.
       MAILJET_API_KEY: ${MAILJET_API_KEY:-}
       MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY:-}
