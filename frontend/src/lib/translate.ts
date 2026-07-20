@@ -1,9 +1,10 @@
 // Client HTTP minimal pour /api/translate. La traduction tape le backend Go
 // (qui relaie sur LibreTranslate self-host). Pas d'appel direct LT depuis
-// le navigateur — pas de clé exposée + contrôle quota côté serveur.
+// le navigateur — pas de clé exposée + rate-limit côté serveur.
 //
-// Quota Free = 10 traductions/jour. Identité : userID (cookie, credentials:
-// include) ou fingerprint device (en-tête X-Device-FP) pour les anonymes.
+// Traductions illimitées pour tous les plans. Identité (rate-limit anti-abus
+// seulement) : userID (cookie, credentials: include) ou fingerprint device
+// (en-tête X-Device-FP) pour les anonymes.
 
 import { getFingerprint } from "./fingerprint";
 
@@ -11,7 +12,8 @@ const BASE = process.env.NEXT_PUBLIC_BACKEND_HTTP_URL ?? "";
 
 export class TranslateError extends Error {}
 
-// Quota quotidien atteint (HTTP 429) — l'appelant propose le paywall Premium.
+// HTTP 429 = rate-limit anti-abus serveur (jamais atteint par un usage
+// humain normal) — l'appelant traite comme une erreur transitoire.
 export class TranslateQuotaError extends TranslateError {}
 
 export interface TranslateResult {
@@ -23,8 +25,6 @@ export interface TranslateResult {
   // Romanisation du texte source (pinyin, rōmaji…) — présente uniquement
   // sur le chemin IA pour les sources zh/ja/ko/ar.
   romanization?: string;
-  // Traductions restantes aujourd'hui (Free). -1 = illimité (Premium).
-  remaining: number;
 }
 
 export async function translateText(
@@ -45,13 +45,11 @@ export async function translateText(
     translated: string;
     detected?: string;
     romanization?: string;
-    remaining?: number;
   };
   return {
     translated: data.translated,
     detected: data.detected || undefined,
     romanization: data.romanization || undefined,
-    remaining: data.remaining ?? -1,
   };
 }
 

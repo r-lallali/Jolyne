@@ -174,7 +174,6 @@ func wireUserStack(ctx context.Context, d userStackDeps, svc *services, wsDeps *
 		return s.UserID
 	}
 	if svc.translate != nil {
-		svc.translate.IsPremium = isPremium
 		svc.translate.ResolveUserID = resolveUserID
 	}
 	if svc.quota != nil {

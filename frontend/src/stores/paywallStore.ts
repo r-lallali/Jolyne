@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 // Source du paywall : détermine le message affiché dans la modale.
-export type PaywallSource = "swipe" | "translate" | "bot" | "scenario";
+export type PaywallSource = "swipe" | "bot" | "scenario";
 
 // Store global du paywall Premium. N'importe quel composant (popover de
 // traduction, écran d'erreur swipe, prof IA) appelle `show(source)` ; une

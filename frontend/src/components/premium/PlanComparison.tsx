@@ -10,11 +10,6 @@ export function PlanComparison() {
 
   const rows = [
     {
-      label: t.premium.featureTranslations,
-      free: t.premium.perDay({ n: 10 }),
-      premium: t.premium.unlimited,
-    },
-    {
       label: t.premium.featurePartners,
       free: t.premium.perDay({ n: 10 }),
       premium: t.premium.unlimited,

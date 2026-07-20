@@ -48,14 +48,21 @@ type translateResp struct {
 	// Romanisation du texte source (pinyin, rōmaji…) — chemin IA et
 	// sources zh/ja/ko/ar uniquement.
 	Romanization string `json:"romanization,omitempty"`
-	// Traductions restantes aujourd'hui (Free). -1 = illimité (Premium).
-	// Permet au popover d'afficher un compteur sans appel /api/quota séparé.
-	Remaining int64 `json:"remaining"`
 }
 
+// Anti-abus : les traductions sont ILLIMITÉES pour tous les plans (choix
+// produit — comprendre son partenaire est le cœur du service), mais le débit
+// par identité reste borné pour protéger le budget upstream d'un scraper.
+// Invisible pour un humain, même en mode immersion (file séquentielle).
+const (
+	burstLimit  = 300
+	burstWindow = 5 * time.Minute
+)
+
 // Handler expose POST /api/translate. Body JSON {text, source, target}.
-// Quota Free = 10 traductions/jour par identité (userID si connecté, sinon
-// fingerprint via l'en-tête X-Device-FP). Premium = illimité.
+// Traductions illimitées quel que soit le plan ; seul le garde-fou anti-abus
+// ci-dessus peut renvoyer 429 (identité = userID si connecté, sinon
+// fingerprint via l'en-tête X-Device-FP).
 //
 // Routage : mots isolés → LibreTranslate (instantané, gratuit) ; phrases →
 // Claude Haiku si configuré (qualité nettement supérieure, Argos pivotant
@@ -67,13 +74,12 @@ type Handler struct {
 	// RDB : cache partagé des traductions. nil = pas de cache. La clé est
 	// un hash SHA-256 (texte jamais stocké en clair côté clé), la valeur ne
 	// contient que la traduction dérivée — aucune identité utilisateur.
-	RDB   *redis.Client
+	RDB *redis.Client
+	// Quota : moteur du rate-limit anti-abus (Allow). nil = pas de limite (dev).
 	Quota *quota.Engine
 	// ResolveUserID résout le cookie de session → userID (0 si anonyme).
-	// IsPremium dit si ce user a un abonnement actif. Tous deux optionnels :
-	// nil → comportement anonyme / non-premium.
+	// Optionnel : nil → identité par fingerprint seulement.
 	ResolveUserID func(r *http.Request) int64
-	IsPremium     func(ctx context.Context, userID int64) bool
 	// Tracker : event translate_used (funnel). Optionnel, nil-safe.
 	Tracker *analytics.Tracker
 }
@@ -117,26 +123,24 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.ResolveUserID != nil {
 		userID = h.ResolveUserID(r)
 	}
-	premium := userID > 0 && h.IsPremium != nil && h.IsPremium(r.Context(), userID)
 	quotaID := quota.Identity(userID, strings.TrimSpace(r.Header.Get("X-Device-FP")))
 
-	// Cache : un hit répond immédiatement SANS consommer de crédit ni
-	// mobiliser l'upstream — c'est tout l'intérêt.
+	// Cache : un hit répond immédiatement sans mobiliser l'upstream — il
+	// échappe aussi au rate-limit (coût quasi nul, autant servir).
 	key := cacheKey(body.Text, body.Source, body.Target)
 	if cached, ok := h.cacheGet(r.Context(), key); ok {
-		h.respond(w, r, cached, premium, quotaID, false)
+		h.respond(w, cached)
 		h.track(r, userID, body.Source, body.Target)
 		return
 	}
 
-	// Quota : on bloque AVANT l'appel upstream si la limite est atteinte, et on
-	// ne décompte un crédit qu'en cas de succès (pas sur un 502 LibreTranslate).
-	if !premium && h.Quota != nil && quotaID != "" {
-		if used, err := h.Quota.Used(r.Context(), quota.KindTranslate, quotaID); err == nil &&
-			used >= quota.FreeTranslateDaily {
+	// Garde-fou anti-abus AVANT l'appel upstream (cf. burstLimit). Fail-open
+	// sur erreur Redis — Allow s'en charge.
+	if h.Quota != nil && quotaID != "" {
+		if ok, _ := h.Quota.Allow(r.Context(), "translate_burst", quotaID, burstLimit, burstWindow); !ok {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]string{"code": "quota_exceeded"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"code": "rate_limited"})
 			return
 		}
 	}
@@ -158,7 +162,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.cacheSet(r.Context(), key, result)
-	h.respond(w, r, result, premium, quotaID, true)
+	h.respond(w, result)
 	h.track(r, userID, body.Source, body.Target)
 }
 
@@ -193,31 +197,11 @@ func (h *Handler) translateLT(ctx context.Context, text, source, target string) 
 	return res, nil
 }
 
-// respond décompte le crédit si `consume` (jamais sur un hit cache) et
-// sérialise la réponse avec le compteur restant.
-func (h *Handler) respond(w http.ResponseWriter, r *http.Request, result Result, premium bool, quotaID string, consume bool) {
-	remaining := int64(-1)
-	if !premium && h.Quota != nil && quotaID != "" {
-		var used int64
-		if consume {
-			// max=0 : simple incrément, le plafond a déjà été vérifié au
-			// pré-check. Le restant renvoyé alimente le compteur du popover.
-			used, _ = h.Quota.CheckAndIncrement(r.Context(), quota.KindTranslate, quotaID, 0)
-		} else {
-			used, _ = h.Quota.Used(r.Context(), quota.KindTranslate, quotaID)
-		}
-		remaining = quota.FreeTranslateDaily - used
-		if remaining < 0 {
-			remaining = 0
-		}
-	}
+func (h *Handler) respond(w http.ResponseWriter, result Result) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(translateResp{
-		Translated:   result.Translated,
-		Detected:     result.Detected,
-		Romanization: result.Romanization,
-		Remaining:    remaining,
-	})
+	// Conversion directe : Result et translateResp partagent les mêmes
+	// champs, seuls les tags JSON diffèrent.
+	_ = json.NewEncoder(w).Encode(translateResp(result))
 }
 
 // isPhrase : heuristique de routage vers le traducteur IA. Le texte arrive

@@ -54,16 +54,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	id := Identity(userID, fp)
 
 	resp := stateDTO{Plan: "free"}
+	unlimited := usageDTO{Limit: 0, Remaining: -1}
+	// Traductions illimitées pour tous les plans (choix produit) — le champ
+	// reste dans la réponse pour les clients existants.
+	resp.Translate = unlimited
 	if premium {
 		resp.Plan = "premium"
-		unlimited := usageDTO{Limit: 0, Remaining: -1}
 		resp.Bot = unlimited
 		resp.Swipe = unlimited
-		resp.Translate = unlimited
 	} else {
 		resp.Bot = h.usageFor(r.Context(), KindBot, id, FreeBotDaily)
 		resp.Swipe = h.usageFor(r.Context(), KindNext, id, FreeNextDaily)
-		resp.Translate = h.usageFor(r.Context(), KindTranslate, id, FreeTranslateDaily)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

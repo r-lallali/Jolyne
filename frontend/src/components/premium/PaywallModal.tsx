@@ -44,13 +44,11 @@ export function PaywallModal() {
   }, [open, hide]);
 
   const reason =
-    source === "translate"
-      ? t.premium.reasonTranslate
-      : source === "bot"
-        ? t.premium.reasonBot
-        : source === "scenario"
-          ? t.premium.reasonScenario
-          : t.premium.reasonSwipe;
+    source === "bot"
+      ? t.premium.reasonBot
+      : source === "scenario"
+        ? t.premium.reasonScenario
+        : t.premium.reasonSwipe;
 
   const upgrade = async () => {
     setLoading(true);

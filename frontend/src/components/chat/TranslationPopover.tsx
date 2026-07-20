@@ -3,12 +3,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
-import {
-  translateText,
-  TranslateError,
-  TranslateQuotaError,
-} from "@/lib/translate";
-import { usePaywallStore } from "@/stores/paywallStore";
+import { translateText, TranslateError } from "@/lib/translate";
 import { useUserStore } from "@/stores/userStore";
 import { speak, speechSupported } from "@/lib/speech";
 import { saveVocab } from "@/lib/vocab";
@@ -34,10 +29,8 @@ type State =
       translated: string;
       detected?: string;
       romanization?: string;
-      remaining: number;
     }
-  | { kind: "err"; message: string }
-  | { kind: "limit" };
+  | { kind: "err"; message: string };
 
 // Petit tooltip flottant premium ancré à la sélection.
 // Traduit AUTOMATIQUEMENT le texte au chargement ou changement de requête.
@@ -49,7 +42,6 @@ export function TranslationPopover({ request, onClose }: Props) {
     "idle" | "saving" | "saved" | "error"
   >("idle");
   const t = useT();
-  const showPaywall = usePaywallStore((s) => s.show);
   const user = useUserStore((s) => s.user);
 
   // Fermeture sur clic extérieur ou Escape.
@@ -83,22 +75,23 @@ export function TranslationPopover({ request, onClose }: Props) {
 
     const performTranslation = async () => {
       try {
-        const { translated, detected, romanization, remaining } =
-          await translateText(request.text, request.source, request.target);
+        const { translated, detected, romanization } = await translateText(
+          request.text,
+          request.source,
+          request.target,
+        );
         if (active) {
-          setState({ kind: "ok", translated, detected, romanization, remaining });
+          setState({ kind: "ok", translated, detected, romanization });
         }
       } catch (e) {
         if (!active) return;
-        if (e instanceof TranslateQuotaError) {
-          setState({ kind: "limit" });
-        } else {
-          const msg =
-            e instanceof TranslateError
-              ? t.translate.unavailable
-              : t.translate.genericError;
-          setState({ kind: "err", message: msg });
-        }
+        // 429 anti-abus inclus : erreur transitoire, pas de paywall — les
+        // traductions sont illimitées pour tous les plans.
+        const msg =
+          e instanceof TranslateError
+            ? t.translate.unavailable
+            : t.translate.genericError;
+        setState({ kind: "err", message: msg });
       }
     };
 
@@ -250,11 +243,6 @@ export function TranslationPopover({ request, onClose }: Props) {
             <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-neutral-900 dark:text-neutral-50">
               {state.translated}
             </p>
-            {state.remaining >= 0 && (
-              <p className="mt-2 text-[10px] text-neutral-400 dark:text-neutral-500">
-                {t.translate.remaining({ count: state.remaining })}
-              </p>
-            )}
             {user && (
               <button
                 type="button"
@@ -303,24 +291,6 @@ export function TranslationPopover({ request, onClose }: Props) {
                 )}
               </button>
             )}
-          </div>
-        )}
-
-        {state.kind === "limit" && (
-          <div className="flex flex-col gap-2 py-0.5">
-            <p className="font-medium text-neutral-700 dark:text-neutral-300">
-              {t.translate.limitReached}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                showPaywall("translate");
-                onClose();
-              }}
-              className="w-full rounded-lg bg-neutral-900 px-3 py-1.5 text-[11px] font-semibold text-neutral-50 transition-opacity hover:opacity-90 dark:bg-neutral-50 dark:text-neutral-900"
-            >
-              {t.translate.limitCta}
-            </button>
           </div>
         )}
 

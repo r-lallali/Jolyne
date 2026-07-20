@@ -146,9 +146,6 @@ export interface Messages {
     loading: string;
     unavailable: string;
     genericError: string;
-    limitReached: string; // quota quotidien atteint
-    limitCta: string; // bouton "Premium" dans le popover
-    remaining: FormatString<{ count: number }>; // compteur traductions restantes
     listen: string; // bouton 🔊 : prononcer le texte original (TTS)
     auto: string; // toggle mode immersion (traduction auto des messages)
   };
@@ -544,7 +541,6 @@ export interface Messages {
     // Modale paywall
     sheetTitle: string;
     reasonSwipe: string;
-    reasonTranslate: string;
     reasonBot: string;
     reasonScenario: string; // scénario roleplay verrouillé hors Premium
     upgradeCta: string;
@@ -575,7 +571,6 @@ export interface Messages {
     // Avantages Free → Premium (PlanComparison)
     planPremium: string;
     featurePartners: string;
-    featureTranslations: string;
     featureScenarios: string;
     featureHearts: string;
     featureBot: string;
