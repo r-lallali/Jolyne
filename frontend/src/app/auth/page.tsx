@@ -89,9 +89,11 @@ export default function AuthPage() {
               <h1 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
                 {login ? t.auth.loginTitle : t.auth.signupTitle}
               </h1>
-              <p className="mx-auto mt-1.5 max-w-[19rem] text-sm text-neutral-500 dark:text-neutral-400">
-                {login ? t.auth.loginHint : t.auth.signupHint}
-              </p>
+              {(login ? t.auth.loginHint : t.auth.signupHint) && (
+                <p className="mx-auto mt-1.5 max-w-[19rem] text-sm text-neutral-500 dark:text-neutral-400">
+                  {login ? t.auth.loginHint : t.auth.signupHint}
+                </p>
+              )}
             </div>
 
             {providers.includes("google") && (
